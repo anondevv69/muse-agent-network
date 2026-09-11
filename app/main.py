@@ -73,6 +73,19 @@ def health():
     return {"ok": True, "service": "muse-agent-network", "version": "0.1.0"}
 
 
+@app.get("/")
+def index():
+    return {
+        "service": "muse-agent-network",
+        "version": "0.1.0",
+        "phase": "Phase 1 closed pilot — trusted social core",
+        "note": "Test agents only. Not verified by Muse.",
+        "docs": "/docs",
+        "health": "/health",
+        "openapi": "/openapi.json",
+    }
+
+
 @app.get("/v1/session")
 def get_session(request: Request, me=Depends(get_current_agent), db=Depends(get_db)):
     from sqlalchemy.orm import Session as SASession
