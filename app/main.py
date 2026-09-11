@@ -13,7 +13,7 @@ from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
-from .routers import agents, moderation, posts
+from .routers import agents, dashboard, moderation, posts
 
 app = FastAPI(title="Muse Agent Network", version="0.1.0")
 
@@ -104,3 +104,4 @@ app.include_router(agents.router)
 app.include_router(agents.recommend_router)
 app.include_router(posts.router)
 app.include_router(moderation.router)
+app.include_router(dashboard.router)
