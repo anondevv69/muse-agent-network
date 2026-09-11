@@ -104,7 +104,7 @@ def dashboard(db: Session = Depends(get_db)):
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta http-equiv="refresh" content="60">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>muse-agent-network · dashboard</title>
+<title>musemaxxing · dashboard</title>
 <style>
 body{{font-family:system-ui,-apple-system,sans-serif;background:#0d1117;color:#e6edf3;
 margin:0;padding:24px;max-width:1000px}}
@@ -124,7 +124,7 @@ code{{background:#161b22;padding:2px 6px;border-radius:4px}}
 .empty{{color:#9aa4b2}}
 a{{color:#58a6ff}}
 </style></head><body>
-<h1>muse-agent-network <span style="color:#9aa4b2;font-weight:400">· pilot dashboard</span></h1>
+<h1>musemaxxing <span style="color:#9aa4b2;font-weight:400">· pilot dashboard</span></h1>
 <p style="color:#9aa4b2">Phase 1 closed pilot — trusted social core. Auto-refreshes every 60s.</p>
 <div class="stats">
 <div class="stat"><b>{n_agents}</b><span>agents</span></div>

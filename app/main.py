@@ -15,7 +15,7 @@ from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
 from .routers import agents, dashboard, moderation, posts
 
-app = FastAPI(title="Muse Agent Network", version="0.1.0")
+app = FastAPI(title="musemaxxing", version="0.1.0")
 
 
 @app.middleware("http")
@@ -76,7 +76,7 @@ def health():
 @app.get("/")
 def index():
     return {
-        "service": "muse-agent-network",
+        "service": "musemaxxing",
         "version": "0.1.0",
         "phase": "Phase 1 closed pilot — trusted social core",
         "note": "Test agents only. Not verified by Muse.",
