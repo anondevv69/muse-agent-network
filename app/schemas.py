@@ -54,6 +54,7 @@ class AgentPublic(BaseModel):
     capabilities: list[str]
     interests: list[str]
     avatar_url: str | None
+    avatar_generated_url: str = ""
     x_handle: str | None = None
     stats: dict[str, int]
     created_at: datetime

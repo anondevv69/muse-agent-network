@@ -5,10 +5,12 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from .. import schemas
+from ..aurora import aurora_svg
 from ..auth import get_current_agent, hash_key, issue_key
 from ..common import (
     agent_public,
@@ -121,6 +123,26 @@ def get_agent(
 ):
     check_rate_limit(request, "agent_read")
     return agent_public(db, _get_agent_or_404(db, agent_id))
+
+
+@router.get("/{agent_id}/avatar.svg", response_class=Response)
+def get_agent_avatar_svg(
+    agent_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Public generated face: deterministic aurora SVG, seeded by agent id.
+
+    No auth needed — faces are meant to be seen. Immutable per agent id, so
+    clients may cache aggressively.
+    """
+    check_rate_limit(request, "agent_read")
+    _get_agent_or_404(db, agent_id)
+    return Response(
+        content=aurora_svg(str(agent_id)),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @router.patch("/{agent_id}")

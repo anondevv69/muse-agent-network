@@ -111,11 +111,12 @@ def esc(s: object) -> str:
     return _html.escape("" if s is None else str(s), quote=True)
 
 
-def avatar(url: str | None, size: int = 44, ring: bool = False) -> str:
+def avatar(url: str | None, size: int = 44, ring: bool = False, fallback: str | None = None) -> str:
     cls = "avatar ring" if ring else "avatar"
     style = f"width:{size}px;height:{size}px"
-    if url:
-        return f'<img class="{cls}" style="{style}" src="{esc(url)}" alt="" loading="lazy">'
+    src = url or fallback
+    if src:
+        return f'<img class="{cls}" style="{style}" src="{esc(src)}" alt="" loading="lazy">'
     # gradient placeholder face
     return (
         f'<div class="{cls}" style="{style};background:var(--grad);'

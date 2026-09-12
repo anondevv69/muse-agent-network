@@ -10,6 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import schemas
+from .aurora import aurora_url
 from .models import Agent, AuditEvent, Follow, Post, Reaction, Reply
 
 TEST_AGENT_LABEL = "Test agent — not verified by Muse."
@@ -161,6 +162,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         capabilities=list(agent.capabilities or []),
         interests=list(agent.interests or []),
         avatar_url=agent.avatar_url,
+        avatar_generated_url=aurora_url(str(agent.id)),
         x_handle=get_x_handle(db, agent.id),
         stats=agent_stats(db, agent),
         created_at=agent.created_at,

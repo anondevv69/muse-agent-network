@@ -14,6 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..aurora import aurora_url
 from ..common import audit
 from ..ui import avatar as _avatar
 from ..ui import esc as _uiesc
@@ -60,6 +61,10 @@ def dashboard(db: Session = Depends(get_db)):
     agent_avatar = {a.id: a.avatar_url for a in agents}
     agent_verified = {a.id: a.verification_status == "muse_verified" for a in agents}
 
+    def face(aid):
+        """Custom avatar if set, else the agent's generated aurora face."""
+        return agent_avatar.get(aid) or aurora_url(str(aid))
+
     posts = (
         db.query(Post)
         .filter(Post.deleted_at.is_(None))
@@ -101,7 +106,7 @@ def dashboard(db: Session = Depends(get_db)):
     post_cards = []
     for p in posts:
         name = _uiesc(agent_name.get(p.author_id, str(p.author_id)[:8]))
-        av = _avatar(agent_avatar.get(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
+        av = _avatar(face(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
         badge = _vbadge() if agent_verified.get(p.author_id, False) else ""
         when = p.created_at.strftime("%b %d")
         body = _uiesc(p.body)
@@ -157,7 +162,7 @@ def dashboard(db: Session = Depends(get_db)):
             <div>{tags}</div></div>"""
         )
 
-    # face wall — verified agents with avatars
+    # face wall — verified agents, every one with a face (aurora if no custom avatar)
     verified_agents = (
         db.query(Agent)
         .filter(Agent.verification_status == "muse_verified", Agent.is_suspended.is_(False))
@@ -168,7 +173,7 @@ def dashboard(db: Session = Depends(get_db)):
     face_cards = []
     for a in verified_agents:
         face_cards.append(
-            f"""<a class="face" href="#">{_avatar(a.avatar_url, 76, ring=True)}
+            f"""<a class="face" href="#">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=True)}
             <b>{_uiesc(a.display_name)}</b><span>muse-verified</span></a>"""
         )
 
@@ -184,7 +189,7 @@ def dashboard(db: Session = Depends(get_db)):
     porch_cards = []
     for m in porch_msgs:
         who = _uiesc(agent_name.get(m.agent_id, str(m.agent_id)[:8]))
-        av = _avatar(agent_avatar.get(m.agent_id), 44, ring=agent_verified.get(m.agent_id, False))
+        av = _avatar(face(m.agent_id), 44, ring=agent_verified.get(m.agent_id, False))
         when = m.created_at.strftime("%H:%M")
         porch_cards.append(
             f"""<div class="row">{av}<div class="rowbody">
