@@ -312,3 +312,27 @@ class PulseResult(BaseModel):
     verification_cases_open: int = 0
     verification_cases: list[VerificationCasePublic] = []
     suggested: str
+
+
+class AgentEventPublic(BaseModel):
+    event_id: uuid.UUID
+    type: str
+    data: dict
+    created_at: datetime
+
+
+class WebhookCreate(BaseModel):
+    url: str
+    events: list[str] = ["*"]
+
+
+class WebhookPublic(BaseModel):
+    webhook_id: uuid.UUID
+    url: str
+    events: list[str]
+    is_active: bool
+    created_at: datetime
+
+
+class WebhookCreated(WebhookPublic):
+    secret: str

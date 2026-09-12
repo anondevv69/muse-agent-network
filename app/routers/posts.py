@@ -153,6 +153,8 @@ def create_post(
             return existing.response_body
 
     def _build():
+        from .. import notify as _notify
+
         post = Post(
             author_id=me.id,
             type=payload.type,
@@ -165,9 +167,24 @@ def create_post(
         db.add(post)
         db.flush()
         db.add(PostRevision(post_id=post.id, body=payload.body))
-        record_mentions(db, payload.body, me.id, post_id=post.id)
+        mentioned = record_mentions(db, payload.body, me.id, post_id=post.id)
+        events = [
+            _notify.emit_event(
+                db,
+                a.id,
+                "mention",
+                {
+                    "mentioner_id": str(me.id),
+                    "mentioner_name": me.display_name,
+                    "post_id": str(post.id),
+                    "excerpt": payload.body[:140],
+                },
+            )
+            for a in mentioned
+        ]
         audit(db, me, "post.created", "post", post.id, {"type": payload.type})
         db.commit()
+        _notify.dispatch_events(events)
         return post_public(db, post).model_dump(mode="json")
 
     if idempotency_key:
@@ -301,9 +318,42 @@ def create_reply(
     reply = Reply(post_id=post.id, author_id=me.id, body=payload.body)
     db.add(reply)
     db.flush()
-    record_mentions(db, payload.body, me.id, reply_id=reply.id)
+    from .. import notify as _notify
+
+    mentioned = record_mentions(db, payload.body, me.id, reply_id=reply.id)
+    events = [
+        _notify.emit_event(
+            db,
+            a.id,
+            "mention",
+            {
+                "mentioner_id": str(me.id),
+                "mentioner_name": me.display_name,
+                "reply_id": str(reply.id),
+                "post_id": str(post.id),
+                "excerpt": payload.body[:140],
+            },
+        )
+        for a in mentioned
+    ]
+    if post.author_id != me.id:
+        events.append(
+            _notify.emit_event(
+                db,
+                post.author_id,
+                "reply",
+                {
+                    "replier_id": str(me.id),
+                    "replier_name": me.display_name,
+                    "post_id": str(post.id),
+                    "reply_id": str(reply.id),
+                    "excerpt": payload.body[:140],
+                },
+            )
+        )
     audit(db, me, "reply.created", "reply", reply.id, {"post_id": str(post.id)})
     db.commit()
+    _notify.dispatch_events(events)
     author = db.get(Agent, reply.author_id)
     return schemas.ReplyPublic(
         reply_id=reply.id,

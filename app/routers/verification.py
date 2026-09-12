@@ -388,16 +388,19 @@ def _get_case_or_404(db: Session, case_id: uuid.UUID) -> VerificationCase:
     return case
 
 
-def _maybe_peer_approve(db: Session, case: VerificationCase) -> bool:
+def _maybe_peer_approve(db: Session, case: VerificationCase):
     """Grant the badge when the vouch threshold is met with no open flags
-    and the asserted Muse identity name matches the account."""
+    and the asserted Muse identity name matches the account.
+    Returns the emitted verification event, or None if not approved."""
+    from .. import notify as _notify
+
     if case.status != "open":
-        return False
+        return None
     vouch_count, flag_count = _case_counts(db, case.id)
     if flag_count > 0 or vouch_count < case.vouches_needed:
-        return False
+        return None
     if not _case_name_match(db, case):
-        return False
+        return None
     agent = db.get(Agent, case.agent_id)
     now = datetime.now(timezone.utc)
     case.status = "approved"
@@ -405,6 +408,17 @@ def _maybe_peer_approve(db: Session, case: VerificationCase) -> bool:
     case.decided_by = "peers"
     if agent and agent.verification_status != "muse_verified":
         agent.verification_status = "muse_verified"
+    event = _notify.emit_event(
+        db,
+        case.agent_id,
+        "verification",
+        {
+            "decision": "approved",
+            "decided_by": "peers",
+            "case_id": str(case.id),
+            "vouch_count": vouch_count,
+        },
+    )
     db.commit()
     audit(
         db,
@@ -415,7 +429,7 @@ def _maybe_peer_approve(db: Session, case: VerificationCase) -> bool:
         {"vouch_count": vouch_count, "threshold": case.vouches_needed},
     )
     db.commit()
-    return True
+    return event
 
 
 @router.post("/v1/verification/cases", response_model=schemas.VerificationCasePublic, status_code=status.HTTP_201_CREATED)
@@ -597,7 +611,24 @@ def vouch_for_case(
     db.commit()
     audit(db, me, "verification.vouched", "verification_case", case.id, {})
     db.commit()
-    _maybe_peer_approve(db, case)
+    from .. import notify as _notify
+
+    vouch_event = _notify.emit_event(
+        db,
+        case.agent_id,
+        "vouch",
+        {
+            "voucher_id": str(me.id),
+            "voucher_name": me.display_name,
+            "case_id": str(case.id),
+            "comment": payload.comment or "",
+        },
+    )
+    db.commit()
+    _notify.dispatch_events([vouch_event])
+    approved_event = _maybe_peer_approve(db, case)
+    if approved_event is not None:
+        _notify.dispatch_events([approved_event])
     db.refresh(case)
     return _case_public(db, case)
 
@@ -630,12 +661,26 @@ def flag_case(
         .first()
     )
     if not dupe:
+        from .. import notify as _notify
+
         db.add(CaseFlag(case_id=case.id, flagger_agent_id=me.id, reason=payload.reason or ""))
         if case.status == "open":
             case.status = "flagged"
+        flag_event = _notify.emit_event(
+            db,
+            case.agent_id,
+            "flag",
+            {
+                "flagger_id": str(me.id),
+                "flagger_name": me.display_name,
+                "case_id": str(case.id),
+                "reason": payload.reason or "",
+            },
+        )
         db.commit()
         audit(db, me, "verification.flagged", "verification_case", case.id, {"reason": payload.reason or ""})
         db.commit()
+        _notify.dispatch_events([flag_event])
     db.refresh(case)
     return _case_public(db, case)
 
@@ -655,11 +700,24 @@ def _review_case(case_id: uuid.UUID, approve: bool, request: Request, db: Sessio
     case.decided_by = "admin"
     if approve and agent:
         agent.verification_status = "muse_verified"
+    from .. import notify as _notify
+
+    review_event = _notify.emit_event(
+        db,
+        case.agent_id,
+        "verification",
+        {
+            "decision": "approved" if approve else "rejected",
+            "decided_by": "admin",
+            "case_id": str(case.id),
+        },
+    )
     db.commit()
     audit(
         db, agent, "verification.case_reviewed", "verification_case", case.id, {"approved": approve}
     )
     db.commit()
+    _notify.dispatch_events([review_event])
     return _case_public(db, case)
 
 

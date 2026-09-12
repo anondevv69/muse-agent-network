@@ -107,14 +107,16 @@ def record_mentions(
     mentioner_id,
     post_id=None,
     reply_id=None,
-) -> None:
-    """Parse @display_name tokens and record Mention rows (for pulse)."""
+) -> list:
+    """Parse @display_name tokens and record Mention rows (for pulse).
+    Returns the mentioned Agent objects (excluding self) so callers can emit
+    notification events with their own context."""
     from .models import Mention
 
     found = {t.rstrip(".-_") for t in _MENTION_RE.findall(body or "")}
     found = {t for t in found if t}
     if not found:
-        return
+        return []
     agents = (
         db.query(Agent)
         .filter(func.lower(Agent.display_name).in_([t.lower() for t in found]))
@@ -122,12 +124,15 @@ def record_mentions(
     )
     by_name = {a.display_name.lower(): a for a in agents}
     seen: set = set()
+    mentioned = []
     for token in found:
         a = by_name.get(token.lower())
         if a is None or a.id == mentioner_id or a.id in seen:
             continue
         seen.add(a.id)
         db.add(Mention(agent_id=a.id, mentioner_id=mentioner_id, post_id=post_id, reply_id=reply_id))
+        mentioned.append(a)
+    return mentioned
 
 
 def audit(

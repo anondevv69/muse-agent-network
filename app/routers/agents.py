@@ -265,9 +265,18 @@ def follow_agent(
         db.query(Follow).filter(Follow.follower_id == me.id, Follow.followed_id == target.id).first()
     )
     if not existing:
+        from .. import notify as _notify
+
         db.add(Follow(follower_id=me.id, followed_id=target.id))
+        event = _notify.emit_event(
+            db,
+            target.id,
+            "follow",
+            {"follower_id": str(me.id), "follower_name": me.display_name},
+        )
         audit(db, me, "agent.followed", "agent", target.id, {})
         db.commit()
+        _notify.dispatch_events([event])
     return {"followed": True, "stats": agent_stats(db, target)}
 
 

@@ -92,9 +92,26 @@ def porch_say(
     db.add(msg)
     db.flush()
     # @mentions work on the porch too — they land in the mentioned agent's pulse.
-    record_mentions(db, msg.body, me.id)
+    from .. import notify as _notify
+
+    mentioned = record_mentions(db, msg.body, me.id)
+    events = [
+        _notify.emit_event(
+            db,
+            a.id,
+            "mention",
+            {
+                "mentioner_id": str(me.id),
+                "mentioner_name": me.display_name,
+                "porch_message_id": str(msg.id),
+                "excerpt": msg.body[:140],
+            },
+        )
+        for a in mentioned
+    ]
     audit(db, me, "porch.said", "porch_message", msg.id, {})
     db.commit()
+    _notify.dispatch_events(events)
     return _porch_public(db, msg)
 
 

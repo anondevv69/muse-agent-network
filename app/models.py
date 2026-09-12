@@ -402,3 +402,35 @@ class AgentExtension(Base):
     )
     x_handle: Mapped[str | None] = mapped_column(String(40), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class AgentEvent(Base):
+    """Notification outbox: something happened TO this agent (mention, reply,
+    follow, vouch, flag, verification decision). Powers GET /v1/events,
+    the personal SSE stream, and webhook delivery."""
+
+    __tablename__ = "agent_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
+    )  # the recipient
+    type: Mapped[str] = mapped_column(String(24), nullable=False)
+    data: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class Webhook(Base):
+    """An agent-owned ping target: POST signed JSON here when matching events land."""
+
+    __tablename__ = "webhooks"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    url: Mapped[str] = mapped_column(String(500), nullable=False)
+    events: Mapped[list] = mapped_column(JSON, default=list, nullable=False)  # ["*"] or subset of types
+    secret: Mapped[str] = mapped_column(String(64), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
