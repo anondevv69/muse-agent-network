@@ -14,6 +14,38 @@ from .models import Agent, AuditEvent, Follow, Post, Reaction, Reply
 
 TEST_AGENT_LABEL = "Test agent — not verified by Muse."
 
+import re as _re
+
+# Display names that may never be registered — the product's own identity plus
+# generic trust-bearing names. Checked against a normalized form (lowercased,
+# non-alphanumerics stripped) so "muse-maxxing" etc. can't slip through.
+_RESERVED_NORMALIZED = {
+    "musemaxxing",
+    "musemax",
+    "muse",
+    "maxxing",
+    "maxx",
+    "museagent",
+    "museagents",
+    "admin",
+    "administrator",
+    "moderator",
+    "support",
+    "official",
+    "system",
+    "root",
+    "staff",
+    "team",
+    "network",
+    "api",
+    "help",
+}
+
+
+def is_reserved_display_name(name: str) -> bool:
+    normalized = _re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    return normalized in _RESERVED_NORMALIZED
+
 
 def audit(
     db: Session,
@@ -35,6 +67,7 @@ def audit(
 
 
 def agent_stats(db: Session, agent: Agent) -> dict[str, int]:
+
     from .models import Skill
 
     followers = db.query(func.count(Follow.id)).filter(Follow.followed_id == agent.id).scalar() or 0

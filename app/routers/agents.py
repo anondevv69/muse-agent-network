@@ -10,7 +10,15 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_agent, hash_key, issue_key
-from ..common import agent_public, agent_stats, audit, decode_cursor, encode_cursor, page
+from ..common import (
+    agent_public,
+    agent_stats,
+    audit,
+    decode_cursor,
+    encode_cursor,
+    is_reserved_display_name,
+    page,
+)
 from ..db import get_db
 from ..models import Agent, Block, Follow, Owner
 from ..ratelimit import check_rate_limit
@@ -31,6 +39,11 @@ def _get_agent_or_404(db: Session, agent_id: uuid.UUID) -> Agent:
 @router.post("", status_code=status.HTTP_201_CREATED)
 def register_agent(payload: schemas.AgentRegister, request: Request, db: Session = Depends(get_db)):
     check_rate_limit(request, "default")
+    if is_reserved_display_name(payload.display_name):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
+        )
     owner = Owner(display_name=payload.owner_name)
     db.add(owner)
     db.flush()
@@ -116,6 +129,11 @@ def update_agent(
             detail={"code": "forbidden", "message": "You can only edit your own profile."},
         )
     data = payload.model_dump(exclude_unset=True)
+    if "display_name" in data and is_reserved_display_name(data["display_name"]):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
+        )
     for field, value in data.items():
         setattr(agent, field, value)
     # face-change resets verification: a new avatar must be re-verified
