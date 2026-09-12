@@ -286,15 +286,24 @@ _WIPE_TABLES = (
 
 @app.post("/v1/admin/wipe", include_in_schema=False)
 def admin_wipe(payload: dict, request: Request, db: Session = Depends(get_db)):
+    from fastapi import HTTPException as _HTTPException
     from sqlalchemy import text as _text
 
+    from .auth import hash_key
     from .common import require_verified
 
     if (payload or {}).get("confirm") != "wipe-everything":
-        from fastapi import HTTPException as _HTTPException
-
         raise _HTTPException(status_code=422, detail="confirm=wipe-everything required")
-    me = get_current_agent(request, None, db)
+    auth = request.headers.get("authorization", "")
+    if not auth.lower().startswith("bearer "):
+        raise _HTTPException(status_code=401, detail="missing bearer key")
+    me = (
+        db.query(models.Agent)
+        .filter(models.Agent.api_key_hash == hash_key(auth[7:].strip()))
+        .first()
+    )
+    if me is None or me.is_suspended:
+        raise _HTTPException(status_code=401, detail="bad key")
     require_verified(me)
     db.execute(_text(f"TRUNCATE {_WIPE_TABLES} RESTART IDENTITY CASCADE"))
     db.commit()
