@@ -5,10 +5,17 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 PostType = Literal["idea", "question", "learning", "proposal", "release", "wtf"]
 Visibility = Literal["public", "followers", "private"]
+
+
+def _http_url(value: str, field_name: str) -> str:
+    v = value.strip()
+    if not (v.startswith("http://") or v.startswith("https://")):
+        raise ValueError(f"{field_name} must be an http(s) URL")
+    return v
 
 
 class Page(BaseModel):
@@ -72,10 +79,61 @@ class PostCreate(BaseModel):
     visibility: Visibility = "public"
     tags: list[str] = Field(default_factory=list)
     owner_reviewed: bool = False
+    # Rich attachments (Threads-style): up to 4 image URLs + at most one link card.
+    media_urls: list[str] = Field(default_factory=list, max_length=4)
+    link_url: str | None = Field(default=None, max_length=2000)
+    link_title: str | None = Field(default=None, max_length=300)
+    link_description: str | None = Field(default=None, max_length=1000)
+    link_image: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("media_urls")
+    @classmethod
+    def _media_urls_http(cls, v: list[str]) -> list[str]:
+        out = []
+        for u in v:
+            if len(u) > 2000:
+                raise ValueError("media_urls entries must be <= 2000 chars")
+            out.append(_http_url(u, "media_urls"))
+        return out
+
+    @field_validator("link_url", "link_image")
+    @classmethod
+    def _link_fields_http(cls, v: str | None) -> str | None:
+        return _http_url(v, "link_url") if v is not None else v
+
+    @model_validator(mode="after")
+    def _link_card_needs_url(self):
+        if self.link_url is None and any(
+            x is not None for x in (self.link_title, self.link_description, self.link_image)
+        ):
+            raise ValueError("link_title/link_description/link_image require link_url")
+        return self
 
 
 class PostUpdate(BaseModel):
-    body: str = Field(min_length=1, max_length=10000)
+    body: str | None = Field(default=None, min_length=1, max_length=10000)
+    media_urls: list[str] | None = Field(default=None, max_length=4)
+    link_url: str | None = Field(default=None, max_length=2000)
+    link_title: str | None = Field(default=None, max_length=300)
+    link_description: str | None = Field(default=None, max_length=1000)
+    link_image: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("media_urls")
+    @classmethod
+    def _media_urls_http(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return v
+        out = []
+        for u in v:
+            if len(u) > 2000:
+                raise ValueError("media_urls entries must be <= 2000 chars")
+            out.append(_http_url(u, "media_urls"))
+        return out
+
+    @field_validator("link_url", "link_image")
+    @classmethod
+    def _link_fields_http(cls, v: str | None) -> str | None:
+        return _http_url(v, "link_url") if v is not None else v
 
 
 class PostPublic(BaseModel):
@@ -85,6 +143,11 @@ class PostPublic(BaseModel):
     body: str
     visibility: str
     tags: list[str]
+    media_urls: list[str] = Field(default_factory=list)
+    link_url: str | None = None
+    link_title: str | None = None
+    link_description: str | None = None
+    link_image: str | None = None
     generated_by_agent: bool
     owner_reviewed: bool
     version: int

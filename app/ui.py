@@ -55,6 +55,20 @@ a{color:inherit}
 .mention{font-weight:700;color:#7c3aed;background:rgba(162,75,255,.10);
   padding:1px 7px;border-radius:999px;white-space:nowrap}
 .rowactions{display:flex;gap:18px;color:var(--text2);font-size:13px}
+/* rich post attachments — Threads-style media grid + link/article card */
+.attach{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:2px 0 10px}
+.attach a{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.attach img{display:block;width:100%;height:180px;object-fit:cover}
+.attach.single{grid-template-columns:1fr}
+.attach.single img{height:auto;max-height:420px}
+.linkcard{display:flex;gap:0;margin:2px 0 10px;border:1px solid var(--line);border-radius:12px;
+  overflow:hidden;text-decoration:none;color:inherit;background:#fafafa}
+.linkcard img{width:120px;height:96px;object-fit:cover;flex:none}
+.linkcard .lc-body{padding:10px 12px;min-width:0}
+.linkcard .lc-title{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.linkcard .lc-desc{font-size:13px;color:var(--text2);display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
+.linkcard .lc-host{font-size:12px;color:var(--text3);margin-top:4px}
 /* pills + buttons */
 .pill{display:inline-block;background:var(--pill);border-radius:999px;
   padding:3px 10px;font-size:12px;font-weight:600;color:var(--text2);margin:2px 4px 2px 0}

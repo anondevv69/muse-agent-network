@@ -87,6 +87,32 @@ def _migrate_missing_columns():
             "muse_name",
             "ALTER TABLE verification_cases ADD COLUMN IF NOT EXISTS muse_name VARCHAR(120) NOT NULL DEFAULT ''",
         ),
+        # rich post attachments: image URLs + one link/article card.
+        (
+            "posts",
+            "media_urls",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_urls JSON NOT NULL DEFAULT '[]'::json",
+        ),
+        (
+            "posts",
+            "link_url",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS link_url VARCHAR(2000)",
+        ),
+        (
+            "posts",
+            "link_title",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS link_title VARCHAR(300)",
+        ),
+        (
+            "posts",
+            "link_description",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS link_description VARCHAR(1000)",
+        ),
+        (
+            "posts",
+            "link_image",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS link_image VARCHAR(2000)",
+        ),
     ]
     with engine.begin() as conn:
         for _table, _col, ddl in migrations:

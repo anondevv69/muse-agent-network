@@ -97,6 +97,12 @@ class Post(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     visibility: Mapped[str] = mapped_column(String(20), default="public", nullable=False)
     tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    # Rich attachments: image URLs (max 4) + one link/article card. URLs only, no uploads.
+    media_urls: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    link_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    link_title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    link_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    link_image: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     generated_by_agent: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     owner_reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     version: Mapped[int] = mapped_column(default=1, nullable=False)

@@ -161,6 +161,11 @@ def create_post(
             body=payload.body,
             visibility=payload.visibility,
             tags=payload.tags,
+            media_urls=payload.media_urls,
+            link_url=payload.link_url,
+            link_title=payload.link_title,
+            link_description=payload.link_description,
+            link_image=payload.link_image,
             generated_by_agent=True,
             owner_reviewed=payload.owner_reviewed,
         )
@@ -233,7 +238,19 @@ def update_post(
             detail={"code": "conflict", "message": "Post changed since you last read it."},
         )
     db.add(PostRevision(post_id=post.id, body=post.body))
-    post.body = payload.body
+    if payload.body is not None:
+        post.body = payload.body
+    provided = payload.model_fields_set
+    if "media_urls" in provided:
+        post.media_urls = payload.media_urls or []
+    for field in ("link_url", "link_title", "link_description", "link_image"):
+        if field in provided:
+            setattr(post, field, getattr(payload, field))
+    if "link_url" in provided and payload.link_url is None and any(
+        getattr(post, f) is not None for f in ("link_title", "link_description", "link_image")
+    ):
+        # clearing the card URL also clears its orphaned fields
+        post.link_title = post.link_description = post.link_image = None
     post.version += 1
     post.updated_at = datetime.now(timezone.utc)
     audit(db, me, "post.updated", "post", post.id, {"version": post.version})

@@ -7,6 +7,7 @@ from __future__ import annotations
 import html
 import os
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -113,17 +114,47 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     def reaction_count(pid):
         return db.query(func.count(Reaction.id)).filter(Reaction.post_id == pid).scalar() or 0
 
+    def _attach_html(p):
+        parts = []
+        media = list(getattr(p, "media_urls", None) or [])
+        if media:
+            cls = "attach single" if len(media) == 1 else "attach"
+            imgs = "".join(
+                f'<a href="{_uiesc(u)}" target="_blank" rel="noopener">'
+                f'<img src="{_uiesc(u)}" loading="lazy" alt=""></a>'
+                for u in media[:4]
+            )
+            parts.append(f'<div class="{cls}">{imgs}</div>')
+        link_url = getattr(p, "link_url", None)
+        if link_url:
+            host = urlparse(link_url).netloc
+            img = (
+                f'<img src="{_uiesc(p.link_image)}" loading="lazy" alt="">'
+                if getattr(p, "link_image", None)
+                else ""
+            )
+            title = _uiesc(p.link_title or link_url)
+            desc = _uiesc(p.link_description or "")
+            parts.append(
+                f'<a class="linkcard" href="{_uiesc(link_url)}" target="_blank" rel="noopener">{img}'
+                f'<div class="lc-body"><div class="lc-title">{title}</div>'
+                + (f'<div class="lc-desc">{desc}</div>' if desc else "")
+                + f'<div class="lc-host">{_uiesc(host)}</div></div></a>'
+            )
+        return "".join(parts)
+
     def post_card(p):
         name = _uiesc(agent_name.get(p.author_id, str(p.author_id)[:8]))
         av = _avatar(face(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
         badge = _vbadge() if agent_verified.get(p.author_id, False) else ""
         when = p.created_at.strftime("%b %d")
         body = _mentions(p.body)
+        attach = _attach_html(p)
         typepill = '<span class="pill">wtf</span>' if p.type == "wtf" else ""
         return (
             f"""<div class="row" data-ptype="{_esc(p.type)}">{av}<div class="rowbody">
             <div class="rowhead"><b>{name}</b>{badge}<span class="time">{when}</span></div>
-            <div class="rowtext">{body}</div>
+            <div class="rowtext">{body}</div>{attach}
             <div class="rowactions"><span>{reply_count(p.id)} replies</span><span>{reaction_count(p.id)} reactions</span>{typepill}</div>
             </div></div>"""
         )
