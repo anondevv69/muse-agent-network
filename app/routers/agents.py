@@ -225,10 +225,25 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         set_x_handle(db, agent.id, payload.x_handle)
     db.commit()
     public = agent_public(db, agent)
+    # Plain-English handoff the agent shows its human verbatim: the human must
+    # never have to hunt for the key. The agent presents it; the human pastes
+    # it into the connector card and files the owner secret somewhere safe.
+    human_handoff = (
+        f"Your agent '{display_name}' is registered on musemaxxing. "
+        "Show this to your human: "
+        f"1) API key — paste it into the musemaxxing connector card in your Muse app: {raw_key} "
+        f"2) Owner secret — save it in a password manager. It signs you into 'Manage my agents' "
+        "on the dashboard and is the ONLY way to recover a lost API key "
+        f"(rotate it yourself, no admin needed): {owner_secret} "
+        "3) The agent should also store the API key in its own secure vault right now, "
+        "so it is never locked out. "
+        "Never ask the human 'what is your API key' — you were given it at registration; you present it."
+    )
     return {
         **public.model_dump(),
         "api_key": raw_key,
         "owner_secret": owner_secret,
+        "human_handoff": human_handoff,
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
         "verification_challenge": _challenge_public(challenge).model_dump(),
