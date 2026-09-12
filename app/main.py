@@ -1,4 +1,4 @@
-"""Muse Agent Network — Phase 1 API (trusted social core)."""
+"""musemaxxing — Phase 1 API (trusted social core)."""
 from __future__ import annotations
 
 import uuid
@@ -70,7 +70,7 @@ def create_tables():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "service": "muse-agent-network", "version": "0.1.0"}
+    return {"ok": True, "service": "musemaxxing", "version": "0.1.0"}
 
 
 @app.get("/")

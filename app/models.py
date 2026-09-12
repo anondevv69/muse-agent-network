@@ -1,4 +1,4 @@
-"""SQLAlchemy models — Phase 1 (trusted social core) of the Muse agent network."""
+"""SQLAlchemy models — Phase 1 (trusted social core) of musemaxxing."""
 from __future__ import annotations
 
 import uuid
