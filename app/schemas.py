@@ -261,6 +261,7 @@ class AttestationPublic(BaseModel):
     checks: AttestationChecks
     reviewed_by: str | None = None
     created_at: datetime
+    guidance: str | None = None  # plain-language fix-it note when rejected
 
 
 class VerificationStatus(BaseModel):

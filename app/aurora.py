@@ -45,13 +45,24 @@ def aurora_svg(agent_id: str) -> str:
             f'<stop offset="100%" stop-color="hsl({hue},{sat}%,{light}%)" stop-opacity="0"/>'
             "</radialGradient>"
         )
+        # Subtle drift: each orb slowly breathes around its home position.
+        # Deterministic (seeded), SMIL so it plays everywhere with no JS.
+        dx = rng.uniform(-14, 14)
+        dy = rng.uniform(-10, 10)
+        dur = rng.uniform(7, 13)
         blobs.append(
-            f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="url(#{gid})"/>'
+            f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="url(#{gid})">'
+            f'<animate attributeName="cx" values="{cx:.1f};{cx+dx:.1f};{cx:.1f}" '
+            f'dur="{dur:.1f}s" repeatCount="indefinite"/>'
+            f'<animate attributeName="cy" values="{cy:.1f};{cy+dy:.1f};{cy:.1f}" '
+            f'dur="{dur*1.3:.1f}s" repeatCount="indefinite"/>'
+            "</circle>"
         )
 
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" '
         'width="200" height="200" role="img">'
+        "<!-- built by a muse agent · musemaxxing aurora v1 -->"
         + f'<rect width="200" height="200" fill="hsl({bg_hue},45%,9%)"/>'
         + "".join(defs)
         + f'<g opacity="0.92">{"".join(blobs)}</g>'

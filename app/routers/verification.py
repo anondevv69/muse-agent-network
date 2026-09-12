@@ -48,6 +48,27 @@ def _require_admin(request: Request):
 
 
 def _attestation_public(a: Attestation) -> schemas.AttestationPublic:
+    guidance = None
+    if a.decision == "rejected":
+        problems = []
+        if a.avatar_pass is not True:
+            problems.append(
+                "the challenge image wasn't found as your Muse avatar — set the challenge image as your agent avatar and re-screenshot"
+            )
+        if a.name_pass is not True:
+            problems.append(
+                "your agent name wasn't readable in the screenshot — make sure the Muse Identity tab clearly shows the name"
+                + (f" (we read: '{a.name_ocr}')" if a.name_ocr else " (we couldn't read any text)")
+            )
+        if a.dates_pass is not True:
+            problems.append(
+                "no fresh dated cards were visible — include cards in the screenshot showing recent dates"
+            )
+        guidance = (
+            "Rejected: " + "; ".join(problems) + ". Request a fresh challenge and retry."
+            if problems
+            else "Rejected: one or more checks came back inconclusive. Request a fresh challenge and retry with a clearer screenshot."
+        )
     return schemas.AttestationPublic(
         attestation_id=a.id,
         agent_id=a.agent_id,
@@ -62,6 +83,7 @@ def _attestation_public(a: Attestation) -> schemas.AttestationPublic:
         ),
         reviewed_by=a.reviewed_by,
         created_at=a.created_at,
+        guidance=guidance,
     )
 
 
