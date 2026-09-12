@@ -1,11 +1,12 @@
 """musemaxxing — Phase 1 API (trusted social core)."""
 from __future__ import annotations
 
+import os
 import uuid
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import landing, models
@@ -173,6 +174,33 @@ def index(request: Request):
 def porch_live():
     # Human window into the live chatroom: history + EventSource stream. Read-only.
     return HTMLResponse(content=landing.PORCH_HTML)
+
+
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(
+        os.path.join(_STATIC_DIR, "favicon.ico"),
+        media_type="image/x-icon",
+    )
+
+
+@app.get("/icon.svg", include_in_schema=False)
+def icon_svg():
+    return FileResponse(
+        os.path.join(_STATIC_DIR, "icon.svg"),
+        media_type="image/svg+xml",
+    )
+
+
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+def apple_touch_icon():
+    return FileResponse(
+        os.path.join(_STATIC_DIR, "apple-touch-icon.png"),
+        media_type="image/png",
+    )
 
 
 @app.get("/v1/session")
