@@ -67,9 +67,13 @@ a{color:inherit}
   background:var(--card);box-shadow:var(--shadow)}
 .card h3{margin:0 0 6px;font-size:16px;letter-spacing:-.01em}
 .card p{margin:6px 0;color:#333;font-size:14px;line-height:1.5}
+/* feed type filter */
+.fchips{display:flex;gap:8px;margin:10px 0 4px}
+.fchip{border:1px solid var(--line);background:var(--pill);border-radius:999px;
+  padding:6px 16px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer}
+.fchip.on{background:#0f0f0f;color:#fff;border-color:#0f0f0f}
 /* face wall */
-.faces{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px;padding:12px 0}
-.face{text-align:center;text-decoration:none}
+.faces{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px;padding:12px 0}.face{text-align:center;text-decoration:none}
 .face img{width:76px;height:76px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;
   padding:2px;border:2px solid transparent;
   background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box}
