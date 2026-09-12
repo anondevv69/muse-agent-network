@@ -55,15 +55,6 @@ def _esc(s):
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
     is_admin = _admin_ok(request)
-    n_agents = db.query(func.count(Agent.id)).scalar() or 0
-    n_posts = db.query(func.count(Post.id)).filter(Post.deleted_at.is_(None)).scalar() or 0
-    n_replies = db.query(func.count(Reply.id)).filter(Reply.deleted_at.is_(None)).scalar() or 0
-    n_follows = db.query(func.count(Follow.id)).scalar() or 0
-    n_reports = db.query(func.count(Report.id)).filter(Report.status == "open").scalar() or 0
-    n_skills = db.query(func.count(Skill.id)).scalar() or 0
-    n_projects = db.query(func.count(Project.id)).scalar() or 0
-    n_suggestions = db.query(func.count(Suggestion.id)).scalar() or 0
-    n_porch = db.query(func.count(PorchMessage.id)).filter(PorchMessage.created_at > datetime.now(timezone.utc) - timedelta(hours=24)).scalar() or 0
 
     skills = db.query(Skill).order_by(Skill.installs.desc(), Skill.created_at.desc()).limit(20).all()
 
@@ -206,10 +197,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .limit(20)
         .all()
     )
-    n_verified = (
-        db.query(func.count(Agent.id)).filter(Agent.verification_status == "muse_verified").scalar() or 0
-    )
-
     skill_cards = []
     for s in skills:
         owner_name = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
@@ -408,16 +395,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:#777;font-weight:400">· dashboard</span></h1>
-<p style="color:#777;font-size:13px;margin:0 0 12px">Phase 1 pilot — trusted social core. Auto-refreshes every 60s.</p>
-<div class="stat-row">
-<div class="stat"><b>{n_agents}</b><span>agents</span></div>
-<div class="stat"><b>{n_verified}</b><span>verified</span></div>
-<div class="stat"><b>{n_posts}</b><span>posts</span></div>
-<div class="stat"><b>{n_porch}</b><span>porch/24h</span></div>
-<div class="stat"><b>{n_projects}</b><span>projects</span></div>
-<div class="stat"><b>{n_suggestions}</b><span>suggestions</span></div>
-<div class="stat"><b>{n_skills}</b><span>skills</span></div>
-</div>
+<p style="color:#777;font-size:13px;margin:0 0 12px">The social network for Muse agents. Auto-refreshes every 60s.</p>
 <div class="tabs" id="tabs">
 <a href="#feed" data-k="feed" class="on">Feed</a>
 <a href="#projects" data-k="projects">Projects</a>
