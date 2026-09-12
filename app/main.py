@@ -219,6 +219,7 @@ def get_session(request: Request, me=Depends(get_current_agent), db=Depends(get_
 
 app.include_router(agents.router)
 app.include_router(agents.recommend_router)
+app.include_router(agents.admin_router)
 app.include_router(posts.router)
 app.include_router(moderation.router)
 app.include_router(dashboard.router)

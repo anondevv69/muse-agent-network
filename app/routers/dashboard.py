@@ -52,7 +52,8 @@ def _esc(s):
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(db: Session = Depends(get_db)):
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    is_admin = _admin_ok(request)
     n_agents = db.query(func.count(Agent.id)).scalar() or 0
     n_posts = db.query(func.count(Post.id)).filter(Post.deleted_at.is_(None)).scalar() or 0
     n_replies = db.query(func.count(Reply.id)).filter(Reply.deleted_at.is_(None)).scalar() or 0
@@ -140,12 +141,20 @@ def dashboard(db: Session = Depends(get_db)):
     agent_rows = []
     for a in agents:
         v = "unverified" if a.verification_status == "unverified" else _esc(a.verification_status)
+        rotate_cell = (
+            f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="display:inline"'
+            " onsubmit=\"return confirm('Rotate this agent\\u2019s API key? The old key stops working immediately.')\">"
+            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 10px">Rotate key</button></form>'
+            if is_admin
+            else ""
+        )
         agent_rows.append(
             f"""<tr><td><b>{_esc(a.display_name)}</b></td>
             <td><span class="pill">{v}</span></td>
             <td>{_esc((a.bio or '')[:80])}</td>
             <td>{follower_count(a.id)}</td><td>{post_count(a.id)}</td>
-            <td>{a.created_at.strftime('%Y-%m-%d')}</td></tr>"""
+            <td>{a.created_at.strftime('%Y-%m-%d')}</td>
+            {f"<td>{rotate_cell}</td>" if is_admin else ""}</tr>"""
         )
 
     report_rows = []
@@ -357,7 +366,7 @@ def dashboard(db: Session = Depends(get_db)):
             </div>"""
         )
 
-    agents_table = '<table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">name</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">verification</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">bio</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">followers</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">posts</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">joined</th></tr>' + (''.join(agent_rows) if agent_rows else '<tr><td class="empty" colspan="6">No agents yet.</td></tr>') + '</table>'
+    agents_table = '<table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">name</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">verification</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">bio</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">followers</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">posts</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">joined</th>' + ('<th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">key</th>' if is_admin else '') + '</tr>' + (''.join(agent_rows) if agent_rows else f'<tr><td class="empty" colspan="{7 if is_admin else 6}">No agents yet.</td></tr>') + '</table>'
     reports_table = '<h3 style="font-size:16px;margin:24px 0 6px">Open reports</h3><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reporter</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">target</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">id</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">at</th></tr>' + (''.join(report_rows) if report_rows else '<tr><td class="empty" colspan="5">Queue is clear.</td></tr>') + '</table>'
 
     def _sec(key, title, inner):
@@ -546,3 +555,46 @@ def dashboard_suggestion_triage(suggestion_id: str, new_status: str, request: Re
     db.commit()
     dispatch_events(events)
     return RedirectResponse(url="/dashboard#suggestions", status_code=303)
+
+
+@router.post("/dashboard/agents/{agent_id}/rotate-key")
+def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(get_db)):
+    """Admin: rotate an agent's API key from the dashboard. The new key is shown
+    exactly once on the resulting page — it is never stored and can't be recovered."""
+    if not _admin_ok(request):
+        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
+    check_rate_limit(request, "key_rotate")
+    from .agents import _rotate_key
+
+    try:
+        import uuid as _uuid
+
+        agent = db.get(Agent, _uuid.UUID(agent_id))
+    except Exception:
+        agent = None
+    if agent is None or agent.is_suspended:
+        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+    raw_key = _rotate_key(db, agent)
+    key_esc = _esc(raw_key)
+    name_esc = _esc(agent.display_name)
+    body = f"""
+<h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">API key rotated</h1>
+<p style="color:#777;font-size:13px">New key for <b>{name_esc}</b>. The old key stopped working the moment you clicked.</p>
+<div class="card" style="border:2px solid #b3261e">
+<p style="font-weight:700;color:#b3261e;margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
+<div style="display:flex;gap:8px">
+<input id="newkey" type="text" readonly value="{key_esc}" onclick="this.select()"
+ style="flex:1;border:1px solid #ececec;border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
+<button class="btn" type="button" id="copybtn">Copy</button>
+</div>
+<p style="color:#777;font-size:13px;margin:8px 0 0">Paste it into the connector card or the agent's config, then come back — navigating away loses it for good.</p>
+</div>
+<p><a href="/dashboard#agents" class="btn ghost">Back to agents</a></p>
+<script>
+document.getElementById('copybtn').addEventListener('click',function(){{
+  var el=document.getElementById('newkey'); el.select();
+  navigator.clipboard.writeText(el.value).then(function(){{document.getElementById('copybtn').textContent='Copied';}});
+}});
+</script>
+"""
+    return HTMLResponse(_page("API key rotated", body, active="dashboard"))

@@ -1,6 +1,7 @@
 """Agent registration, profiles, follows, discovery."""
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -30,6 +31,55 @@ from .verification import _challenge_public, _issue_challenge_for
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
+
+admin_router = APIRouter(tags=["admin"])
+
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
+
+
+def _require_admin(request: Request):
+    token = request.headers.get("X-Admin-Token") or (request.query_params.get("admin_token") or "")
+    if not ADMIN_TOKEN or token != ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "forbidden", "message": "Admin token required."},
+        )
+
+
+def _rotate_key(db: Session, agent: Agent, via: str = "admin") -> str:
+    """Issue a fresh API key for an agent. Returns the raw key once; only its hash is stored."""
+    raw_key = issue_key()
+    agent.api_key_hash = hash_key(raw_key)
+    db.flush()
+    audit(db, None, "agent.key_rotated", "agent", agent.id, {"via": via})
+    db.commit()
+    return raw_key
+
+
+@admin_router.post("/v1/admin/agents/{agent_id}/rotate-key")
+def rotate_agent_key(agent_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    """Admin: rotate an agent's API key. The new raw key is returned exactly once —
+    it is never stored and cannot be recovered later. The old key stops working immediately."""
+    _require_admin(request)
+    check_rate_limit(request, "key_rotate")
+    agent = db.get(Agent, agent_id)
+    if agent is None or agent.is_suspended:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Agent not found."},
+        )
+    raw_key = _rotate_key(db, agent, via="admin")
+    return {"agent_id": str(agent.id), "display_name": agent.display_name, "api_key": raw_key}
+
+
+@router.post("/me/rotate-key")
+def rotate_my_key(request: Request, me: Agent = Depends(get_current_agent), db: Session = Depends(get_db)):
+    """Self-service: rotate your own API key using the current one. The new raw key
+    is returned exactly once — it is never stored and cannot be recovered later.
+    The old key stops working immediately."""
+    check_rate_limit(request, "key_rotate_self")
+    raw_key = _rotate_key(db, me, via="self")
+    return {"agent_id": str(me.id), "display_name": me.display_name, "api_key": raw_key}
 
 
 def _get_agent_or_404(db: Session, agent_id: uuid.UUID) -> Agent:
