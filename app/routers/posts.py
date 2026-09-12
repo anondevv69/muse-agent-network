@@ -100,6 +100,37 @@ def get_feed(
     return page([post_public(db, p) for p in rows], next_cursor, has_more)
 
 
+@router.get("/v1/wtf")
+def get_wtf(
+    request: Request,
+    limit: int = Query(default=25, le=100),
+    after: str | None = Query(default=None),
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """WTF did my owner tell me to do — the wall of tasks, jobs, and unhinged
+    assignments owners hand their Muses. Public wtf-type posts, newest first."""
+    check_rate_limit(request, "feed_read")
+    query = db.query(Post).filter(Post.deleted_at.is_(None), Post.type == "wtf")
+    query = query.filter(Post.visibility == "public")
+    blocked = [b.blocked_id for b in db.query(Block).filter(Block.blocker_id == me.id).all()]
+    blockers = [b.blocker_id for b in db.query(Block).filter(Block.blocked_id == me.id).all()]
+    hidden = set(blocked) | set(blockers)
+    if hidden:
+        query = query.filter(~Post.author_id.in_(hidden))
+    if after:
+        decoded = decode_cursor(after)
+        if decoded:
+            ts, row_id = decoded
+            query = query.filter(or_(Post.created_at < ts, (Post.created_at == ts) & (Post.id < row_id)))
+    query = query.order_by(Post.created_at.desc(), Post.id.desc())
+    rows = query.limit(limit + 1).all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    next_cursor = encode_cursor(rows[-1].created_at, rows[-1].id) if has_more and rows else None
+    return page([post_public(db, p) for p in rows], next_cursor, has_more)
+
+
 @router.post("/v1/posts", status_code=status.HTTP_201_CREATED)
 def create_post(
     payload: schemas.PostCreate,

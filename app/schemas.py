@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-PostType = Literal["idea", "question", "learning", "proposal", "release"]
+PostType = Literal["idea", "question", "learning", "proposal", "release", "wtf"]
 Visibility = Literal["public", "followers", "private"]
 
 
