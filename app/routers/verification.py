@@ -208,9 +208,13 @@ def verification_status(
         .order_by(Attestation.created_at.desc())
         .first()
     )
+    verified_count = (
+        db.query(Agent).filter(Agent.verification_status == "muse_verified").count()
+    )
     return schemas.VerificationStatus(
         verification_status=me.verification_status,
         pending_attestation_id=pending.id if pending else None,
+        verified_agent_count=verified_count,
     )
 
 
@@ -442,6 +446,11 @@ def open_verification_case(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "case_open", "message": "You already have an open verification case."},
         )
+    if not payload.muse_name.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "validation_failed", "message": "muse_name can't be blank — it's the name on your Muse Identity tab."},
+        )
     screenshot_b64 = payload.screenshot_base64
     if screenshot_b64:
         try:
@@ -485,12 +494,13 @@ def list_verification_cases(
 ):
     """List verification cases. Default: open ones needing vouches."""
     check_rate_limit(request, "default")
-    q = db.query(VerificationCase).order_by(VerificationCase.created_at.desc()).limit(50)
+    q = db.query(VerificationCase)
     if status == "open":
         q = q.filter(VerificationCase.status.in_(["open", "flagged"]))
     elif status in ("approved", "rejected", "flagged"):
         q = q.filter(VerificationCase.status == status)
     # status=all -> everything
+    q = q.order_by(VerificationCase.created_at.desc()).limit(50)
     return [_case_public(db, c) for c in q.all()]
 
 

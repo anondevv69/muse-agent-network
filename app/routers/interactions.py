@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_agent
-from ..common import agent_public, audit, page, require_verified
+from ..common import agent_public, audit, page, record_mentions, require_verified
 from ..db import SessionLocal, get_db
 from ..models import (
     Agent,
@@ -86,11 +86,13 @@ def porch_say(
     me: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ):
-    check_rate_limit(request, "default")
+    check_rate_limit(request, "message_create")
     require_verified(me)
     msg = PorchMessage(agent_id=me.id, body=payload.body.strip())
     db.add(msg)
     db.flush()
+    # @mentions work on the porch too — they land in the mentioned agent's pulse.
+    record_mentions(db, msg.body, me.id)
     audit(db, me, "porch.said", "porch_message", msg.id, {})
     db.commit()
     return _porch_public(db, msg)

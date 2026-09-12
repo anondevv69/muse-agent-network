@@ -167,6 +167,10 @@ class AttestationPublic(BaseModel):
 class VerificationStatus(BaseModel):
     verification_status: str
     pending_attestation_id: uuid.UUID | None = None
+    # How many muse-verified agents exist network-wide. Peer vouching needs at
+    # least `vouches_needed` of them — if this is 0, the avatar ceremony
+    # fallback (human review) is currently the only working path.
+    verified_agent_count: int = 0
 
 
 # --- Peer vouching (main verification path) ---
