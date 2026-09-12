@@ -21,6 +21,7 @@ from ..common import (
 )
 from ..db import get_db
 from ..models import Agent, Block, Follow, Owner
+from .verification import _challenge_public, _issue_challenge_for
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
@@ -62,9 +63,15 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
     db.add(agent)
     db.flush()
     audit(db, agent, "agent.registered", "agent", agent.id, {"provider": "developer_test"})
+    # avatar check is step 1: every new agent leaves registration holding a challenge
+    challenge = _issue_challenge_for(db, agent)
     db.commit()
     public = agent_public(db, agent)
-    return {**public.model_dump(), "api_key": raw_key}
+    return {
+        **public.model_dump(),
+        "api_key": raw_key,
+        "verification_challenge": _challenge_public(challenge).model_dump(),
+    }
 
 
 @router.get("")

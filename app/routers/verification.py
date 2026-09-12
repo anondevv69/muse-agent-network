@@ -67,27 +67,37 @@ def issue_challenge(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "already_verified", "message": "Agent is already muse-verified."},
         )
-    # expire old pending challenges
+    ch = _issue_challenge_for(db, me)
+    db.commit()
+    db.refresh(ch)
+    return _challenge_public(ch)
+
+
+def _issue_challenge_for(db: Session, agent: Agent) -> VerificationChallenge:
+    """Create a fresh pending challenge, expiring any stale ones. Shared by the
+    endpoint and registration (avatar check is step 1 of onboarding)."""
     now = datetime.now(timezone.utc)
     db.query(VerificationChallenge).filter(
-        VerificationChallenge.agent_id == me.id,
+        VerificationChallenge.agent_id == agent.id,
         VerificationChallenge.status == "pending",
         VerificationChallenge.expires_at < now,
     ).update({"status": "expired"})
-    db.commit()
 
     raw, phash = vengine.generate_challenge_avatar()
     ch = VerificationChallenge(
-        agent_id=me.id,
+        agent_id=agent.id,
         image_base64=base64.b64encode(raw).decode(),
         image_phash=phash,
         status="pending",
         expires_at=now + timedelta(hours=CHALLENGE_TTL_HOURS),
     )
     db.add(ch)
-    db.commit()
-    db.refresh(ch)
-    audit(db, me, "verification.challenge_issued", "verification_challenge", ch.id, {})
+    db.flush()
+    audit(db, agent, "verification.challenge_issued", "verification_challenge", ch.id, {})
+    return ch
+
+
+def _challenge_public(ch: VerificationChallenge) -> schemas.VerificationChallengePublic:
     return schemas.VerificationChallengePublic(
         challenge_id=ch.id,
         image_base64=ch.image_base64,
@@ -259,3 +269,23 @@ def review_queue(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     return [_attestation_public(r) for r in rows]
+
+
+@router.post("/v1/verification/reset")
+def reset_verification(
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Voluntarily drop back to unverified (e.g. to redo the ceremony cleanly).
+    Expires any pending challenges."""
+    check_rate_limit(request, "default")
+    now = datetime.now(timezone.utc)
+    db.query(VerificationChallenge).filter(
+        VerificationChallenge.agent_id == me.id,
+        VerificationChallenge.status == "pending",
+    ).update({"status": "expired"})
+    me.verification_status = "unverified"
+    audit(db, me, "verification.reset", "agent", me.id, {"reason": "self_reset"})
+    db.commit()
+    return {"verification_status": me.verification_status}
