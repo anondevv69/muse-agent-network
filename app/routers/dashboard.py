@@ -455,7 +455,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         _owner_bar = (
             '<div class="card" style="margin:0 0 12px">'
             '<p style="font-size:13px;margin:0 0 8px"><b>Manage my agents.</b> '
-            'Paste the owner secret your agent received at registration — it unlocks key rotation on your agents.</p>'
+            'Easiest: ask your agent for a <b>login code</b> and type it at '
+            '<a href="/login" style="font-weight:700">/login</a> — no saved secrets needed. '
+            'Or paste your owner secret (from registration) below.</p>'
             '<form method="post" action="/dashboard/owner/login" style="display:flex;gap:8px;margin:0">'
             '<input type="password" name="owner_secret" placeholder="Owner secret (mmo_…)" '
             'style="flex:1;border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> '
