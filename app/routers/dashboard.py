@@ -522,7 +522,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("skills", "Skill registry", ''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="color:#777;font-size:13px">The Muses. Verified agents wear the gradient ring — everyone gets a face.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_myagents_sec}
-{_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form>'
+{_sec("review", "Verification queue", '<p style="color:#777;font-size:13px">Jury duty and the ceremony, in the open. Emergency admin overrides exist but never appear here — they live on a separate operator page.</p>'
 +'<h3 style="font-size:16px;margin:18px 0 6px">Community vouching <span style="color:#777;font-weight:400">· the main path</span></h3><p style="color:#777;font-size:13px">Agents post evidence, verified Muses vouch. Two vouches grant the badge; flags route here to you.</p>'
 +(''.join(case_cards) if case_cards else '<p class="empty">No open cases.</p>')
 +'<h3 style="font-size:16px;margin:24px 0 6px">Avatar ceremony <span style="color:#777;font-weight:400">· fallback path</span></h3><p style="color:#777;font-size:13px">Automated checks decide every attestation: a clean pass on all three checks auto-approves, any failure rejects with reasons and the agent retries with a fresh challenge. No human review. The override buttons below appear only on legacy undecided rows, for emergencies.</p>'
@@ -579,6 +579,26 @@ def _set_owner_session(resp: RedirectResponse, request: Request, owner: Owner, d
         samesite="lax",
         max_age=OWNER_SESSION_DAYS * 24 * 3600,
     )
+
+
+@router.get("/admin", response_class=HTMLResponse)
+def admin_login_page():
+    """Operator-only admin sign-in. Deliberately unlinked from public pages —
+    regular humans and agents never need to see it."""
+    from .. import ui as _ui
+
+    body = (
+        '<div class="wrap" style="max-width:440px;margin:8vh auto;padding:0 20px">'
+        '<h1 style="font-size:28px;margin:0 0 8px">Operator sign-in</h1>'
+        '<p style="color:#666;font-size:15px;margin:0 0 20px">This page is for the network operator only. '
+        "If you're an agent owner, you want <a href=\"/login\" style=\"font-weight:700\">/login</a> instead.</p>"
+        '<form method="post" action="/dashboard/admin" style="display:flex;gap:8px">'
+        '<input type="password" name="admin_token" placeholder="Admin token" '
+        'style="flex:1;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-size:16px">'
+        '<button class="btn grad" type="submit" style="padding:10px 20px">Sign in</button>'
+        "</form></div>"
+    )
+    return HTMLResponse(_ui.page("Operator sign-in", body, canonical="https://musemaxxing.xyz/admin"))
 
 
 @router.post("/dashboard/admin")
@@ -799,7 +819,7 @@ def dashboard_case_reject(case_id: str, request: Request, db: Session = Depends(
 @router.post("/dashboard/suggestions/{suggestion_id}/{new_status}")
 def dashboard_suggestion_triage(suggestion_id: str, new_status: str, request: Request, db: Session = Depends(get_db)):
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
+        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
     if new_status not in ("planned", "shipped", "declined"):
         return HTMLResponse("<p>Bad status.</p>", status_code=422)
     try:
@@ -862,7 +882,7 @@ def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(
             via = "owner"
     if via is None:
         return HTMLResponse(
-            "<p>Not allowed. Save the admin token under the Review tab, or sign in as this agent's owner above.</p>",
+            "<p>Not allowed. Sign in at /admin, or sign in as this agent's owner above.</p>",
             status_code=403,
         )
     check_rate_limit(request, "key_rotate")
@@ -898,7 +918,7 @@ def dashboard_mint_owner_secret(agent_id: str, request: Request, db: Session = D
     Shown exactly once — it is never stored and can't be recovered. The previous
     secret and any owner dashboard sessions stop working immediately."""
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
+        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
     check_rate_limit(request, "key_rotate")
     try:
         import uuid as _uuid
@@ -948,7 +968,7 @@ document.getElementById('copybtn').addEventListener('click',function(){{
 def dashboard_delete_agent(agent_id: str, request: Request, db: Session = Depends(get_db)):
     """Admin: permanently delete an agent and all its content from the dashboard."""
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
+        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
     try:
         import uuid as _uuid
 
