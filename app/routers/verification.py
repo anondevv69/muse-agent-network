@@ -10,7 +10,8 @@ Peer vouching (main path):
 POST /v1/verification/cases                 -> open a case with evidence (self)
 GET  /v1/verification/cases                 -> list open cases
 GET  /v1/verification/cases/{id}            -> case detail incl. evidence
-POST /v1/verification/cases/{id}/vouch      -> verified Muse vouches (threshold grants badge)
+POST /v1/verification/cases/{id}/vouch      -> verified Muse vouches (threshold grants badge;
+                                             the CEO agent's single vouch meets the threshold alone)
 POST /v1/verification/cases/{id}/flag       -> verified Muse flags (routes to admin)
 POST /v1/verification/cases/{id}/approve|reject -> admin review (admin token)
 """
@@ -36,6 +37,11 @@ router = APIRouter(tags=["verification"])
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 CHALLENGE_TTL_HOURS = 24
 VOUCH_THRESHOLD = int(os.environ.get("VOUCH_THRESHOLD", "2"))
+# The network CEO's agent: its single vouch meets the threshold alone. This is
+# the owner's standing delegation to their own Muse — the bootstrap that lets
+# vouching start from one verified agent. Public and attributable like any
+# vouch; a flag from any verified agent still blocks the grant.
+CEO_AGENT_ID = os.environ.get("CEO_AGENT_ID", "").strip()
 
 
 def _require_admin(request: Request):
@@ -370,6 +376,23 @@ def _case_counts(db: Session, case_id: uuid.UUID) -> tuple[int, int]:
     return vouch_count, flag_count
 
 
+def _ceo_vouched(db: Session, case: VerificationCase) -> bool:
+    """Has the CEO agent vouched on this case? A CEO vouch alone meets the
+    threshold — everyone else needs `vouches_needed` distinct verified vouches."""
+    if not CEO_AGENT_ID:
+        return False
+    try:
+        ceo_id = uuid.UUID(CEO_AGENT_ID)
+    except ValueError:
+        return False
+    return (
+        db.query(Vouch)
+        .filter(Vouch.case_id == case.id, Vouch.voucher_agent_id == ceo_id)
+        .first()
+        is not None
+    )
+
+
 def _case_name_match(db: Session, case: VerificationCase) -> bool:
     """The asserted Muse identity name must match the account's display name
     (ignoring our auto-suffix: agent "fren_01" with Muse identity "fren" is
@@ -426,7 +449,9 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
     if case.status != "open":
         return None
     vouch_count, flag_count = _case_counts(db, case.id)
-    if flag_count > 0 or vouch_count < case.vouches_needed:
+    ceo_vouch = _ceo_vouched(db, case)
+    # A flag from any verified agent still blocks — even a CEO vouch.
+    if flag_count > 0 or (not ceo_vouch and vouch_count < case.vouches_needed):
         return None
     if not _case_name_match(db, case):
         return None
@@ -434,17 +459,17 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
     now = datetime.now(timezone.utc)
     case.status = "approved"
     case.decided_at = now
-    case.decided_by = "peers"
+    case.decided_by = "ceo" if ceo_vouch else "peers"
     if agent and agent.verification_status != "muse_verified":
         agent.verification_status = "muse_verified"
-        agent.verification_method = "peer_vouch"
+        agent.verification_method = "ceo_vouch" if ceo_vouch else "peer_vouch"
     event = _notify.emit_event(
         db,
         case.agent_id,
         "verification",
         {
             "decision": "approved",
-            "decided_by": "peers",
+            "decided_by": "ceo" if ceo_vouch else "peers",
             "case_id": str(case.id),
             "vouch_count": vouch_count,
         },
@@ -456,7 +481,7 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
         "verification.peer_approved",
         "verification_case",
         case.id,
-        {"vouch_count": vouch_count, "threshold": case.vouches_needed},
+        {"vouch_count": vouch_count, "threshold": case.vouches_needed, "ceo_vouch": ceo_vouch},
     )
     db.commit()
     return event

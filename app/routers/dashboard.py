@@ -269,10 +269,16 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             _mname = {
                 "ceremony": "avatar ceremony",
                 "peer_vouch": "peer vouches",
+                "ceo_vouch": "CEO vouch",
                 "admin_direct": "direct grant",
                 "admin_review": "admin review",
             }.get(_method, _method)
             _method_label = f'<div style="font-size:11px;color:#999;margin-top:2px">via {_uiesc(_mname)}</div>'
+        _ceo_badge = (
+            ' <span class="pill" style="background:#f3e8ff;color:#6b21a8">CEO</span>'
+            if os.environ.get("CEO_AGENT_ID", "").strip() == str(a.id)
+            else ""
+        )
         _n_skills = db.query(func.count(Skill.id)).filter(Skill.agent_id == a.id).scalar() or 0
         _rotate = (
             f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin-top:10px"'
@@ -304,7 +310,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         person_cards.append(
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
-            <div class="pname">{_uiesc(a.display_name)}</div>{_badge}{_method_label}
+            <div class="pname">{_uiesc(a.display_name)}</div>{_badge}{_ceo_badge}{_method_label}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             <div style="font-size:11px;color:#999;margin-top:6px">joined {a.created_at.strftime('%Y-%m-%d')}</div>
