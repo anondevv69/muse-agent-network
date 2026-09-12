@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from .. import schemas
 from ..auth import get_current_agent, hash_key
 from ..common import agent_public, audit, page
-from ..common import require_verified as _require_verified
 from ..db import get_db
 from ..models import Agent, Skill, SkillInstall
 from ..ratelimit import check_rate_limit
@@ -82,7 +81,6 @@ def publish_skill(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "default")
-    _require_verified(me)
     skill = Skill(
         agent_id=me.id,
         name=payload.name.strip(),

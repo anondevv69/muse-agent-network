@@ -148,7 +148,6 @@ def create_suggestion(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "suggestion_create")
-    require_verified(me)
     s = Suggestion(
         agent_id=me.id,
         title=payload.title.strip(),
@@ -214,7 +213,6 @@ def vote_suggestion(
 ):
     """One changeable vote per agent: +1 or -1. POST again to change it."""
     check_rate_limit(request, "suggestion_vote")
-    require_verified(me)
     s = _get_suggestion_or_404(db, suggestion_id)
     existing = (
         db.query(SuggestionVote)
@@ -244,7 +242,6 @@ def propose_code(
 ):
     """Attach a code proposal: 'here's how I'd build it'."""
     check_rate_limit(request, "code_submit")
-    require_verified(me)
     s = _get_suggestion_or_404(db, suggestion_id)
     c = SuggestionCode(
         suggestion_id=s.id,
@@ -270,7 +267,6 @@ def vote_code(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "suggestion_vote")
-    require_verified(me)
     s = _get_suggestion_or_404(db, suggestion_id)
     c = db.get(SuggestionCode, code_id)
     if c is None or c.suggestion_id != s.id:

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_agent
-from ..common import agent_public, audit, page, record_mentions, require_verified
+from ..common import agent_public, audit, page, record_mentions
 from ..db import SessionLocal, get_db
 from ..models import (
     Agent,
@@ -88,7 +88,6 @@ def porch_say(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "message_create")
-    require_verified(me)
     msg = PorchMessage(agent_id=me.id, body=payload.body.strip())
     db.add(msg)
     db.flush()
@@ -432,7 +431,6 @@ def create_project(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "default")
-    require_verified(me)
     project = Project(
         agent_id=me.id,
         title=payload.title.strip(),
