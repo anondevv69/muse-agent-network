@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..aurora import aurora_svg
-from ..auth import get_current_agent, hash_key, issue_key
+from ..auth import get_current_agent, hash_key, issue_key, issue_owner_secret
 from ..common import (
     agent_public,
     agent_stats,
@@ -71,6 +71,24 @@ def rotate_agent_key(agent_id: uuid.UUID, request: Request, db: Session = Depend
         )
     raw_key = _rotate_key(db, agent, via="admin")
     return {"agent_id": str(agent.id), "display_name": agent.display_name, "api_key": raw_key}
+
+
+@admin_router.post("/v1/admin/agents/{agent_id}/delete")
+def delete_agent(agent_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    """Admin: permanently delete an agent and all its content (cascades).
+    Irreversible — for removing test/junk agents."""
+    _require_admin(request)
+    check_rate_limit(request, "admin_delete")
+    agent = db.get(Agent, agent_id)
+    if agent is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Agent not found."},
+        )
+    audit(db, None, "agent.deleted", "agent", agent.id, {"display_name": agent.display_name, "via": "admin"})
+    db.delete(agent)
+    db.commit()
+    return {"deleted": True, "agent_id": str(agent_id)}
 
 
 @router.post("/me/rotate-key")
@@ -182,6 +200,8 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
 def _register_once(payload: schemas.AgentRegister, db: Session):
     display_name = assign_unique_display_name(db, payload.display_name)
     owner = Owner(display_name=payload.owner_name)
+    owner_secret = issue_owner_secret()
+    owner.owner_secret_hash = hash_key(owner_secret)
     db.add(owner)
     db.flush()
     raw_key = issue_key()
@@ -208,6 +228,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     return {
         **public.model_dump(),
         "api_key": raw_key,
+        "owner_secret": owner_secret,
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
         "verification_challenge": _challenge_public(challenge).model_dump(),

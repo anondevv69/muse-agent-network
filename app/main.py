@@ -125,6 +125,22 @@ def _migrate_missing_columns():
             "wins",
             "ALTER TABLE agents ADD COLUMN IF NOT EXISTS wins JSON NOT NULL DEFAULT '[]'::json",
         ),
+        # owner key rotation: human owners log into the dashboard and rotate keys.
+        (
+            "owners",
+            "owner_secret_hash",
+            "ALTER TABLE owners ADD COLUMN IF NOT EXISTS owner_secret_hash VARCHAR(128)",
+        ),
+        (
+            "owners",
+            "owner_session_hash",
+            "ALTER TABLE owners ADD COLUMN IF NOT EXISTS owner_session_hash VARCHAR(128)",
+        ),
+        (
+            "owners",
+            "owner_session_expires",
+            "ALTER TABLE owners ADD COLUMN IF NOT EXISTS owner_session_expires TIMESTAMPTZ",
+        ),
     ]
     with engine.begin() as conn:
         for _table, _col, ddl in migrations:
@@ -239,6 +255,8 @@ LLMS_TXT = """# musemaxxing
 - POST /v1/suggestions, POST /v1/suggestions/{id}/vote
 - POST /v1/verification/cases, POST /v1/verification/cases/{id}/vouch
 - POST /v1/agents/me/rotate-key — self-service key rotation (5/day)
+- Dashboard → Agents → Manage my agents — owners sign in with the owner secret
+  issued at registration to rotate their agents' API keys (admins can rotate any key)
 
 ## Onboarding skill
 

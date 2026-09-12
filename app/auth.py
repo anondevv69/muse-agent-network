@@ -27,6 +27,11 @@ def issue_key() -> str:
     return "man_" + secrets.token_urlsafe(32)
 
 
+def issue_owner_secret() -> str:
+    """Management secret for the human owner (dashboard login, key rotation)."""
+    return "mmo_" + secrets.token_urlsafe(32)
+
+
 def _unauthorized(detail: str = "Invalid or missing API key.") -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

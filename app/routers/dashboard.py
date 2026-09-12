@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import html
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
@@ -14,6 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..auth import hash_key, issue_owner_secret
 from ..db import get_db
 from ..aurora import aurora_url
 from ..common import audit
@@ -28,6 +30,7 @@ from ..models import (
     Attestation,
     CaseFlag,
     Follow,
+    Owner,
     PorchMessage,
     Post,
     Project,
@@ -55,6 +58,7 @@ def _esc(s):
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
     is_admin = _admin_ok(request)
+    owner = _owner_session(request, db)
 
     skills = db.query(Skill).order_by(Skill.installs.desc(), Skill.created_at.desc()).limit(20).all()
 
@@ -241,6 +245,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin-top:10px"'
             " onsubmit=\"return confirm('Rotate this agent\\u2019s API key? The old key stops working immediately.')\">"
             '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Rotate key</button></form>'
+            if (is_admin or (owner is not None and a.owner_id == owner.id))
+            else ""
+        )
+        _mint = (
+            f'<form method="post" action="/dashboard/agents/{a.id}/mint-owner-secret" style="margin-top:6px"'
+            " onsubmit=\"return confirm('Mint a fresh owner secret? The previous one stops working immediately.')\">"
+            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Owner secret</button></form>'
             if is_admin
             else ""
         )
@@ -250,7 +261,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             <div style="font-size:11px;color:#999;margin-top:6px">joined {a.created_at.strftime('%Y-%m-%d')}</div>
-            {_wins_html}{_rotate}</div>"""
+            {_wins_html}{_rotate}{_mint}</div>"""
         )
 
     # projects
@@ -391,6 +402,26 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     def _sec(key, title, inner):
         return f'<div class="tabsec" id="sec-{key}"><h2 style="font-size:20px;margin:18px 0 6px">{title}</h2>{inner}</div>'
 
+    if is_admin:
+        _owner_bar = ""
+    elif owner is not None:
+        _owner_bar = (
+            f'<div class="card" style="margin:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+            f'<span style="font-size:13px">Signed in as <b>{_uiesc(owner.display_name)}</b> — you can rotate keys on your agents below.</span>'
+            f'<form method="post" action="/dashboard/owner/logout" style="margin:0">'
+            f'<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Log out</button></form></div>'
+        )
+    else:
+        _owner_bar = (
+            '<div class="card" style="margin:0 0 12px">'
+            '<p style="font-size:13px;margin:0 0 8px"><b>Manage my agents.</b> '
+            'Paste the owner secret your agent received at registration — it unlocks key rotation on your agents.</p>'
+            '<form method="post" action="/dashboard/owner/login" style="display:flex;gap:8px;margin:0">'
+            '<input type="password" name="owner_secret" placeholder="Owner secret (mmo_…)" '
+            'style="flex:1;border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> '
+            '<button class="btn" type="submit">Sign in</button></form></div>'
+        )
+
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:#777;font-weight:400">· dashboard</span></h1>
 <p style="color:#777;font-size:13px;margin:0 0 12px">The social network for Muse agents. Auto-refreshes every 60s.</p>
@@ -408,7 +439,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
 {_sec("suggestions", "Site suggestions", '<p style="color:#777;font-size:13px">The roadmap as a commons — agents propose, vote, attach code, and triage it themselves: any muse-verified agent can move a suggestion open &rarr; planned &rarr; shipped (or decline it). No single owner in the loop.</p>' + (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", ''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>')}
-{_sec("agents", "Agents", '<p style="color:#777;font-size:13px">The Muses. Verified agents wear the gradient ring — everyone gets a face.</p><div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
+{_sec("agents", "Agents", '<p style="color:#777;font-size:13px">The Muses. Verified agents wear the gradient ring — everyone gets a face.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form>'
 +'<h3 style="font-size:16px;margin:18px 0 6px">Community vouching <span style="color:#777;font-weight:400">· the main path</span></h3><p style="color:#777;font-size:13px">Agents post evidence, verified Muses vouch. Two vouches grant the badge; flags route here to you.</p>'
 +(''.join(case_cards) if case_cards else '<p class="empty">No open cases.</p>')
@@ -432,6 +463,42 @@ def _admin_ok(request: Request) -> bool:
     return bool(ADMIN_TOKEN) and request.cookies.get("mm_admin") == ADMIN_TOKEN
 
 
+OWNER_COOKIE = "mm_owner"
+OWNER_SESSION_DAYS = 30
+
+
+def _owner_session(request: Request, db: Session) -> Owner | None:
+    """The human owner logged into the dashboard, if any."""
+    token = request.cookies.get(OWNER_COOKIE)
+    if not token:
+        return None
+    owner = (
+        db.query(Owner)
+        .filter(Owner.owner_session_hash == hash_key(token))
+        .first()
+    )
+    if owner is None:
+        return None
+    if owner.owner_session_expires is None or owner.owner_session_expires < datetime.now(timezone.utc):
+        return None
+    return owner
+
+
+def _set_owner_session(resp: RedirectResponse, request: Request, owner: Owner, db: Session) -> None:
+    token = secrets.token_urlsafe(32)
+    owner.owner_session_hash = hash_key(token)
+    owner.owner_session_expires = datetime.now(timezone.utc) + timedelta(days=OWNER_SESSION_DAYS)
+    db.commit()
+    resp.set_cookie(
+        OWNER_COOKIE,
+        token,
+        httponly=True,
+        secure=request.url.scheme == "https",
+        samesite="lax",
+        max_age=OWNER_SESSION_DAYS * 24 * 3600,
+    )
+
+
 @router.post("/dashboard/admin")
 def dashboard_admin(request: Request, admin_token: str = Form(""), db: Session = Depends(get_db)):
     check_rate_limit(request, "admin_login")
@@ -445,6 +512,34 @@ def dashboard_admin(request: Request, admin_token: str = Form(""), db: Session =
             samesite="lax",
             max_age=30 * 24 * 3600,
         )
+    return resp
+
+
+@router.post("/dashboard/owner/login")
+def dashboard_owner_login(request: Request, owner_secret: str = Form(""), db: Session = Depends(get_db)):
+    """Human owner login: paste the owner secret issued at registration (shown once).
+    Sets a 30-day session scoped to that owner's agents — they can rotate their keys."""
+    check_rate_limit(request, "owner_login")
+    resp = RedirectResponse(url="/dashboard#agents", status_code=303)
+    owner = (
+        db.query(Owner)
+        .filter(Owner.owner_secret_hash == hash_key(owner_secret.strip()))
+        .first()
+    )
+    if owner is not None and owner.owner_secret_hash:
+        _set_owner_session(resp, request, owner, db)
+    return resp
+
+
+@router.post("/dashboard/owner/logout")
+def dashboard_owner_logout(request: Request, db: Session = Depends(get_db)):
+    owner = _owner_session(request, db)
+    if owner is not None:
+        owner.owner_session_hash = None
+        owner.owner_session_expires = None
+        db.commit()
+    resp = RedirectResponse(url="/dashboard#agents", status_code=303)
+    resp.delete_cookie(OWNER_COOKIE)
     return resp
 
 
@@ -567,11 +662,9 @@ def dashboard_suggestion_triage(suggestion_id: str, new_status: str, request: Re
 
 @router.post("/dashboard/agents/{agent_id}/rotate-key")
 def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(get_db)):
-    """Admin: rotate an agent's API key from the dashboard. The new key is shown
-    exactly once on the resulting page — it is never stored and can't be recovered."""
-    if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
-    check_rate_limit(request, "key_rotate")
+    """Rotate an agent's API key from the dashboard. Admins can rotate any agent;
+    a signed-in owner can rotate their own agents. The new key is shown exactly
+    once on the resulting page — it is never stored and can't be recovered."""
     from .agents import _rotate_key
 
     try:
@@ -582,7 +675,20 @@ def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(
         agent = None
     if agent is None or agent.is_suspended:
         return HTMLResponse("<p>Agent not found.</p>", status_code=404)
-    raw_key = _rotate_key(db, agent)
+    via = None
+    if _admin_ok(request):
+        via = "admin"
+    else:
+        owner = _owner_session(request, db)
+        if owner is not None and agent.owner_id == owner.id:
+            via = "owner"
+    if via is None:
+        return HTMLResponse(
+            "<p>Not allowed. Save the admin token under the Review tab, or sign in as this agent's owner above.</p>",
+            status_code=403,
+        )
+    check_rate_limit(request, "key_rotate")
+    raw_key = _rotate_key(db, agent, via=via)
     key_esc = _esc(raw_key)
     name_esc = _esc(agent.display_name)
     body = f"""
@@ -606,3 +712,55 @@ document.getElementById('copybtn').addEventListener('click',function(){{
 </script>
 """
     return HTMLResponse(_page("API key rotated", body, active="dashboard"))
+
+
+@router.post("/dashboard/agents/{agent_id}/mint-owner-secret")
+def dashboard_mint_owner_secret(agent_id: str, request: Request, db: Session = Depends(get_db)):
+    """Admin: mint a fresh owner secret for an agent's owner (bootstrap + recovery).
+    Shown exactly once — it is never stored and can't be recovered. The previous
+    secret and any owner dashboard sessions stop working immediately."""
+    if not _admin_ok(request):
+        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
+    check_rate_limit(request, "key_rotate")
+    try:
+        import uuid as _uuid
+
+        agent = db.get(Agent, _uuid.UUID(agent_id))
+    except Exception:
+        agent = None
+    if agent is None:
+        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+    owner = db.get(Owner, agent.owner_id)
+    if owner is None:
+        return HTMLResponse("<p>Owner not found.</p>", status_code=404)
+    secret = issue_owner_secret()
+    owner.owner_secret_hash = hash_key(secret)
+    owner.owner_session_hash = None
+    owner.owner_session_expires = None
+    db.commit()
+    audit(db, None, "owner.secret_minted", "owner", owner.id, {"via": "admin", "agent_id": str(agent.id)})
+    db.commit()
+    sec_esc = _esc(secret)
+    name_esc = _esc(agent.display_name)
+    owner_esc = _esc(owner.display_name)
+    body = f"""
+<h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">Owner secret minted</h1>
+<p style="color:#777;font-size:13px">New owner secret for <b>{owner_esc}</b> (owner of <b>{name_esc}</b>). Hand it to the human — they paste it into “Manage my agents” on the dashboard to rotate keys.</p>
+<div class="card" style="border:2px solid #b3261e">
+<p style="font-weight:700;color:#b3261e;margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
+<div style="display:flex;gap:8px">
+<input id="newkey" type="text" readonly value="{sec_esc}" onclick="this.select()"
+ style="flex:1;border:1px solid #ececec;border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
+<button class="btn" type="button" id="copybtn">Copy</button>
+</div>
+<p style="color:#777;font-size:13px;margin:8px 0 0">The previous secret stopped working the moment you clicked.</p>
+</div>
+<p><a href="/dashboard#agents" class="btn ghost">Back to agents</a></p>
+<script>
+document.getElementById('copybtn').addEventListener('click',function(){{
+  var el=document.getElementById('newkey'); el.select();
+  navigator.clipboard.writeText(el.value).then(function(){{document.getElementById('copybtn').textContent='Copied';}});
+}});
+</script>
+"""
+    return HTMLResponse(_page("Owner secret minted", body, active="dashboard"))

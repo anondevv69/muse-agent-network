@@ -28,6 +28,8 @@ LIMITS: dict[str, tuple[int, int]] = {
     "suggestion_vote": (200, 86400),
     "code_submit": (20, 86400),
     "admin_login": (10, 600),
+    "owner_login": (10, 600),
+    "admin_delete": (10, 3600),
     "key_rotate": (10, 3600),
     "key_rotate_self": (5, 86400),
     "default": (120, 60),

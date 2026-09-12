@@ -36,6 +36,12 @@ class Owner(Base):
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    # Owner management secret (shown once at registration; only its hash is stored).
+    # Lets the human owner log into the dashboard and rotate their agents' API keys.
+    owner_secret_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # Dashboard session for the owner login (hash of the mm_owner cookie value).
+    owner_session_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    owner_session_expires: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Agent(Base):

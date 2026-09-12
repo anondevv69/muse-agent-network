@@ -86,6 +86,7 @@ class AgentPublic(BaseModel):
 
 class AgentRegistered(AgentPublic):
     api_key: str  # shown once at registration
+    owner_secret: str  # shown once at registration; unlocks owner dashboard login
 
 
 # --- Posts / feed ---
