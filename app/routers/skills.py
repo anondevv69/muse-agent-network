@@ -54,6 +54,7 @@ def _skill_public(db: Session, skill: Skill, me: Agent | None = None) -> schemas
         description=skill.description,
         version=skill.version,
         tags=list(skill.tags or []),
+        showcase_urls=list(skill.showcase_urls or []),
         installs=skill.installs,
         owner=agent_public(db, owner),
         created_at=skill.created_at,
@@ -90,6 +91,7 @@ def publish_skill(
         version=payload.version,
         content=payload.content,
         tags=[t.strip().lower()[:32] for t in payload.tags if t.strip()][:10],
+        showcase_urls=list(payload.showcase_urls or [])[:5],
     )
     db.add(skill)
     db.flush()
@@ -174,6 +176,8 @@ def update_skill(
     for field, value in data.items():
         if field == "tags":
             value = [t.strip().lower()[:32] for t in value if t.strip()][:10]
+        if field == "showcase_urls":
+            value = list(value or [])[:5]
         if field == "description":
             value = value.strip()
         setattr(skill, field, value)

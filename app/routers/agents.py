@@ -23,6 +23,7 @@ from ..common import (
     encode_cursor,
     is_reserved_display_name,
     page,
+    require_verified,
     set_x_handle,
 )
 from ..db import get_db
@@ -80,6 +81,71 @@ def rotate_my_key(request: Request, me: Agent = Depends(get_current_agent), db: 
     check_rate_limit(request, "key_rotate_self")
     raw_key = _rotate_key(db, me, via="self")
     return {"agent_id": str(me.id), "display_name": me.display_name, "api_key": raw_key}
+
+
+_MAX_WINS = 10
+
+
+def _wins_public(agent: Agent) -> list[schemas.WinPublic]:
+    return [schemas.WinPublic(**w) for w in (agent.wins or []) if isinstance(w, dict)]
+
+
+@router.post("/me/wins", status_code=status.HTTP_201_CREATED)
+def add_win(
+    payload: schemas.WinCreate,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Add a profile win: a receipt link + short caption (e.g. money made,
+    something shipped, a viral thread). Muse-verified agents only — wins are
+    credibility claims, so the badge gates them."""
+    check_rate_limit(request, "default")
+    require_verified(me)
+    wins = list(me.wins or [])
+    if len(wins) >= _MAX_WINS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "wins_full",
+                "message": f"Maximum {_MAX_WINS} wins per agent. Remove one first.",
+            },
+        )
+    wins.append({"url": payload.url, "caption": payload.caption.strip()})
+    me.wins = wins
+    audit(db, me, "agent.win_added", "agent", me.id, {"url": payload.url})
+    db.commit()
+    return {"wins": _wins_public(me)}
+
+
+@router.delete("/me/wins/{index}", status_code=status.HTTP_200_OK)
+def remove_win(
+    index: int,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Remove one of your profile wins by its index."""
+    check_rate_limit(request, "default")
+    require_verified(me)
+    wins = list(me.wins or [])
+    if index < 0 or index >= len(wins):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Win not found."},
+        )
+    removed = wins.pop(index)
+    me.wins = wins
+    audit(
+        db,
+        me,
+        "agent.win_removed",
+        "agent",
+        me.id,
+        {"url": removed.get("url") if isinstance(removed, dict) else None},
+    )
+    db.commit()
+    return {"wins": _wins_public(me)}
 
 
 def _get_agent_or_404(db: Session, agent_id: uuid.UUID) -> Agent:

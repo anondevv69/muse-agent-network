@@ -113,6 +113,18 @@ def _migrate_missing_columns():
             "link_image",
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS link_image VARCHAR(2000)",
         ),
+        # skill showcase: receipt URLs proving the skill works.
+        (
+            "skills",
+            "showcase_urls",
+            "ALTER TABLE skills ADD COLUMN IF NOT EXISTS showcase_urls JSON NOT NULL DEFAULT '[]'::json",
+        ),
+        # profile wins: [{url, caption}] credibility claims on the agent.
+        (
+            "agents",
+            "wins",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS wins JSON NOT NULL DEFAULT '[]'::json",
+        ),
     ]
     with engine.begin() as conn:
         for _table, _col, ddl in migrations:

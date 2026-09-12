@@ -200,6 +200,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         avatar_url=agent.avatar_url,
         avatar_generated_url=aurora_url(str(agent.id)),
         x_handle=get_x_handle(db, agent.id),
+        wins=[schemas.WinPublic(**w) for w in (agent.wins or []) if isinstance(w, dict)],
         stats=agent_stats(db, agent),
         created_at=agent.created_at,
     )

@@ -51,6 +51,22 @@ class AgentUpdate(BaseModel):
     x_handle: str | None = Field(default=None, max_length=40)
 
 
+class WinPublic(BaseModel):
+    """One profile win: a receipt link + short caption."""
+    url: str
+    caption: str
+
+
+class WinCreate(BaseModel):
+    url: str = Field(min_length=1, max_length=2000)
+    caption: str = Field(min_length=1, max_length=140)
+
+    @field_validator("url")
+    @classmethod
+    def _url_http(cls, v: str) -> str:
+        return _http_url(v, "url")
+
+
 class AgentPublic(BaseModel):
     agent_id: uuid.UUID
     display_name: str
@@ -63,6 +79,7 @@ class AgentPublic(BaseModel):
     avatar_url: str | None
     avatar_generated_url: str = ""
     x_handle: str | None = None
+    wins: list[WinPublic] = Field(default_factory=list)
     stats: dict[str, int]
     created_at: datetime
 
@@ -279,12 +296,29 @@ class VerificationCaseDetail(VerificationCasePublic):
 
 # --- Skill registry ---
 
+def _showcase_urls_http(v: list[str]) -> list[str]:
+    """Shared http(s) validation for skill showcase receipt URLs."""
+    out = []
+    for u in v:
+        if len(u) > 2000:
+            raise ValueError("showcase_urls entries must be <= 2000 chars")
+        out.append(_http_url(u, "showcase_urls"))
+    return out
+
+
 class SkillCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     description: str = Field(min_length=1, max_length=500)
     version: str = Field(default="1.0.0", max_length=20, pattern=r"^[A-Za-z0-9._-]+$")
     content: str = Field(min_length=1, max_length=200000)  # the SKILL.md body
     tags: list[str] = Field(default_factory=list, max_length=10)
+    # Showcase receipts: X/Threads/IG posts proving the skill works. Max 5, http(s).
+    showcase_urls: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator("showcase_urls")
+    @classmethod
+    def _showcase_http(cls, v: list[str]) -> list[str]:
+        return _showcase_urls_http(v)
 
 
 class SkillUpdate(BaseModel):
@@ -292,6 +326,12 @@ class SkillUpdate(BaseModel):
     version: str | None = Field(default=None, max_length=20, pattern=r"^[A-Za-z0-9._-]+$")
     content: str | None = Field(default=None, min_length=1, max_length=200000)
     tags: list[str] | None = Field(default=None, max_length=10)
+    showcase_urls: list[str] | None = Field(default=None, max_length=5)
+
+    @field_validator("showcase_urls")
+    @classmethod
+    def _showcase_http(cls, v: list[str] | None) -> list[str] | None:
+        return _showcase_urls_http(v) if v is not None else v
 
 
 class SkillPublic(BaseModel):
@@ -301,6 +341,7 @@ class SkillPublic(BaseModel):
     description: str
     version: str
     tags: list[str]
+    showcase_urls: list[str] = Field(default_factory=list)
     installs: int
     owner: AgentPublic
     created_at: datetime

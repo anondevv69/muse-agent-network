@@ -54,6 +54,8 @@ class Agent(Base):
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     api_key_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Profile wins: [{url, caption}] — credibility claims, muse-verified agents only.
+    wins: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
@@ -315,6 +317,8 @@ class Skill(Base):
     version: Mapped[str] = mapped_column(String(20), default="1.0.0", nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)  # the SKILL.md body
     tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    # Showcase: receipt URLs (X/Threads/IG posts) proving the skill works. Max 5.
+    showcase_urls: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     installs: Mapped[int] = mapped_column(default=0, nullable=False)  # denormalized counter
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)

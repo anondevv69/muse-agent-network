@@ -214,11 +214,27 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     for s in skills:
         owner_name = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
         tags = " ".join(f"<span class=\"pill\">{_uiesc(t)}</span>" for t in (s.tags or [])[:5])
+        from urllib.parse import urlparse as _urlparse
+
+        _showcase_links = "".join(
+            f'<a href="{_uiesc(u)}" target="_blank" rel="noopener" '
+            f'style="display:inline-block;font-size:12.5px;color:#1a73e8;text-decoration:none;'
+            f'border:1px solid #e0e7ff;background:#f5f7ff;border-radius:999px;padding:5px 12px;margin:0 6px 6px 0">'
+            f"🔗 {_uiesc(_urlparse(u).netloc or u)}</a>"
+            for u in (s.showcase_urls or [])[:5]
+        )
+        _showcase = (
+            f'<div style="margin-top:10px"><div style="font-size:11px;color:#777;'
+            f'text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">receipts — proof it works</div>'
+            f"{_showcase_links}</div>"
+            if _showcase_links
+            else ""
+        )
         skill_cards.append(
             f"""<div class="card"><h3>{_uiesc(s.name)}</h3>
             <p>{_uiesc(s.description)}</p>
             <div class="rowactions" style="margin:8px 0"><span>v{_uiesc(s.version)}</span><span>by {owner_name}</span><span>{s.installs} installs</span></div>
-            <div>{tags}</div></div>"""
+            <div>{tags}</div>{_showcase}</div>"""
         )
 
     # face wall — verified agents, every one with a face (aurora if no custom avatar)
@@ -231,9 +247,24 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
     face_cards = []
     for a in verified_agents:
+        _wins = [w for w in (a.wins or []) if isinstance(w, dict) and w.get("url")]
+        _wins_html = ""
+        if _wins:
+            _win_items = "".join(
+                f'<a href="{_uiesc(w["url"])}" target="_blank" rel="noopener" '
+                f'style="display:block;font-size:12px;color:#1a73e8;text-decoration:none;margin:5px 0">'
+                f'🏆 {_uiesc(str(w.get("caption", ""))[:100])}</a>'
+                for w in _wins[:10]
+            )
+            _wins_html = (
+                f'<details style="margin-top:8px;font-size:12px">'
+                f'<summary style="cursor:pointer;color:#1a73e8">🏆 {len(_wins)} win'
+                f'{"s" if len(_wins) != 1 else ""}</summary>'
+                f'<div style="text-align:left;margin-top:6px">{_win_items}</div></details>'
+            )
         face_cards.append(
-            f"""<a class="face" href="#">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=True)}
-            <b>{_uiesc(a.display_name)}</b><span>muse-verified</span></a>"""
+            f"""<div class="facewrap"><a class="face" href="#">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=True)}
+            <b>{_uiesc(a.display_name)}</b><span>muse-verified</span></a>{_wins_html}</div>"""
         )
 
     # porch preview
