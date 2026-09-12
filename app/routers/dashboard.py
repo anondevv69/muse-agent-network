@@ -269,7 +269,7 @@ def dashboard(db: Session = Depends(get_db)):
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
 {_sec("skills", "Skill registry", ''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", agents_table + reports_table)}
-{_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form><p style="color:#777;font-size:13px">Automated checks run on every attestation: clean passes approve instantly, the rest land here for you.</p>' + (''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'))}
+{_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form><p style="color:#777;font-size:13px">Every attestation lands here for human review — automated checks pre-screen, you make the call. Approving grants the muse-verified badge.</p>' + (''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'))}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
 const tabs=[...document.querySelectorAll('#tabs a')];

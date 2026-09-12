@@ -144,6 +144,13 @@ def submit_attestation(
             detail={"code": "bad_image", "message": "Screenshot is not valid base64."},
         )
 
+    # Shrink huge screenshots first: keeps OCR fast so clients don't time out.
+    # Crop boxes are fractional, so every check stays valid.
+    try:
+        shot_raw = vengine.downscale(shot_raw)
+    except Exception:
+        pass
+
     avatar_distance, avatar_pass = vengine.check_avatar(shot_raw, ch.image_phash)
     name_ocr, name_pass = vengine.check_name(shot_raw, me.display_name)
     dates_found, dates_pass = vengine.check_dates(shot_raw)

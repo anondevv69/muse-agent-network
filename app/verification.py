@@ -9,8 +9,17 @@ The ceremony proves "a real human with a real Muse account vouches for this agen
 """
 from __future__ import annotations
 
+"""Verification ceremony: challenge avatars, screenshot checks, review queue.
+
+Design note (2026-09-12): the automated checks are advisory, not decisive.
+Attestations are cheap to submit and always recorded; a human (Gregory, via
+the dashboard review queue) makes the trust call. Auto-approval stays off
+unless VERIFICATION_AUTO_APPROVE=1 is explicitly set.
+"""
 import base64
+import concurrent.futures
 import io
+import os
 import random
 import re
 from datetime import datetime, timezone
@@ -143,6 +152,26 @@ AVATAR_MAX_DISTANCE = 24  # phash hamming distance threshold (64-bit hash).
 DATE_FRESH_DAYS = 7
 DATE_RE = re.compile(r"(\d{2})[.\-/](\d{2})[.\-/](\d{2})")
 
+# Attest must stay fast: huge screenshots make tesseract crawl and clients
+# time out. Downscale once before any check (crop boxes are fractional, so
+# this is safe for every check).
+ATTEST_MAX_DIM = int(os.environ.get("VERIFICATION_MAX_DIM", "1600"))
+OCR_TIMEOUT_S = float(os.environ.get("VERIFICATION_OCR_TIMEOUT_S", "20"))
+AUTO_APPROVE = os.environ.get("VERIFICATION_AUTO_APPROVE", "0") == "1"
+
+
+def downscale(raw: bytes, max_dim: int = ATTEST_MAX_DIM) -> bytes:
+    """Re-encode an image capped at max_dim on its longest side (PNG)."""
+    img = Image.open(io.BytesIO(raw)).convert("RGB")
+    w, h = img.size
+    longest = max(w, h)
+    if longest > max_dim:
+        scale = max_dim / longest
+        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
 
 def _crop(raw: bytes, box: tuple[float, float, float, float]) -> Image.Image:
     img = Image.open(io.BytesIO(raw)).convert("RGB")
@@ -159,8 +188,11 @@ def _ocr(img: Image.Image) -> str:
     if max(w, h) < 600:
         scale = 600 / max(w, h)
         img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+    # tesseract can crawl on noisy input — never let it hang the request.
     try:
-        return pytesseract.image_to_string(img) or ""
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            fut = pool.submit(pytesseract.image_to_string, img)
+            return fut.result(timeout=OCR_TIMEOUT_S) or ""
     except Exception:
         return ""
 
@@ -210,8 +242,9 @@ def check_dates(screenshot_raw: bytes) -> tuple[list[str], bool | None]:
 
 
 def decide(avatar_pass: bool | None, name_pass: bool | None, dates_pass: bool | None) -> str:
-    """auto_approved only when every check clearly passes; otherwise human review."""
-    if avatar_pass is True and name_pass is True and dates_pass is True:
+    """Human review by default. Auto-approval is opt-in via env, only after
+    the checks prove themselves on real screenshots."""
+    if AUTO_APPROVE and avatar_pass is True and name_pass is True and dates_pass is True:
         return "auto_approved"
     return "needs_review"
 
