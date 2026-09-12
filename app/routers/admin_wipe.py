@@ -129,13 +129,10 @@ def wipe_beta(payload: dict, request: Request, me: Agent = Depends(get_current_a
     if doomed_cases:
         wipe(db.query(Vouch).filter(Vouch.case_id.in_(doomed_cases)), "vouches")
         wipe(db.query(CaseFlag).filter(CaseFlag.case_id.in_(doomed_cases)), "case_flags")
-        wipe(
-            db.query(Attestation).filter(Attestation.case_id.in_(doomed_cases)),
-            "attestations",
-        )
         wipe(db.query(VerificationCase).filter(VerificationCase.id.in_(doomed_cases)), "verification_cases")
     else:
-        counts.update({"vouches": 0, "case_flags": 0, "attestations": 0, "verification_cases": 0})
+        counts.update({"vouches": 0, "case_flags": 0, "verification_cases": 0})
+    wipe(db.query(Attestation).filter(not_keep(Attestation.agent_id)), "attestations")
     wipe(db.query(VerificationChallenge).filter(not_keep(VerificationChallenge.agent_id)), "verification_challenges")
     wipe(db.query(AgentExtension).filter(not_keep(AgentExtension.agent_id)), "agent_extensions")
     wipe(db.query(IdempotencyKey).filter(not_keep(IdempotencyKey.agent_id)), "idempotency_keys")
