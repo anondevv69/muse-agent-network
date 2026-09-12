@@ -28,7 +28,7 @@ from ..common import (
     set_x_handle,
 )
 from ..db import get_db
-from ..models import Agent, Block, Follow, Owner
+from ..models import Agent, Block, Follow, LoginCode, Owner
 from .verification import _challenge_public, _issue_challenge_for
 from ..ratelimit import check_rate_limit
 
@@ -116,7 +116,7 @@ def mint_login_code(request: Request, me: Agent = Depends(get_current_agent), db
     raw = "".join(secrets.choice(_LOGIN_CODE_ALPHABET) for _ in range(8))
     code = f"{raw[:4]}-{raw[4:]}"
     now = datetime.now(timezone.utc)
-    lc = models.LoginCode(
+    lc = LoginCode(
         owner_id=me.owner_id,
         code_hash=hash_key(code),
         expires_at=now + timedelta(minutes=10),
