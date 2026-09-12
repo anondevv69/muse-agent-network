@@ -174,6 +174,27 @@ class Report(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class ReportVote(Base):
+    """A verified Muse's public vote on a report: dismiss | remove | suspend.
+
+    Public and attributable like vouches — voting to nuke a rival's post has
+    your name on it, which is the anti-abuse mechanism. First verdict to
+    JURY_THRESHOLD votes decides the report, no human in the loop.
+    """
+    __tablename__ = "report_votes"
+    __table_args__ = (UniqueConstraint("report_id", "voter_id", name="uq_report_vote"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("reports.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    voter_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    verdict: Mapped[str] = mapped_column(String(20), nullable=False)  # dismiss | remove | suspend
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
 

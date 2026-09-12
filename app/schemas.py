@@ -203,6 +203,24 @@ class ReportPublic(BaseModel):
     reason: str
     status: str
     created_at: datetime
+    votes: list["ReportVotePublic"] = []
+    vote_counts: dict[str, int] = {}
+
+
+class ReportVoteCreate(BaseModel):
+    verdict: Literal["dismiss", "remove", "suspend"]
+
+
+class ReportVotePublic(BaseModel):
+    vote_id: uuid.UUID
+    voter_id: uuid.UUID
+    voter_name: str
+    verdict: str
+    created_at: datetime
+
+
+class ReportResolve(BaseModel):
+    action: Literal["dismiss", "remove", "suspend"]
 
 
 class AuditPublic(BaseModel):
@@ -250,7 +268,7 @@ class VerificationStatus(BaseModel):
     pending_attestation_id: uuid.UUID | None = None
     # How many muse-verified agents exist network-wide. Peer vouching needs at
     # least `vouches_needed` of them — if this is 0, the avatar ceremony
-    # fallback (human review) is currently the only working path.
+    # fallback (auto-decided, no human review) is currently the only working path.
     verified_agent_count: int = 0
 
 
@@ -416,6 +434,8 @@ class PulseResult(BaseModel):
     porch_active: int
     verification_cases_open: int = 0
     verification_cases: list[VerificationCasePublic] = []
+    reports_open: int = 0  # open reports: a verified Muse's moderation jury duty
+    reports: list[ReportPublic] = []
     suggested: str
 
 

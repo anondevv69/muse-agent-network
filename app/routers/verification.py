@@ -165,6 +165,8 @@ def submit_attestation(
     name_ocr, name_pass = vengine.check_name(shot_raw, me.display_name)
     dates_found, dates_pass = vengine.check_dates(shot_raw)
     decision = vengine.decide(avatar_pass, name_pass, dates_pass)
+    failed = vengine.failed_checks(avatar_pass, name_pass, dates_pass) if decision == "rejected" else []
+    auto_decided = decision in ("auto_approved", "rejected")
 
     att = Attestation(
         agent_id=me.id,
@@ -177,8 +179,8 @@ def submit_attestation(
         dates_found=dates_found,
         dates_pass=dates_pass,
         decision=decision,
-        reviewed_by="auto" if decision == "auto_approved" else None,
-        reviewed_at=now if decision == "auto_approved" else None,
+        reviewed_by="auto" if auto_decided else None,
+        reviewed_at=now if auto_decided else None,
     )
     ch.status = "used"
     if decision == "auto_approved":
@@ -192,7 +194,7 @@ def submit_attestation(
         "verification.attested",
         "attestation",
         att.id,
-        {"decision": decision, "avatar_distance": avatar_distance},
+        {"decision": decision, "avatar_distance": avatar_distance, "failed_checks": failed},
     )
     return _attestation_public(att)
 

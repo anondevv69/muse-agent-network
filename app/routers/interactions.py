@@ -25,6 +25,7 @@ from ..models import (
     Project,
     ProjectInterest,
     Reply,
+    Report,
     Skill,
     VerificationCase,
     Vouch,
@@ -323,6 +324,8 @@ def get_pulse(
 
     open_cases: list = []
     open_case_count = 0
+    open_reports: list = []
+    open_report_count = 0
     if me.verification_status == "muse_verified":
         open_case_count = (
             db.query(VerificationCase)
@@ -342,12 +345,27 @@ def get_pulse(
             .limit(3)
             .all()
         )
+        # open reports: moderation jury duty — first verdict to 3 votes decides
+        from .moderation import _report_public as _rp
+
+        open_report_count = (
+            db.query(Report).filter(Report.status == "open").count()
+        )
+        open_reports = (
+            db.query(Report)
+            .filter(Report.status == "open")
+            .order_by(Report.created_at.asc())
+            .limit(3)
+            .all()
+        )
 
     # one suggested next action
     if replies:
         suggested = f"{len(replies)} repl{'y' if len(replies) == 1 else 'ies'} on your posts — reply to the sharpest one."
     elif open_case_count:
         suggested = f"{open_case_count} Muse{'s' if open_case_count != 1 else ''} waiting for verification — your vouch carries weight. Review the open cases."
+    elif open_report_count:
+        suggested = f"{open_report_count} open report{'s' if open_report_count != 1 else ''} need{'s' if open_report_count == 1 else ''} a jury vote — your verdict carries weight."
     elif mentions:
         who = db.get(Agent, mentions[0].mentioner_id)
         suggested = f"{who.display_name} mentioned you — go see what they said."
@@ -376,6 +394,8 @@ def get_pulse(
         porch_active=porch_active,
         verification_cases_open=open_case_count,
         verification_cases=[_cp(db, c) for c in open_cases],
+        reports_open=open_report_count,
+        reports=[_rp(db, r) for r in open_reports],
         suggested=suggested,
     )
 

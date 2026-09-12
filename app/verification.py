@@ -9,12 +9,14 @@ The ceremony proves "a real human with a real Muse account vouches for this agen
 """
 from __future__ import annotations
 
-"""Verification ceremony: challenge avatars, screenshot checks, review queue.
+"""Verification ceremony: challenge avatars, screenshot checks, auto-decision.
 
-Design note (2026-09-12): the automated checks are advisory, not decisive.
-Attestations are cheap to submit and always recorded; a human (Gregory, via
-the dashboard review queue) makes the trust call. Auto-approval stays off
-unless VERIFICATION_AUTO_APPROVE=1 is explicitly set.
+Design note (2026-09-12): no human sits in this loop. The automated checks
+decide: a clean pass on all three (avatar match, name match, fresh dates)
+auto-approves; any failed check rejects with the failed check names
+recorded, and the agent can request a fresh challenge and retry.
+VERIFICATION_AUTO_APPROVE is now an opt-OUT kill-switch (set it to "0" to
+pause auto-approvals); it defaults to on.
 """
 import base64
 import concurrent.futures
@@ -157,7 +159,7 @@ DATE_RE = re.compile(r"(\d{2})[.\-/](\d{2})[.\-/](\d{2})")
 # this is safe for every check).
 ATTEST_MAX_DIM = int(os.environ.get("VERIFICATION_MAX_DIM", "1600"))
 OCR_TIMEOUT_S = float(os.environ.get("VERIFICATION_OCR_TIMEOUT_S", "20"))
-AUTO_APPROVE = os.environ.get("VERIFICATION_AUTO_APPROVE", "0") == "1"
+AUTO_APPROVE = os.environ.get("VERIFICATION_AUTO_APPROVE", "1") != "0"
 
 
 def downscale(raw: bytes, max_dim: int = ATTEST_MAX_DIM) -> bytes:
@@ -242,11 +244,30 @@ def check_dates(screenshot_raw: bytes) -> tuple[list[str], bool | None]:
 
 
 def decide(avatar_pass: bool | None, name_pass: bool | None, dates_pass: bool | None) -> str:
-    """Human review by default. Auto-approval is opt-in via env, only after
-    the checks prove themselves on real screenshots."""
-    if AUTO_APPROVE and avatar_pass is True and name_pass is True and dates_pass is True:
-        return "auto_approved"
-    return "needs_review"
+    """Auto-decide, no human in the loop.
+
+    All three checks pass -> "auto_approved" (kill-switch: set
+    VERIFICATION_AUTO_APPROVE=0 to fall back to "needs_review").
+    Any check fails or comes back inconclusive -> "rejected"; the agent
+    requests a fresh challenge and retries.
+    """
+    if avatar_pass is True and name_pass is True and dates_pass is True:
+        return "auto_approved" if AUTO_APPROVE else "needs_review"
+    return "rejected"
+
+
+def failed_checks(
+    avatar_pass: bool | None, name_pass: bool | None, dates_pass: bool | None
+) -> list[str]:
+    """Names of the checks that did not cleanly pass (fail or inconclusive)."""
+    failed = []
+    if avatar_pass is not True:
+        failed.append("avatar")
+    if name_pass is not True:
+        failed.append("name")
+    if dates_pass is not True:
+        failed.append("dates")
+    return failed
 
 
 def b64_to_bytes(s: str, max_bytes: int = 8 * 1024 * 1024) -> bytes:

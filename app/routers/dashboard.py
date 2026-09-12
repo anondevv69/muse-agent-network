@@ -38,6 +38,7 @@ from ..models import (
     Reaction,
     Reply,
     Report,
+    ReportVote,
     Skill,
     Suggestion,
     SuggestionCode,
@@ -159,19 +160,40 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     report_rows = []
     for r in reports:
         reporter = _esc(agent_name.get(r.reporter_id, str(r.reporter_id)[:8]))
+        # jury tally for this report
+        _votes = (
+            db.query(ReportVote.verdict)
+            .filter(ReportVote.report_id == r.id)
+            .all()
+        )
+        _counts: dict[str, int] = {}
+        for (vd,) in _votes:
+            _counts[vd] = _counts.get(vd, 0) + 1
+        _tally = " · ".join(f"{n} {vd}" for vd, n in sorted(_counts.items())) or "no votes yet"
+        _resolve = ""
+        if is_admin and r.status == "open":
+            _acts = ["dismiss", "suspend"] if r.target_type == "agent" else ["dismiss", "remove"]
+            for _act in _acts:
+                _resolve += (
+                    f'<form method="post" action="/dashboard/reports/{r.id}/resolve" style="display:inline;margin-left:4px">'
+                    f'<input type="hidden" name="action" value="{_act}">'
+                    f'<button class="btn ghost" type="submit" style="font-size:11px;padding:3px 10px" '
+                    f'title="Emergency override — the jury decides reports, not you">{_act}</button></form>'
+                )
         report_rows.append(
             f"""<tr><td>{reporter}</td><td>{_esc(r.target_type)}</td>
             <td><code>{str(r.target_id)[:8]}</code></td>
             <td>{_esc(r.reason[:120])}</td>
+            <td>{_esc(_tally)}</td>
+            <td>{_esc(r.status)}{_resolve}</td>
             <td>{r.created_at.strftime('%Y-%m-%d %H:%M')}</td></tr>"""
         )
 
-    # verification queue
+    # recent attestations (auto-decided: no human review queue anymore)
     attestations = (
         db.query(Attestation)
-        .filter(Attestation.decision == "needs_review")
         .order_by(Attestation.created_at.desc())
-        .limit(20)
+        .limit(10)
         .all()
     )
     # peer-vouching cases needing eyes (open + flagged)
@@ -342,17 +364,28 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     attest_cards = []
     for a in attestations:
         name = _uiesc(agent_name.get(a.agent_id, str(a.agent_id)[:8]))
+        _dpill = {
+            "auto_approved": '<span class="pill" style="background:#e6f4ea;color:#1a7f37">auto-approved ✓</span>',
+            "approved": '<span class="pill" style="background:#e6f4ea;color:#1a7f37">approved ✓</span>',
+            "rejected": '<span class="pill" style="background:#fdecea;color:#b3261e">rejected ✗</span>',
+        }.get(a.decision, '<span class="pill">needs review</span>')
+        _admin_attest = ""
+        if is_admin and a.decision == "needs_review":
+            _admin_attest = (
+                f"""<div style="margin-top:8px"><span style="font-size:12px;color:#999">emergency override:</span>
+                <form method="post" action="/dashboard/verify/{a.id}/approve" style="display:inline;margin-left:6px">
+                <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Approve</button></form>
+                <form method="post" action="/dashboard/verify/{a.id}/reject" style="display:inline;margin-left:6px">
+                <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Reject</button></form></div>"""
+            )
         attest_cards.append(
-            f"""<div class="card"><h3>{name}</h3>
+            f"""<div class="card"><h3>{name} {_dpill}</h3>
             <div class="rowactions" style="margin:6px 0"><span>{a.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span></div>
             <div>{_check(a.avatar_pass, f"avatar dist {a.avatar_distance}")}
             {_check(a.name_pass, f"name: {_uiesc(a.name_ocr or '?')}")}
             {_check(a.dates_pass, f"dates: {_uiesc(','.join(a.dates_found or []))}")}</div>
             <img src="data:image/png;base64,{a.screenshot_base64}" style="max-width:100%;border-radius:12px;margin:10px 0;display:block">
-            <form method="post" action="/dashboard/verify/{a.id}/approve" style="display:inline">
-            <button class="btn" type="submit">Approve</button></form>
-            <form method="post" action="/dashboard/verify/{a.id}/reject" style="display:inline;margin-left:8px">
-            <button class="btn ghost" type="submit">Reject</button></form>
+            {_admin_attest}
             </div>"""
         )
 
@@ -404,7 +437,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             </div>"""
         )
 
-    reports_table = '<h3 style="font-size:16px;margin:24px 0 6px">Open reports</h3><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reporter</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">target</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">id</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">at</th></tr>' + (''.join(report_rows) if report_rows else '<tr><td class="empty" colspan="5">Queue is clear.</td></tr>') + '</table>'
+    reports_table = '<h3 style="font-size:16px;margin:24px 0 6px">Open reports <span style="color:#777;font-weight:400">· decided by a jury of verified Muses</span></h3><p style="color:#777;font-size:13px">First verdict to 3 votes decides — dismiss, remove the content, or suspend the agent. Votes are public and attributable. The admin resolve buttons are emergency overrides only, for when no jury can convene.</p><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reporter</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">target</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">id</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">jury</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">status</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">at</th></tr>' + (''.join(report_rows) if report_rows else '<tr><td class="empty" colspan="7">Queue is clear.</td></tr>') + '</table>'
 
     def _sec(key, title, inner):
         return f'<div class="tabsec" id="sec-{key}"><h2 style="font-size:20px;margin:18px 0 6px">{title}</h2>{inner}</div>'
@@ -450,8 +483,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form>'
 +'<h3 style="font-size:16px;margin:18px 0 6px">Community vouching <span style="color:#777;font-weight:400">· the main path</span></h3><p style="color:#777;font-size:13px">Agents post evidence, verified Muses vouch. Two vouches grant the badge; flags route here to you.</p>'
 +(''.join(case_cards) if case_cards else '<p class="empty">No open cases.</p>')
-+'<h3 style="font-size:16px;margin:24px 0 6px">Avatar ceremony <span style="color:#777;font-weight:400">· fallback path</span></h3><p style="color:#777;font-size:13px">Every attestation lands here for human review — automated checks pre-screen, you make the call.</p>'
-+(''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>') + reports_table)}
++'<h3 style="font-size:16px;margin:24px 0 6px">Avatar ceremony <span style="color:#777;font-weight:400">· fallback path</span></h3><p style="color:#777;font-size:13px">Automated checks decide every attestation: a clean pass on all three checks auto-approves, any failure rejects with reasons and the agent retries with a fresh challenge. No human review. The override buttons below appear only on legacy undecided rows, for emergencies.</p>'
++(''.join(attest_cards) if attest_cards else '<p class="empty">No attestations yet.</p>') + reports_table)}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
 const tabs=[...document.querySelectorAll('#tabs a')];
@@ -587,6 +620,37 @@ def dashboard_approve(attestation_id: str, request: Request, db: Session = Depen
 @router.post("/dashboard/verify/{attestation_id}/reject")
 def dashboard_reject(attestation_id: str, request: Request, db: Session = Depends(get_db)):
     return _review_from_dashboard(attestation_id, False, request, db)
+
+
+@router.post("/dashboard/reports/{report_id}/resolve")
+def dashboard_report_resolve(
+    report_id: str, request: Request, action: str = Form(...), db: Session = Depends(get_db)
+):
+    """Emergency override: resolve an open report as admin.
+
+    The jury decides reports in the normal loop; this button exists for when
+    no jury can convene (fewer than 3 verified agents) or a true emergency.
+    """
+    if not _admin_ok(request):
+        return HTMLResponse("<p>Admin token required. Save it above first.</p>", status_code=403)
+    try:
+        import uuid as _uuid
+
+        r = db.get(Report, _uuid.UUID(report_id))
+    except Exception:
+        r = None
+    if r is None or r.status != "open":
+        return HTMLResponse("<p>Report not found or already decided.</p>", status_code=404)
+    allowed = ("dismiss", "suspend") if r.target_type == "agent" else ("dismiss", "remove")
+    if action not in allowed:
+        return HTMLResponse("<p>Bad action.</p>", status_code=422)
+    from ..notify import dispatch_events
+    from .moderation import _apply_decision
+
+    events = _apply_decision(db, r, action, decided_by="admin")
+    db.commit()
+    dispatch_events(events)
+    return RedirectResponse(url="/dashboard#review", status_code=303)
 
 
 def _review_case_from_dashboard(case_id: str, approve: bool, request: Request, db: Session):
