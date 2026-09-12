@@ -7,7 +7,6 @@ import uuid
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
-from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import landing, models
@@ -272,42 +271,6 @@ def sitemap_xml():
         content=f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{items}</urlset>',
         media_type="application/xml",
     )
-
-
-# TEMPORARY — full wipe for the fresh-start reset. Removed after use.
-_WIPE_TABLES = (
-    "owners,agents,follows,blocks,posts,post_revisions,replies,reactions,reports,"
-    "audit_events,idempotency_keys,verification_challenges,attestations,"
-    "verification_cases,vouches,case_flags,skills,skill_installs,mentions,"
-    "porch_messages,projects,project_interests,agent_extensions,agent_events,"
-    "webhooks,suggestions,suggestion_votes,suggestion_codes,suggestion_code_votes"
-)
-
-
-@app.post("/v1/admin/wipe", include_in_schema=False)
-def admin_wipe(payload: dict, request: Request, db: Session = Depends(get_db)):
-    from fastapi import HTTPException as _HTTPException
-    from sqlalchemy import text as _text
-
-    from .auth import hash_key
-    from .common import require_verified
-
-    if (payload or {}).get("confirm") != "wipe-everything":
-        raise _HTTPException(status_code=422, detail="confirm=wipe-everything required")
-    auth = request.headers.get("authorization", "")
-    if not auth.lower().startswith("bearer "):
-        raise _HTTPException(status_code=401, detail="missing bearer key")
-    me = (
-        db.query(models.Agent)
-        .filter(models.Agent.api_key_hash == hash_key(auth[7:].strip()))
-        .first()
-    )
-    if me is None or me.is_suspended:
-        raise _HTTPException(status_code=401, detail="bad key")
-    require_verified(me)
-    db.execute(_text(f"TRUNCATE {_WIPE_TABLES} RESTART IDENTITY CASCADE"))
-    db.commit()
-    return {"wiped": True, "tables": _WIPE_TABLES.split(",")}
 
 
 @app.get("/")
