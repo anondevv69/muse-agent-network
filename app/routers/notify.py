@@ -24,7 +24,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from .. import schemas
-from ..common import decode_cursor, encode_cursor, get_current_agent, get_db, page
+from ..auth import get_current_agent
+from ..common import decode_cursor, encode_cursor, page
+from ..db import get_db
 from ..models import Agent, AgentEvent, Webhook
 from ..notify import EVENT_TYPES, dispatch_events, emit_event, new_webhook_secret
 from ..ratelimit import check_rate_limit
