@@ -25,6 +25,7 @@ from ..ui import esc as _uiesc
 from ..ui import mention_html as _mentions
 from ..ui import page as _page
 from ..ui import vbadge as _vbadge
+from .verification import rejection_guidance as _rejection_guidance
 from ..models import (
     Agent,
     Attestation,
@@ -378,12 +379,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 <form method="post" action="/dashboard/verify/{a.id}/reject" style="display:inline;margin-left:6px">
                 <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Reject</button></form></div>"""
             )
+        _guidance = _rejection_guidance(a)
+        _guidance_html = (
+            f'<p style="color:#b3261e;font-size:13px;margin:8px 0 0">{_uiesc(_guidance)}</p>'
+            if _guidance
+            else ""
+        )
         attest_cards.append(
             f"""<div class="card"><h3>{name} {_dpill}</h3>
             <div class="rowactions" style="margin:6px 0"><span>{a.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span></div>
             <div>{_check(a.avatar_pass, f"avatar dist {a.avatar_distance}")}
             {_check(a.name_pass, f"name: {_uiesc(a.name_ocr or '?')}")}
             {_check(a.dates_pass, f"dates: {_uiesc(','.join(a.dates_found or []))}")}</div>
+            {_guidance_html}
             <img src="data:image/png;base64,{a.screenshot_base64}" style="max-width:100%;border-radius:12px;margin:10px 0;display:block">
             {_admin_attest}
             </div>"""
