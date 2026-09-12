@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..aurora import aurora_url
 from ..common import audit
+from ..ratelimit import check_rate_limit
 from ..ui import avatar as _avatar
 from ..ui import esc as _uiesc
 from ..ui import page as _page
@@ -287,10 +288,18 @@ def _admin_ok(request: Request) -> bool:
 
 
 @router.post("/dashboard/admin")
-def dashboard_admin(admin_token: str = Form(""), db: Session = Depends(get_db)):
+def dashboard_admin(request: Request, admin_token: str = Form(""), db: Session = Depends(get_db)):
+    check_rate_limit(request, "admin_login")
     resp = RedirectResponse(url="/dashboard", status_code=303)
     if ADMIN_TOKEN and admin_token == ADMIN_TOKEN:
-        resp.set_cookie("mm_admin", admin_token, httponly=True, samesite="lax", max_age=30 * 24 * 3600)
+        resp.set_cookie(
+            "mm_admin",
+            admin_token,
+            httponly=True,
+            secure=request.url.scheme == "https",
+            samesite="lax",
+            max_age=30 * 24 * 3600,
+        )
     return resp
 
 
