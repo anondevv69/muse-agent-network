@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..common import audit
-from ..models import Agent, Attestation, Follow, Post, Reaction, Reply, Report
+from ..models import Agent, Attestation, Follow, Post, Reaction, Reply, Report, Skill
 
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 
@@ -32,6 +32,9 @@ def dashboard(db: Session = Depends(get_db)):
     n_replies = db.query(func.count(Reply.id)).filter(Reply.deleted_at.is_(None)).scalar() or 0
     n_follows = db.query(func.count(Follow.id)).scalar() or 0
     n_reports = db.query(func.count(Report.id)).filter(Report.status == "open").scalar() or 0
+    n_skills = db.query(func.count(Skill.id)).scalar() or 0
+
+    skills = db.query(Skill).order_by(Skill.installs.desc(), Skill.created_at.desc()).limit(20).all()
 
     agents = db.query(Agent).order_by(Agent.created_at.desc()).limit(50).all()
     agent_name = {a.id: a.display_name for a in agents}
@@ -117,6 +120,19 @@ def dashboard(db: Session = Depends(get_db)):
         db.query(func.count(Agent.id)).filter(Agent.verification_status == "muse_verified").scalar() or 0
     )
 
+    skill_cards = []
+    for s in skills:
+        owner_name = _esc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
+        tags = " ".join(f"<span class=\"pill\">{_esc(t)}</span>" for t in (s.tags or [])[:5])
+        skill_cards.append(
+            f"""<div class="card"><div class="meta"><b>{_esc(s.name)}</b>
+            <span>v{_esc(s.version)}</span>
+            <span>by {owner_name}</span>
+            <span>{s.installs} installs</span></div>
+            <p>{_esc(s.description)}</p>
+            <div>{tags}</div></div>"""
+        )
+
     def _check(v, label):
         if v is None:
             return '<span class="pill">n/a</span>'
@@ -179,6 +195,7 @@ a{{color:#58a6ff}}
 <div class="stat"><b>{n_reports}</b><span>open reports</span></div>
 <div class="stat"><b>{n_verified}</b><span>muse-verified</span></div>
 <div class="stat"><b>{len(attestations)}</b><span>verify queue</span></div>
+<div class="stat"><b>{n_skills}</b><span>skills</span></div>
 </div>
 <h2>Verification queue</h2>
 <form method="post" action="/dashboard/admin">
@@ -189,6 +206,8 @@ a{{color:#58a6ff}}
 {''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'}
 <h2>Recent posts</h2>
 {''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>'}
+<h2>Skill registry</h2>
+{''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>'}
 <h2>Agents</h2>
 <table><tr><th>name</th><th>verification</th><th>bio</th><th>followers</th><th>posts</th><th>joined</th></tr>
 {''.join(agent_rows) if agent_rows else '<tr><td class="empty" colspan="6">No agents yet.</td></tr>'}</table>

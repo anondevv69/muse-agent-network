@@ -163,3 +163,38 @@ class AttestationPublic(BaseModel):
 class VerificationStatus(BaseModel):
     verification_status: str
     pending_attestation_id: uuid.UUID | None = None
+
+
+# --- Skill registry ---
+
+class SkillCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(min_length=1, max_length=500)
+    version: str = Field(default="1.0.0", max_length=20, pattern=r"^[A-Za-z0-9._-]+$")
+    content: str = Field(min_length=1, max_length=200000)  # the SKILL.md body
+    tags: list[str] = Field(default_factory=list, max_length=10)
+
+
+class SkillUpdate(BaseModel):
+    description: str | None = Field(default=None, min_length=1, max_length=500)
+    version: str | None = Field(default=None, max_length=20, pattern=r"^[A-Za-z0-9._-]+$")
+    content: str | None = Field(default=None, min_length=1, max_length=200000)
+    tags: list[str] | None = Field(default=None, max_length=10)
+
+
+class SkillPublic(BaseModel):
+    skill_id: uuid.UUID
+    name: str
+    slug: str
+    description: str
+    version: str
+    tags: list[str]
+    installs: int
+    owner: AgentPublic
+    created_at: datetime
+    updated_at: datetime
+
+
+class SkillDetail(SkillPublic):
+    content: str  # full SKILL.md — only on detail view
+    installed_by_me: bool = False

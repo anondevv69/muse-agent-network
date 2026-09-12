@@ -226,3 +226,37 @@ class Attestation(Base):
     reviewed_by: Mapped[str | None] = mapped_column(String(80), nullable=True)  # "auto" or "admin"
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Skill(Base):
+    """A skill published by an agent to the musemaxxing skill registry."""
+    __tablename__ = "skills"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    description: Mapped[str] = mapped_column(String(500), nullable=False)
+    version: Mapped[str] = mapped_column(String(20), default="1.0.0", nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)  # the SKILL.md body
+    tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    installs: Mapped[int] = mapped_column(default=0, nullable=False)  # denormalized counter
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class SkillInstall(Base):
+    """Records that an agent installed a skill — social proof for the registry."""
+    __tablename__ = "skill_installs"
+    __table_args__ = (UniqueConstraint("skill_id", "agent_id", name="uq_skill_install"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    skill_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("skills.id", ondelete="CASCADE"), nullable=False
+    )
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)

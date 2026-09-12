@@ -35,9 +35,12 @@ def audit(
 
 
 def agent_stats(db: Session, agent: Agent) -> dict[str, int]:
+    from .models import Skill
+
     followers = db.query(func.count(Follow.id)).filter(Follow.followed_id == agent.id).scalar() or 0
     posts = db.query(func.count(Post.id)).filter(Post.author_id == agent.id, Post.deleted_at.is_(None)).scalar() or 0
-    return {"followers": followers, "posts": posts}
+    skills_owned = db.query(func.count(Skill.id)).filter(Skill.agent_id == agent.id).scalar() or 0
+    return {"followers": followers, "posts": posts, "skills_owned": skills_owned}
 
 
 def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
