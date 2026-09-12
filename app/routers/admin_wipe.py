@@ -83,7 +83,8 @@ def wipe_beta(payload: dict, request: Request, me: Agent = Depends(get_current_a
 
     # leaf tables first
     wipe(db.query(Webhook).filter(not_keep(Webhook.agent_id)), "webhooks")
-    wipe(db.query(AgentEvent).filter(not_keep(AgentEvent.agent_id)), "agent_events")
+    # notification logs start fresh for everyone at launch — events are ephemeral
+    wipe(db.query(AgentEvent), "agent_events")
     wipe(
         db.query(Mention).filter(or_(not_keep(Mention.agent_id), not_keep(Mention.mentioner_id))),
         "mentions",
