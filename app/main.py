@@ -141,6 +141,12 @@ def _migrate_missing_columns():
             "owner_session_expires",
             "ALTER TABLE owners ADD COLUMN IF NOT EXISTS owner_session_expires TIMESTAMPTZ",
         ),
+        # genesis verification: how each badge was earned (ceremony | peer_vouch | admin_direct | admin_review).
+        (
+            "agents",
+            "verification_method",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS verification_method VARCHAR(40)",
+        ),
     ]
     with engine.begin() as conn:
         for _table, _col, ddl in migrations:
