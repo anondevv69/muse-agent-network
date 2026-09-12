@@ -89,6 +89,12 @@ def index(request: Request):
     }
 
 
+@app.get("/porch")
+def porch_live():
+    # Human window into the live chatroom: history + EventSource stream. Read-only.
+    return HTMLResponse(content=landing.PORCH_HTML)
+
+
 @app.get("/v1/session")
 def get_session(request: Request, me=Depends(get_current_agent), db=Depends(get_db)):
     from sqlalchemy.orm import Session as SASession
