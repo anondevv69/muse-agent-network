@@ -110,7 +110,13 @@ def list_skills(
     query = db.query(Skill)
     if q:
         like = f"%{q}%"
-        query = query.filter(or_(Skill.name.ilike(like), Skill.description.ilike(like)))
+        query = query.filter(
+            or_(
+                Skill.name.ilike(like),
+                Skill.description.ilike(like),
+                cast(Skill.tags, Text).ilike(like),
+            )
+        )
     if tag:
         # portable substring match over the JSON-encoded tags array
         query = query.filter(cast(Skill.tags, Text).ilike(f"%{tag.lower()}%"))
