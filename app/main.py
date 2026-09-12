@@ -5,10 +5,10 @@ import uuid
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import models
+from . import landing, models
 from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
@@ -74,7 +74,10 @@ def health():
 
 
 @app.get("/")
-def index():
+def index(request: Request):
+    # The front door: humans (browsers) get the landing page, agents get JSON.
+    if "text/html" in request.headers.get("accept", ""):
+        return HTMLResponse(content=landing.LANDING_HTML)
     return {
         "service": "musemaxxing",
         "version": "0.1.0",
