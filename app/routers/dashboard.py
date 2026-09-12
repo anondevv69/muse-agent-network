@@ -293,48 +293,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             {_wins_html}{_rotate}{_mint}{_delete}</div>"""
         )
 
-    # "My agents" — the simple human tab: just your agents, just key rotation.
-    my_agent_cards = []
-    if owner is not None:
-        for a in people_agents:
-            if a.owner_id != owner.id:
-                continue
-            _verified = a.verification_status == "muse_verified"
-            _badge = (
-                '<span class="pill" style="background:#e6f4ea;color:#1a7f37">muse-verified</span>'
-                if _verified
-                else '<span class="pill">unverified</span>'
-            )
-            my_agent_cards.append(
-                f"""<div class="card" style="display:flex;align-items:center;gap:14px;margin:0 0 10px;padding:14px 16px">
-                {_avatar(a.avatar_url or aurora_url(str(a.id)), 52, ring=_verified)}
-                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}</div>
-                <div style="font-size:12px;color:#777;margin-top:2px">{_badge}</div></div>
-                <form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"
-                onsubmit="return confirm('Rotate this agent\u2019s API key? The old key stops working immediately. Paste the new key into your connector card afterwards.')">
-                <button class="btn" type="submit">Rotate key</button></form></div>"""
-            )
-    _myagents_tab = (
-        '<a href="#myagents" data-k="myagents">My agents</a>' if owner is not None else ""
-    )
-    _myagents_sec = (
-        _sec(
-            "myagents",
-            "My agents",
-            '<p style="color:#777;font-size:13px">Your agents, nothing else. Rotating mints a fresh API key — '
-            "paste it into the musemaxxing connector card in your Muse app afterwards, or your agent goes quiet.</p>"
-            + (
-                "".join(my_agent_cards)
-                if my_agent_cards
-                else '<p class="empty">No agents on this login.</p>'
-            )
-            + '<form method="post" action="/dashboard/owner/logout" style="margin-top:12px">'
-            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Log out</button></form>',
-        )
-        if owner is not None
-        else ""
-    )
-
     # projects
     projects = db.query(Project).order_by(Project.updated_at.desc()).limit(10).all()
     project_cards = []
@@ -503,6 +461,44 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             'style="flex:1;border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> '
             '<button class="btn" type="submit">Sign in</button></form></div>'
         )
+
+    # "My agents" — the simple human tab: just your agents, just key rotation.
+    my_agent_cards = []
+    if owner is not None:
+        for a in people_agents:
+            if a.owner_id != owner.id:
+                continue
+            _v = a.verification_status == "muse_verified"
+            _b = (
+                '<span class="pill" style="background:#e6f4ea;color:#1a7f37">muse-verified</span>'
+                if _v
+                else '<span class="pill">unverified</span>'
+            )
+            my_agent_cards.append(
+                f"""<div class="card" style="display:flex;align-items:center;gap:14px;margin:0 0 10px;padding:14px 16px">
+                {_avatar(a.avatar_url or aurora_url(str(a.id)), 52, ring=_v)}
+                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}</div>
+                <div style="font-size:12px;color:#777;margin-top:2px">{_b}</div></div>
+                <form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"
+                onsubmit="return confirm('Rotate this agent\u2019s API key? The old key stops working immediately. Paste the new key into your connector card afterwards.')">
+                <button class="btn" type="submit">Rotate key</button></form></div>"""
+            )
+    _myagents_tab = (
+        '<a href="#myagents" data-k="myagents">My agents</a>' if owner is not None else ""
+    )
+    _myagents_sec = (
+        _sec(
+            "myagents",
+            "My agents",
+            '<p style="color:#777;font-size:13px">Your agents, nothing else. Rotating mints a fresh API key — '
+            "paste it into the musemaxxing connector card in your Muse app afterwards, or your agent goes quiet.</p>"
+            + ("".join(my_agent_cards) if my_agent_cards else '<p class="empty">No agents on this login.</p>')
+            + '<form method="post" action="/dashboard/owner/logout" style="margin-top:12px">'
+            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Log out</button></form>',
+        )
+        if owner is not None
+        else ""
+    )
 
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:#777;font-weight:400">· dashboard</span></h1>
