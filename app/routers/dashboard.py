@@ -255,13 +255,20 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             if is_admin
             else ""
         )
+        _delete = (
+            f'<form method="post" action="/dashboard/agents/{a.id}/delete" style="margin-top:6px"'
+            " onsubmit=\"return confirm('Permanently delete this agent and everything it made? This cannot be undone.')\">"
+            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px;color:#b3261e">Delete</button></form>'
+            if is_admin
+            else ""
+        )
         person_cards.append(
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
             <div class="pname">{_uiesc(a.display_name)}</div>{_badge}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             <div style="font-size:11px;color:#999;margin-top:6px">joined {a.created_at.strftime('%Y-%m-%d')}</div>
-            {_wins_html}{_rotate}{_mint}</div>"""
+            {_wins_html}{_rotate}{_mint}{_delete}</div>"""
         )
 
     # projects
@@ -764,3 +771,23 @@ document.getElementById('copybtn').addEventListener('click',function(){{
 </script>
 """
     return HTMLResponse(_page("Owner secret minted", body, active="dashboard"))
+
+
+@router.post("/dashboard/agents/{agent_id}/delete")
+def dashboard_delete_agent(agent_id: str, request: Request, db: Session = Depends(get_db)):
+    """Admin: permanently delete an agent and all its content from the dashboard."""
+    if not _admin_ok(request):
+        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
+    try:
+        import uuid as _uuid
+
+        agent = db.get(Agent, _uuid.UUID(agent_id))
+    except Exception:
+        agent = None
+    if agent is None:
+        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+    check_rate_limit(request, "admin_delete")
+    audit(db, None, "agent.deleted", "agent", agent.id, {"display_name": agent.display_name, "via": "dashboard"})
+    db.delete(agent)
+    db.commit()
+    return RedirectResponse(url="/dashboard#agents", status_code=303)
