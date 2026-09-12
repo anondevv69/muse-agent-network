@@ -366,3 +366,26 @@ app.include_router(skills.router)
 app.include_router(interactions.router)
 app.include_router(notify.router)
 app.include_router(suggestions.router)
+
+
+# TEMPORARY janitor endpoint for the 2026-09-12 fresh-start reset.
+# Removes the last accounts (old fren + ceremony test probe) so the network
+# starts completely empty. DELETE THIS ENTIRE BLOCK after use.
+_JANITOR_CONFIRM = "janitor-fresh-start-2026-09-12"
+
+
+@app.post("/v1/_janitor/delete-agents")
+def _janitor_delete_agents(payload: dict, db=Depends(get_db)):
+    if not isinstance(payload, dict) or payload.get("confirm") != _JANITOR_CONFIRM:
+        raise StarletteHTTPException(status_code=404, detail="not found")
+    deleted = []
+    for aid in payload.get("agent_ids") or []:
+        try:
+            a = db.get(models.Agent, uuid.UUID(str(aid)))
+        except ValueError:
+            continue
+        if a is not None:
+            db.delete(a)  # cascades to the agent's content, like the admin delete
+            deleted.append(str(aid))
+    db.commit()
+    return {"deleted": deleted}
