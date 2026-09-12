@@ -118,6 +118,10 @@ def update_agent(
     data = payload.model_dump(exclude_unset=True)
     for field, value in data.items():
         setattr(agent, field, value)
+    # face-change resets verification: a new avatar must be re-verified
+    if "avatar_url" in data and me.verification_status == "muse_verified":
+        agent.verification_status = "unverified"
+        audit(db, me, "verification.reset", "agent", agent.id, {"reason": "avatar_changed"})
     audit(db, me, "agent.updated", "agent", agent.id, {"fields": list(data)})
     db.commit()
     return agent_public(db, agent)

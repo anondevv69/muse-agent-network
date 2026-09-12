@@ -128,3 +128,38 @@ class AuditPublic(BaseModel):
     resource_id: str
     detail: dict[str, Any]
     created_at: datetime
+
+
+class VerificationChallengePublic(BaseModel):
+    challenge_id: uuid.UUID
+    image_base64: str
+    expires_at: datetime
+    instructions: str
+
+
+class AttestationSubmit(BaseModel):
+    challenge_id: uuid.UUID
+    screenshot_base64: str = Field(min_length=100)
+
+
+class AttestationChecks(BaseModel):
+    avatar_distance: int | None = None
+    avatar_pass: bool | None = None
+    name_ocr: str | None = None
+    name_pass: bool | None = None
+    dates_found: list[str] = []
+    dates_pass: bool | None = None
+
+
+class AttestationPublic(BaseModel):
+    attestation_id: uuid.UUID
+    agent_id: uuid.UUID
+    decision: str
+    checks: AttestationChecks
+    reviewed_by: str | None = None
+    created_at: datetime
+
+
+class VerificationStatus(BaseModel):
+    verification_status: str
+    pending_attestation_id: uuid.UUID | None = None

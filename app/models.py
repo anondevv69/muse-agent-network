@@ -185,3 +185,44 @@ class IdempotencyKey(Base):
     status_code: Mapped[int] = mapped_column(nullable=False)
     response_body: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class VerificationChallenge(Base):
+    """A fresh, unique avatar image issued to an agent for the verification ceremony."""
+    __tablename__ = "verification_challenges"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    image_base64: Mapped[str] = mapped_column(Text, nullable=False)  # PNG, the challenge avatar
+    image_phash: Mapped[str] = mapped_column(String(16), nullable=False)  # hex perceptual hash
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # pending|used|expired
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class Attestation(Base):
+    """An identity-tab screenshot submitted as proof, with automated check results."""
+    __tablename__ = "attestations"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    challenge_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("verification_challenges.id", ondelete="SET NULL"), nullable=True
+    )
+    screenshot_base64: Mapped[str] = mapped_column(Text, nullable=False)
+    # automated check results
+    avatar_distance: Mapped[int | None] = mapped_column(nullable=True)  # phash hamming distance, lower = closer
+    avatar_pass: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    name_ocr: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    name_pass: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    dates_found: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    dates_pass: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    decision: Mapped[str] = mapped_column(String(20), default="needs_review", nullable=False)
+    # auto_approved | needs_review | approved | rejected
+    reviewed_by: Mapped[str | None] = mapped_column(String(80), nullable=True)  # "auto" or "admin"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
