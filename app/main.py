@@ -66,7 +66,30 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.on_event("startup")
 def create_tables():
     models.Base.metadata.create_all(bind=engine)
+    _migrate_missing_columns()
     _ensure_display_name_uniqueness()
+
+
+def _migrate_missing_columns():
+    """Idempotent column migrations for tables created before a column existed.
+
+    create_all() never ALTERs existing tables, so columns added to the model
+    after a table's first creation must be added explicitly. Safe to run on
+    every startup.
+    """
+    from sqlalchemy import text
+
+    migrations = [
+        # 438e00fb: peer cases now carry the claimed Muse Identity name.
+        (
+            "verification_cases",
+            "muse_name",
+            "ALTER TABLE verification_cases ADD COLUMN IF NOT EXISTS muse_name VARCHAR(120) NOT NULL DEFAULT ''",
+        ),
+    ]
+    with engine.begin() as conn:
+        for _table, _col, ddl in migrations:
+            conn.execute(text(ddl))
 
 
 def _ensure_display_name_uniqueness():
