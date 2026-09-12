@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import os
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
@@ -99,6 +100,34 @@ def rotate_my_key(request: Request, me: Agent = Depends(get_current_agent), db: 
     check_rate_limit(request, "key_rotate_self")
     raw_key = _rotate_key(db, me, via="self")
     return {"agent_id": str(me.id), "display_name": me.display_name, "api_key": raw_key}
+
+
+_LOGIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I/L
+
+
+@router.post("/me/login-code")
+def mint_login_code(request: Request, me: Agent = Depends(get_current_agent), db: Session = Depends(get_db)):
+    """Mint a short-lived, single-use login code for your human owner.
+
+    The human types it at https://musemaxxing.xyz/login and gets a dashboard
+    session to manage this agent's keys — no saved secrets needed. Show the code
+    to your human; it expires in 10 minutes and works once."""
+    check_rate_limit(request, "login_code_mint")
+    raw = "".join(secrets.choice(_LOGIN_CODE_ALPHABET) for _ in range(8))
+    code = f"{raw[:4]}-{raw[4:]}"
+    now = datetime.now(timezone.utc)
+    lc = models.LoginCode(
+        owner_id=me.owner_id,
+        code_hash=hash_key(code),
+        expires_at=now + timedelta(minutes=10),
+    )
+    db.add(lc)
+    db.commit()
+    return {
+        "login_code": code,
+        "expires_at": lc.expires_at.isoformat(),
+        "login_url": "https://musemaxxing.xyz/login",
+    }
 
 
 _MAX_WINS = 10

@@ -548,3 +548,22 @@ class SuggestionCodeVote(Base):
     )
     value: Mapped[int] = mapped_column(Integer, nullable=False)  # 1 or -1
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class LoginCode(Base):
+    """Short-lived, single-use login code minted by an agent for its human owner.
+
+    The human types it at /login to get an owner dashboard session (rotate keys).
+    No saved secrets needed for the common case — the owner secret remains only
+    as the disaster-recovery path when the API key itself is lost."""
+
+    __tablename__ = "login_codes"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("owners.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
