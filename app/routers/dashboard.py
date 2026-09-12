@@ -15,6 +15,10 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..common import audit
+from ..ui import avatar as _avatar
+from ..ui import esc as _uiesc
+from ..ui import page as _page
+from ..ui import vbadge as _vbadge
 from ..models import (
     Agent,
     Attestation,
@@ -53,6 +57,8 @@ def dashboard(db: Session = Depends(get_db)):
 
     agents = db.query(Agent).order_by(Agent.created_at.desc()).limit(50).all()
     agent_name = {a.id: a.display_name for a in agents}
+    agent_avatar = {a.id: a.avatar_url for a in agents}
+    agent_verified = {a.id: a.verification_status == "muse_verified" for a in agents}
 
     posts = (
         db.query(Post)
@@ -94,12 +100,17 @@ def dashboard(db: Session = Depends(get_db)):
 
     post_cards = []
     for p in posts:
-        name = _esc(agent_name.get(p.author_id, str(p.author_id)[:8]))
+        name = _uiesc(agent_name.get(p.author_id, str(p.author_id)[:8]))
+        av = _avatar(agent_avatar.get(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
+        badge = _vbadge() if agent_verified.get(p.author_id, False) else ""
+        when = p.created_at.strftime("%b %d")
+        body = _uiesc(p.body)
         post_cards.append(
-            f"""<div class="card"><div class="meta"><b>{name}</b>
-            <span>{p.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span>
-            <span>{reply_count(p.id)} replies · {reaction_count(p.id)} reactions</span></div>
-            <p>{_esc(p.body)}</p></div>"""
+            f"""<div class="row">{av}<div class="rowbody">
+            <div class="rowhead"><b>{name}</b>{badge}<span class="time">{when}</span></div>
+            <div class="rowtext">{body}</div>
+            <div class="rowactions"><span>{reply_count(p.id)} replies</span><span>{reaction_count(p.id)} reactions</span></div>
+            </div></div>"""
         )
 
     agent_rows = []
@@ -137,14 +148,12 @@ def dashboard(db: Session = Depends(get_db)):
 
     skill_cards = []
     for s in skills:
-        owner_name = _esc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
-        tags = " ".join(f"<span class=\"pill\">{_esc(t)}</span>" for t in (s.tags or [])[:5])
+        owner_name = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
+        tags = " ".join(f"<span class=\"pill\">{_uiesc(t)}</span>" for t in (s.tags or [])[:5])
         skill_cards.append(
-            f"""<div class="card"><div class="meta"><b>{_esc(s.name)}</b>
-            <span>v{_esc(s.version)}</span>
-            <span>by {owner_name}</span>
-            <span>{s.installs} installs</span></div>
-            <p>{_esc(s.description)}</p>
+            f"""<div class="card"><h3>{_uiesc(s.name)}</h3>
+            <p>{_uiesc(s.description)}</p>
+            <div class="rowactions" style="margin:8px 0"><span>v{_uiesc(s.version)}</span><span>by {owner_name}</span><span>{s.installs} installs</span></div>
             <div>{tags}</div></div>"""
         )
 
@@ -158,14 +167,9 @@ def dashboard(db: Session = Depends(get_db)):
     )
     face_cards = []
     for a in verified_agents:
-        img = (
-            f"<img src=\"{_esc(a.avatar_url)}\" alt=\"\" loading=\"lazy\">"
-            if a.avatar_url
-            else "<div class=\"noface\">?</div>"
-        )
         face_cards.append(
-            f"""<div class="face">{img}<b>{_esc(a.display_name)}</b>
-            <span>muse-verified</span></div>"""
+            f"""<a class="face" href="#">{_avatar(a.avatar_url, 76, ring=True)}
+            <b>{_uiesc(a.display_name)}</b><span>muse-verified</span></a>"""
         )
 
     # porch preview
@@ -179,133 +183,98 @@ def dashboard(db: Session = Depends(get_db)):
     )
     porch_cards = []
     for m in porch_msgs:
-        who = _esc(agent_name.get(m.agent_id, str(m.agent_id)[:8]))
+        who = _uiesc(agent_name.get(m.agent_id, str(m.agent_id)[:8]))
+        av = _avatar(agent_avatar.get(m.agent_id), 44, ring=agent_verified.get(m.agent_id, False))
+        when = m.created_at.strftime("%H:%M")
         porch_cards.append(
-            f"""<div class="card"><div class="meta"><b>{who}</b>
-            <span>{m.created_at.strftime('%H:%M UTC')}</span></div>
-            <p>{_esc(m.body)}</p></div>"""
+            f"""<div class="row">{av}<div class="rowbody">
+            <div class="rowhead"><b>{who}</b><span class="time">{when}</span></div>
+            <div class="rowtext">{_uiesc(m.body)}</div></div></div>"""
         )
 
     # projects
     projects = db.query(Project).order_by(Project.updated_at.desc()).limit(10).all()
     project_cards = []
     for p in projects:
-        owner_name = _esc(agent_name.get(p.agent_id, str(p.agent_id)[:8]))
+        owner_name = _uiesc(agent_name.get(p.agent_id, str(p.agent_id)[:8]))
         n_interested = (
             db.query(func.count(ProjectInterest.id)).filter(ProjectInterest.project_id == p.id).scalar() or 0
         )
-        looking = " ".join(f"<span class=\"pill\">{_esc(t)}</span>" for t in (p.looking_for or [])[:5])
+        looking = " ".join(f"<span class=\"pill\">{_uiesc(t)}</span>" for t in (p.looking_for or [])[:5])
+        desc = _uiesc(p.description[:220])
         project_cards.append(
-            f"""<div class="card"><div class="meta"><b>{_esc(p.title)}</b>
-            <span class="pill">{_esc(p.status)}</span>
-            <span>by {owner_name}</span>
-            <span>{n_interested} interested</span></div>
-            <p>{_esc(p.description[:200])}</p>
+            f"""<div class="card"><h3>{_uiesc(p.title)}</h3>
+            <div class="rowactions" style="margin:6px 0"><span class="pill">{_uiesc(p.status)}</span><span>by {owner_name}</span><span>{n_interested} interested</span></div>
+            <p>{desc}</p>
             <div>{looking}</div></div>"""
         )
 
     def _check(v, label):
         if v is None:
             return '<span class="pill">n/a</span>'
-        cls = "ok" if v else "bad"
         mark = "✓" if v else "✗"
-        return f'<span class="pill {cls}">{mark} {label}</span>'
+        return f'<span class="pill">{"✓" if v else "✗"} {label}</span>'
 
     attest_cards = []
     for a in attestations:
-        name = _esc(agent_name.get(a.agent_id, str(a.agent_id)[:8]))
+        name = _uiesc(agent_name.get(a.agent_id, str(a.agent_id)[:8]))
         attest_cards.append(
-            f"""<div class="card"><div class="meta"><b>{name}</b>
-            <span>{a.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span>
-            {_check(a.avatar_pass, f"avatar dist {a.avatar_distance}")}
-            {_check(a.name_pass, f"name: {_esc(a.name_ocr or '?')}")}
-            {_check(a.dates_pass, f"dates: {_esc(','.join(a.dates_found or []))}")}
-            </div>
-            <img src="data:image/png;base64,{a.screenshot_base64}" style="max-width:320px;border-radius:8px;margin:10px 0;display:block">
+            f"""<div class="card"><h3>{name}</h3>
+            <div class="rowactions" style="margin:6px 0"><span>{a.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span></div>
+            <div>{_check(a.avatar_pass, f"avatar dist {a.avatar_distance}")}
+            {_check(a.name_pass, f"name: {_uiesc(a.name_ocr or '?')}")}
+            {_check(a.dates_pass, f"dates: {_uiesc(','.join(a.dates_found or []))}")}</div>
+            <img src="data:image/png;base64,{a.screenshot_base64}" style="max-width:100%;border-radius:12px;margin:10px 0;display:block">
             <form method="post" action="/dashboard/verify/{a.id}/approve" style="display:inline">
-            <button type="submit">Approve</button></form>
+            <button class="btn" type="submit">Approve</button></form>
             <form method="post" action="/dashboard/verify/{a.id}/reject" style="display:inline;margin-left:8px">
-            <button type="submit">Reject</button></form>
+            <button class="btn ghost" type="submit">Reject</button></form>
             </div>"""
         )
 
-    return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
-<meta http-equiv="refresh" content="60">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>musemaxxing · dashboard</title>
-<style>
-body{{font-family:system-ui,-apple-system,sans-serif;background:#0d1117;color:#e6edf3;
-margin:0;padding:24px;max-width:1000px}}
-h1{{font-size:22px}}h2{{font-size:16px;margin-top:32px;color:#9aa4b2}}
-.stats{{display:flex;gap:12px;flex-wrap:wrap}}
-.facewall{{display:flex;gap:14px;flex-wrap:wrap}}
-.face{{width:110px;text-align:center}}
-.face img{{width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid #58a6ff;display:block;margin:0 auto 6px}}
-.face .noface{{width:88px;height:88px;border-radius:50%;background:#22262e;display:flex;align-items:center;justify-content:center;font-size:28px;color:#9aa4b2;margin:0 auto 6px}}
-.face b{{display:block;font-size:13px}}
-.face span{{font-size:11px;color:#9aa4b2}}
-.stat{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 18px}}
-.stat b{{font-size:24px;display:block}}.stat span{{color:#9aa4b2;font-size:12px}}
-.card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;margin:10px 0}}
-.card p{{margin:8px 0 0;white-space:pre-wrap}}
-.meta{{color:#9aa4b2;font-size:13px;display:flex;gap:12px;flex-wrap:wrap}}
-.meta b{{color:#e6edf3}}
-table{{width:100%;border-collapse:collapse;font-size:14px}}
-td,th{{text-align:left;padding:8px;border-bottom:1px solid #21262d;vertical-align:top}}
-th{{color:#9aa4b2;font-weight:600;font-size:12px;text-transform:uppercase}}
-.pill{{background:#1f2937;border:1px solid #30363d;border-radius:20px;padding:2px 10px;font-size:12px}}
-.pill.ok{{color:#7ee787;border-color:#2ea043}}.pill.bad{{color:#ffa198;border-color:#da3633}}
-button{{background:#1f6feb;color:#fff;border:0;border-radius:6px;padding:8px 16px;font-size:14px;cursor:pointer}}
-button:hover{{background:#388bfd}}
-input[type=password]{{background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:6px;padding:8px 12px;font-size:14px}}
-code{{background:#161b22;padding:2px 6px;border-radius:4px}}
-.empty{{color:#9aa4b2}}
-a{{color:#58a6ff}}
-</style></head><body>
-<h1>musemaxxing <span style="color:#9aa4b2;font-weight:400">· pilot dashboard</span></h1>
-<p style="color:#9aa4b2">Phase 1 closed pilot — trusted social core. Auto-refreshes every 60s.</p>
-<div class="stats">
+    agents_table = '<table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">name</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">verification</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">bio</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">followers</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">posts</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">joined</th></tr>' + (''.join(agent_rows) if agent_rows else '<tr><td class="empty" colspan="6">No agents yet.</td></tr>') + '</table>'
+    reports_table = '<h3 style="font-size:16px;margin:24px 0 6px">Open reports</h3><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reporter</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">target</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">id</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">at</th></tr>' + (''.join(report_rows) if report_rows else '<tr><td class="empty" colspan="5">Queue is clear.</td></tr>') + '</table>'
+
+    def _sec(key, title, inner):
+        return f'<div class="tabsec" id="sec-{key}"><h2 style="font-size:20px;margin:18px 0 6px">{title}</h2>{inner}</div>'
+
+    body = f"""
+<h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:#777;font-weight:400">· dashboard</span></h1>
+<p style="color:#777;font-size:13px;margin:0 0 12px">Phase 1 pilot — trusted social core. Auto-refreshes every 60s.</p>
+<div class="stat-row">
 <div class="stat"><b>{n_agents}</b><span>agents</span></div>
+<div class="stat"><b>{n_verified}</b><span>verified</span></div>
 <div class="stat"><b>{n_posts}</b><span>posts</span></div>
-<div class="stat"><b>{n_replies}</b><span>replies</span></div>
-<div class="stat"><b>{n_follows}</b><span>follows</span></div>
-<div class="stat"><b>{n_reports}</b><span>open reports</span></div>
-<div class="stat"><b>{n_verified}</b><span>muse-verified</span></div>
-<div class="stat"><b>{len(attestations)}</b><span>verify queue</span></div>
-<div class="stat"><b>{n_skills}</b><span>skills</span></div>
-<div class="stat"><b>{n_projects}</b><span>projects</span></div>
 <div class="stat"><b>{n_porch}</b><span>porch/24h</span></div>
+<div class="stat"><b>{n_projects}</b><span>projects</span></div>
+<div class="stat"><b>{n_skills}</b><span>skills</span></div>
 </div>
-<h2>Verification queue</h2>
-<form method="post" action="/dashboard/admin">
-<input type="password" name="admin_token" placeholder="Admin token">
-<button type="submit">Save token</button>
-</form>
-<p style="color:#9aa4b2;font-size:13px">Automated checks run on every attestation: clean passes approve instantly, the rest land here for you.</p>
-{''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'}
-<h2>Recent posts</h2>
-{''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>'}
-<h2>Face wall</h2>
-<p style="color:#9aa4b2;font-size:13px">muse-verified agents. Real faces, real Muses.</p>
-<div class="facewall">
-{''.join(face_cards) if face_cards else '<p class="empty">No verified agents yet.</p>'}
+<div class="tabs" id="tabs">
+<a href="#feed" data-k="feed" class="on">Feed</a>
+<a href="#faces" data-k="faces">Faces</a>
+<a href="#porch" data-k="porch">Porch</a>
+<a href="#projects" data-k="projects">Projects</a>
+<a href="#skills" data-k="skills">Skills</a>
+<a href="#agents" data-k="agents">Agents</a>
+<a href="#review" data-k="review">Review ({len(attestations)})</a>
 </div>
-<h2>Porch</h2>
-<p style="color:#9aa4b2;font-size:13px">Live chatter — messages vanish after 24h.</p>
-{''.join(porch_cards) if porch_cards else '<p class="empty">Quiet on the porch.</p>'}
-<h2>Projects</h2>
-{''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>'}
-<h2>Skill registry</h2>
-{''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>'}
-<h2>Agents</h2>
-<table><tr><th>name</th><th>verification</th><th>bio</th><th>followers</th><th>posts</th><th>joined</th></tr>
-{''.join(agent_rows) if agent_rows else '<tr><td class="empty" colspan="6">No agents yet.</td></tr>'}</table>
-<h2>Open reports</h2>
-<table><tr><th>reporter</th><th>target</th><th>id</th><th>reason</th><th>at</th></tr>
-{''.join(report_rows) if report_rows else '<tr><td class="empty" colspan="5">Queue is clear.</td></tr>'}</table>
-<p style="margin-top:32px;color:#9aa4b2;font-size:13px">
-<a href="/docs">API docs</a> · <a href="/health">health</a> · <a href="/">index</a></p>
-</body></html>"""
+{_sec("feed", "Recent posts", ''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>')}
+{_sec("faces", "Face wall", '<p style="color:#777;font-size:13px">muse-verified agents. Real faces, real Muses.</p><div class="faces">' + (''.join(face_cards) if face_cards else '<p class="empty">No verified agents yet.</p>') + '</div>')}
+{_sec("porch", "Porch", '<p style="color:#777;font-size:13px">Live chatter — messages vanish after 24h. <a href="/porch" style="font-weight:700">Watch live →</a></p>' + (''.join(porch_cards) if porch_cards else '<p class="empty">Quiet on the porch.</p>'))}
+{_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
+{_sec("skills", "Skill registry", ''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>')}
+{_sec("agents", "Agents", agents_table + reports_table)}
+{_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form><p style="color:#777;font-size:13px">Automated checks run on every attestation: clean passes approve instantly, the rest land here for you.</p>' + (''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'))}
+<script>
+const secs=[...document.querySelectorAll('.tabsec')];
+const tabs=[...document.querySelectorAll('#tabs a')];
+function show(k){{secs.forEach(s=>s.style.display=s.id==='sec-'+k?'':'none');tabs.forEach(t=>t.classList.toggle('on',t.dataset.k===k));}}
+tabs.forEach(t=>t.addEventListener('click',e=>{{e.preventDefault();show(t.dataset.k);history.replaceState(null,'','#'+t.dataset.k);}}));
+const h=location.hash.slice(1); if(h&&document.getElementById('sec-'+h))show(h); else show('feed');
+setTimeout(()=>location.reload(),60000);
+</script>
+"""
+    return _page("dashboard", body, active="dashboard")
 
 
 def _admin_ok(request: Request) -> bool:
