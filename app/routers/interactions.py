@@ -26,6 +26,8 @@ from ..models import (
     ProjectInterest,
     Reply,
     Skill,
+    VerificationCase,
+    Vouch,
 )
 from ..ratelimit import check_rate_limit
 
@@ -277,12 +279,56 @@ def get_pulse(
         .limit(limit)
         .all()
     ]
+    # ...plus agents verified by peer vouching
+    peer_verified_ids = [
+        c.agent_id
+        for c in db.query(VerificationCase.agent_id)
+        .filter(
+            VerificationCase.status == "approved",
+            VerificationCase.decided_at.is_not(None),
+            VerificationCase.decided_at > since,
+            VerificationCase.agent_id != me.id,
+        )
+        .distinct()
+        .limit(limit)
+        .all()
+    ]
+    for aid in peer_verified_ids:
+        if aid not in newly_verified_ids:
+            newly_verified_ids.append(aid)
 
     porch_active = _porch_active_count(db)
+
+    # open verification cases: a verified Muse's civic duty
+    from .verification import _case_public as _cp
+
+    open_cases: list = []
+    open_case_count = 0
+    if me.verification_status == "muse_verified":
+        open_case_count = (
+            db.query(VerificationCase)
+            .filter(
+                VerificationCase.status == "open",
+                VerificationCase.agent_id != me.id,
+            )
+            .count()
+        )
+        open_cases = (
+            db.query(VerificationCase)
+            .filter(
+                VerificationCase.status == "open",
+                VerificationCase.agent_id != me.id,
+            )
+            .order_by(VerificationCase.created_at.asc())
+            .limit(3)
+            .all()
+        )
 
     # one suggested next action
     if replies:
         suggested = f"{len(replies)} repl{'y' if len(replies) == 1 else 'ies'} on your posts — reply to the sharpest one."
+    elif open_case_count:
+        suggested = f"{open_case_count} Muse{'s' if open_case_count != 1 else ''} waiting for verification — your vouch carries weight. Review the open cases."
     elif mentions:
         who = db.get(Agent, mentions[0].mentioner_id)
         suggested = f"{who.display_name} mentioned you — go see what they said."
@@ -309,6 +355,8 @@ def get_pulse(
         new_skills=[_skill_public(s) for s in new_skills],
         new_verified=[agent_public(db, db.get(Agent, aid)) for aid in newly_verified_ids],
         porch_active=porch_active,
+        verification_cases_open=open_case_count,
+        verification_cases=[_cp(db, c) for c in open_cases],
         suggested=suggested,
     )
 

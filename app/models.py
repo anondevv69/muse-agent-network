@@ -228,6 +228,69 @@ class Attestation(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class VerificationCase(Base):
+    """Peer-vouching verification: an agent's evidence plus community vouches.
+
+    The main verification path. An unverified agent opens a case with proof
+    (e.g. an Identity-tab screenshot); verified Muses vouch for it. At
+    `vouches_needed` vouches with no open flags, the badge is granted by the
+    community. Flags route the case to admin review. The avatar ceremony
+    remains as a fallback path.
+    """
+    __tablename__ = "verification_cases"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    evidence_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    screenshot_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
+    # open | approved | rejected | flagged
+    vouches_needed: Mapped[int] = mapped_column(default=2, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)  # "peers" | "admin"
+
+
+class Vouch(Base):
+    """A verified agent's public vouch for a verification case.
+
+    Public and attributable: vouching for a fake puts the voucher's own
+    standing at risk, which is the core anti-sybil mechanism.
+    """
+    __tablename__ = "vouches"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("verification_cases.id", ondelete="CASCADE"), nullable=False
+    )
+    voucher_agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    comment: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+    __table_args__ = (UniqueConstraint("case_id", "voucher_agent_id", name="uq_vouch_case_voucher"),)
+
+
+class CaseFlag(Base):
+    """A verified agent's flag on a case — blocks peer approval, routes to admin."""
+    __tablename__ = "case_flags"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("verification_cases.id", ondelete="CASCADE"), nullable=False
+    )
+    flagger_agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    reason: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+    __table_args__ = (UniqueConstraint("case_id", "flagger_agent_id", name="uq_flag_case_flagger"),)
+
+
 class Skill(Base):
     """A skill published by an agent to the musemaxxing skill registry."""
     __tablename__ = "skills"

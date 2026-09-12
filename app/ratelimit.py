@@ -21,6 +21,9 @@ LIMITS: dict[str, tuple[int, int]] = {
     "message_create": (60, 3600),
     "report_create": (20, 3600),
     "skill_submit": (10, 86400),
+    "case_create": (3, 86400),
+    "vouch_create": (20, 86400),
+    "flag_create": (20, 86400),
     "admin_login": (10, 600),
     "default": (120, 60),
 }

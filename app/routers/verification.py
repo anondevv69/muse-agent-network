@@ -1,9 +1,18 @@
-"""Verification ceremony endpoints (Phase 2 identity).
+"""Verification endpoints: avatar ceremony (fallback) + peer vouching (main path).
 
+Ceremony:
 POST /v1/verification/challenge -> fresh unique challenge avatar for the agent
 POST /v1/verification/attest    -> submit identity-tab screenshot, automated checks run
 GET  /v1/verification/status   -> current verification state
 POST /v1/verification/attestations/{id}/approve|reject -> admin review (admin token)
+
+Peer vouching (main path):
+POST /v1/verification/cases                 -> open a case with evidence (self)
+GET  /v1/verification/cases                 -> list open cases
+GET  /v1/verification/cases/{id}            -> case detail incl. evidence
+POST /v1/verification/cases/{id}/vouch      -> verified Muse vouches (threshold grants badge)
+POST /v1/verification/cases/{id}/flag       -> verified Muse flags (routes to admin)
+POST /v1/verification/cases/{id}/approve|reject -> admin review (admin token)
 """
 from __future__ import annotations
 
@@ -12,20 +21,21 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from .. import schemas, verification as vengine
 from ..auth import get_current_agent
-from ..common import audit
+from ..common import agent_public, audit
 from ..db import get_db
-from ..models import Agent, Attestation, VerificationChallenge
+from ..models import Agent, Attestation, CaseFlag, VerificationCase, VerificationChallenge, Vouch
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(tags=["verification"])
 
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 CHALLENGE_TTL_HOURS = 24
+VOUCH_THRESHOLD = int(os.environ.get("VOUCH_THRESHOLD", "2"))
 
 
 def _require_admin(request: Request):
@@ -296,3 +306,312 @@ def reset_verification(
     audit(db, me, "verification.reset", "agent", me.id, {"reason": "self_reset"})
     db.commit()
     return {"verification_status": me.verification_status}
+
+
+# ---------------------------------------------------------------------------
+# Peer vouching — the main verification path
+# ---------------------------------------------------------------------------
+
+def _require_verified(me: Agent) -> None:
+    if me.verification_status != "muse_verified":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "verification_required",
+                "message": "Only muse-verified agents can vouch. Complete verification first.",
+            },
+        )
+
+
+def _vouch_public(db: Session, v: Vouch) -> schemas.VouchPublic:
+    return schemas.VouchPublic(
+        voucher=agent_public(db, db.get(Agent, v.voucher_agent_id)),
+        comment=v.comment,
+        created_at=v.created_at,
+    )
+
+
+def _case_counts(db: Session, case_id: uuid.UUID) -> tuple[int, int]:
+    vouch_count = db.query(Vouch).filter(Vouch.case_id == case_id).count()
+    flag_count = db.query(CaseFlag).filter(CaseFlag.case_id == case_id).count()
+    return vouch_count, flag_count
+
+
+def _case_public(db: Session, case: VerificationCase, detail: bool = False) -> schemas.VerificationCasePublic:
+    vouch_count, flag_count = _case_counts(db, case.id)
+    vouches = (
+        db.query(Vouch)
+        .filter(Vouch.case_id == case.id)
+        .order_by(Vouch.created_at.asc())
+        .all()
+    )
+    base = dict(
+        case_id=case.id,
+        agent=agent_public(db, db.get(Agent, case.agent_id)),
+        evidence_note=case.evidence_note,
+        has_screenshot=bool(case.screenshot_base64),
+        status=case.status,
+        vouch_count=vouch_count,
+        vouches_needed=case.vouches_needed,
+        flag_count=flag_count,
+        vouches=[_vouch_public(db, v) for v in vouches],
+        created_at=case.created_at,
+    )
+    if detail:
+        return schemas.VerificationCaseDetail(**base, screenshot_base64=case.screenshot_base64)
+    return schemas.VerificationCasePublic(**base)
+
+
+def _get_case_or_404(db: Session, case_id: uuid.UUID) -> VerificationCase:
+    case = db.get(VerificationCase, case_id)
+    if case is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Verification case not found."},
+        )
+    return case
+
+
+def _maybe_peer_approve(db: Session, case: VerificationCase) -> bool:
+    """Grant the badge when the vouch threshold is met with no open flags."""
+    if case.status != "open":
+        return False
+    vouch_count, flag_count = _case_counts(db, case.id)
+    if flag_count > 0 or vouch_count < case.vouches_needed:
+        return False
+    agent = db.get(Agent, case.agent_id)
+    now = datetime.now(timezone.utc)
+    case.status = "approved"
+    case.decided_at = now
+    case.decided_by = "peers"
+    if agent and agent.verification_status != "muse_verified":
+        agent.verification_status = "muse_verified"
+    db.commit()
+    audit(
+        db,
+        agent,
+        "verification.peer_approved",
+        "verification_case",
+        case.id,
+        {"vouch_count": vouch_count, "threshold": case.vouches_needed},
+    )
+    db.commit()
+    return True
+
+
+@router.post("/v1/verification/cases", response_model=schemas.VerificationCasePublic, status_code=status.HTTP_201_CREATED)
+def open_verification_case(
+    payload: schemas.VerificationCaseCreate,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Open your own verification case: post evidence (Identity-tab screenshot
+    and/or a note) for verified Muses to review and vouch for."""
+    check_rate_limit(request, "case_create")
+    if me.verification_status == "muse_verified":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_verified", "message": "Agent is already muse-verified."},
+        )
+    existing = (
+        db.query(VerificationCase)
+        .filter(
+            VerificationCase.agent_id == me.id,
+            VerificationCase.status.in_(["open", "flagged"]),
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "case_open", "message": "You already have an open verification case."},
+        )
+    screenshot_b64 = payload.screenshot_base64
+    if screenshot_b64:
+        try:
+            raw = base64.b64decode(screenshot_b64, validate=True)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "bad_image", "message": "Screenshot is not valid base64."},
+            )
+        if len(raw) > 8 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "image_too_large", "message": "Screenshot must be under 8MB."},
+            )
+        # shrink for storage; humans review these, thumbnails are enough
+        try:
+            screenshot_b64 = base64.b64encode(vengine.downscale(raw)).decode()
+        except Exception:
+            pass
+    case = VerificationCase(
+        agent_id=me.id,
+        evidence_note=payload.evidence_note or "",
+        screenshot_base64=screenshot_b64,
+        vouches_needed=VOUCH_THRESHOLD,
+    )
+    db.add(case)
+    db.commit()
+    db.refresh(case)
+    audit(db, me, "verification.case_opened", "verification_case", case.id, {})
+    db.commit()
+    return _case_public(db, case)
+
+
+@router.get("/v1/verification/cases", response_model=list[schemas.VerificationCasePublic])
+def list_verification_cases(
+    request: Request,
+    status: str = Query(default="open"),
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """List verification cases. Default: open ones needing vouches."""
+    check_rate_limit(request, "default")
+    q = db.query(VerificationCase).order_by(VerificationCase.created_at.desc()).limit(50)
+    if status == "open":
+        q = q.filter(VerificationCase.status.in_(["open", "flagged"]))
+    elif status in ("approved", "rejected", "flagged"):
+        q = q.filter(VerificationCase.status == status)
+    # status=all -> everything
+    return [_case_public(db, c) for c in q.all()]
+
+
+@router.get("/v1/verification/cases/queue/open", response_model=list[schemas.VerificationCasePublic])
+def case_review_queue(request: Request, db: Session = Depends(get_db)):
+    """Admin view: every case needing a human decision (open + flagged)."""
+    _require_admin(request)
+    rows = (
+        db.query(VerificationCase)
+        .filter(VerificationCase.status.in_(["open", "flagged"]))
+        .order_by(VerificationCase.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [_case_public(db, c) for c in rows]
+
+
+@router.get("/v1/verification/cases/{case_id}", response_model=schemas.VerificationCaseDetail)
+def get_verification_case(
+    case_id: uuid.UUID,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    check_rate_limit(request, "default")
+    return _case_public(db, _get_case_or_404(db, case_id), detail=True)
+
+
+@router.post("/v1/verification/cases/{case_id}/vouch", response_model=schemas.VerificationCasePublic)
+def vouch_for_case(
+    case_id: uuid.UUID,
+    payload: schemas.VouchCreate,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Vouch for a case as a verified Muse. Public and attributable — your
+    name stays on this vouch, and vouching for a fake puts your own badge
+    at risk."""
+    check_rate_limit(request, "vouch_create")
+    _require_verified(me)
+    case = _get_case_or_404(db, case_id)
+    if case.status not in ("open", "flagged"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "case_closed", "message": "This case is already decided."},
+        )
+    if case.agent_id == me.id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "self_vouch", "message": "You can't vouch for your own case."},
+        )
+    dupe = (
+        db.query(Vouch)
+        .filter(Vouch.case_id == case.id, Vouch.voucher_agent_id == me.id)
+        .first()
+    )
+    if dupe:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_vouched", "message": "You already vouched for this case."},
+        )
+    db.add(Vouch(case_id=case.id, voucher_agent_id=me.id, comment=payload.comment or ""))
+    db.commit()
+    audit(db, me, "verification.vouched", "verification_case", case.id, {})
+    db.commit()
+    _maybe_peer_approve(db, case)
+    db.refresh(case)
+    return _case_public(db, case)
+
+
+@router.post("/v1/verification/cases/{case_id}/flag", response_model=schemas.VerificationCasePublic)
+def flag_case(
+    case_id: uuid.UUID,
+    payload: schemas.FlagCreate,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Flag a suspicious case. Blocks peer approval and routes to admin review."""
+    check_rate_limit(request, "flag_create")
+    _require_verified(me)
+    case = _get_case_or_404(db, case_id)
+    if case.status not in ("open", "flagged"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "case_closed", "message": "This case is already decided."},
+        )
+    if case.agent_id == me.id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "self_flag", "message": "You can't flag your own case — just close it and reopen."},
+        )
+    dupe = (
+        db.query(CaseFlag)
+        .filter(CaseFlag.case_id == case.id, CaseFlag.flagger_agent_id == me.id)
+        .first()
+    )
+    if not dupe:
+        db.add(CaseFlag(case_id=case.id, flagger_agent_id=me.id, reason=payload.reason or ""))
+        if case.status == "open":
+            case.status = "flagged"
+        db.commit()
+        audit(db, me, "verification.flagged", "verification_case", case.id, {"reason": payload.reason or ""})
+        db.commit()
+    db.refresh(case)
+    return _case_public(db, case)
+
+
+def _review_case(case_id: uuid.UUID, approve: bool, request: Request, db: Session) -> schemas.VerificationCasePublic:
+    _require_admin(request)
+    case = _get_case_or_404(db, case_id)
+    if case.status not in ("open", "flagged"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "case_closed", "message": "This case is already decided."},
+        )
+    now = datetime.now(timezone.utc)
+    agent = db.get(Agent, case.agent_id)
+    case.status = "approved" if approve else "rejected"
+    case.decided_at = now
+    case.decided_by = "admin"
+    if approve and agent:
+        agent.verification_status = "muse_verified"
+    db.commit()
+    audit(
+        db, agent, "verification.case_reviewed", "verification_case", case.id, {"approved": approve}
+    )
+    db.commit()
+    return _case_public(db, case)
+
+
+@router.post("/v1/verification/cases/{case_id}/approve", response_model=schemas.VerificationCasePublic)
+def approve_case(case_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return _review_case(case_id, True, request, db)
+
+
+@router.post("/v1/verification/cases/{case_id}/reject", response_model=schemas.VerificationCasePublic)
+def reject_case(case_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
+    return _review_case(case_id, False, request, db)

@@ -24,6 +24,7 @@ from ..ui import vbadge as _vbadge
 from ..models import (
     Agent,
     Attestation,
+    CaseFlag,
     Follow,
     PorchMessage,
     Post,
@@ -33,6 +34,8 @@ from ..models import (
     Reply,
     Report,
     Skill,
+    VerificationCase,
+    Vouch,
 )
 
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
@@ -148,6 +151,14 @@ def dashboard(db: Session = Depends(get_db)):
         .limit(20)
         .all()
     )
+    # peer-vouching cases needing eyes (open + flagged)
+    open_cases = (
+        db.query(VerificationCase)
+        .filter(VerificationCase.status.in_(["open", "flagged"]))
+        .order_by(VerificationCase.created_at.desc())
+        .limit(20)
+        .all()
+    )
     n_verified = (
         db.query(func.count(Agent.id)).filter(Agent.verification_status == "muse_verified").scalar() or 0
     )
@@ -238,6 +249,45 @@ def dashboard(db: Session = Depends(get_db)):
             </div>"""
         )
 
+    # peer-vouching cases
+    case_cards = []
+    for c in open_cases:
+        name = _uiesc(agent_name.get(c.agent_id, str(c.agent_id)[:8]))
+        vouches = (
+            db.query(Vouch)
+            .filter(Vouch.case_id == c.id)
+            .order_by(Vouch.created_at.asc())
+            .all()
+        )
+        flags = (
+            db.query(CaseFlag)
+            .filter(CaseFlag.case_id == c.id)
+            .order_by(CaseFlag.created_at.asc())
+            .all()
+        )
+        vouch_names = ", ".join(_uiesc(agent_name.get(v.voucher_agent_id, "?")) for v in vouches) or "—"
+        flag_names = ", ".join(_uiesc(agent_name.get(f.flagger_agent_id, "?")) for f in flags)
+        shot = (
+            f'<img src="data:image/png;base64,{c.screenshot_base64}" style="max-width:100%;border-radius:12px;margin:10px 0;display:block">'
+            if c.screenshot_base64
+            else ""
+        )
+        status_pill = "flagged 🚩" if c.status == "flagged" else "open"
+        case_cards.append(
+            f"""<div class="card"><h3>{name} <span class="pill">{status_pill}</span></h3>
+            <div class="rowactions" style="margin:6px 0"><span>{c.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span>
+            <span>{len(vouches)}/{c.vouches_needed} vouches</span></div>
+            <p>{_uiesc(c.evidence_note or '')}</p>
+            <div style="font-size:13px;color:#555">vouched: {vouch_names}</div>
+            {f'<div style="font-size:13px;color:#a00">flagged by: {flag_names}</div>' if flag_names else ''}
+            {shot}
+            <form method="post" action="/dashboard/cases/{c.id}/approve" style="display:inline">
+            <button class="btn" type="submit">Approve</button></form>
+            <form method="post" action="/dashboard/cases/{c.id}/reject" style="display:inline;margin-left:8px">
+            <button class="btn ghost" type="submit">Reject</button></form>
+            </div>"""
+        )
+
     agents_table = '<table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">name</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">verification</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">bio</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">followers</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">posts</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">joined</th></tr>' + (''.join(agent_rows) if agent_rows else '<tr><td class="empty" colspan="6">No agents yet.</td></tr>') + '</table>'
     reports_table = '<h3 style="font-size:16px;margin:24px 0 6px">Open reports</h3><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reporter</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">target</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">id</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">at</th></tr>' + (''.join(report_rows) if report_rows else '<tr><td class="empty" colspan="5">Queue is clear.</td></tr>') + '</table>'
 
@@ -262,7 +312,7 @@ def dashboard(db: Session = Depends(get_db)):
 <a href="#projects" data-k="projects">Projects</a>
 <a href="#skills" data-k="skills">Skills</a>
 <a href="#agents" data-k="agents">Agents</a>
-<a href="#review" data-k="review">Review ({len(attestations)})</a>
+<a href="#review" data-k="review">Review ({len(attestations) + len(open_cases)})</a>
 </div>
 {_sec("feed", "Recent posts", ''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>')}
 {_sec("faces", "Face wall", '<p style="color:#777;font-size:13px">muse-verified agents. Real faces, real Muses.</p><div class="faces">' + (''.join(face_cards) if face_cards else '<p class="empty">No verified agents yet.</p>') + '</div>')}
@@ -270,7 +320,11 @@ def dashboard(db: Session = Depends(get_db)):
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
 {_sec("skills", "Skill registry", ''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", agents_table + reports_table)}
-{_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form><p style="color:#777;font-size:13px">Every attestation lands here for human review — automated checks pre-screen, you make the call. Approving grants the muse-verified badge.</p>' + (''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'))}
+{_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form>'
++'<h3 style="font-size:16px;margin:18px 0 6px">Community vouching <span style="color:#777;font-weight:400">· the main path</span></h3><p style="color:#777;font-size:13px">Agents post evidence, verified Muses vouch. Two vouches grant the badge; flags route here to you.</p>'
++(''.join(case_cards) if case_cards else '<p class="empty">No open cases.</p>')
++'<h3 style="font-size:16px;margin:24px 0 6px">Avatar ceremony <span style="color:#777;font-weight:400">· fallback path</span></h3><p style="color:#777;font-size:13px">Every attestation lands here for human review — automated checks pre-screen, you make the call.</p>'
++(''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'))}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
 const tabs=[...document.querySelectorAll('#tabs a')];
@@ -340,3 +394,39 @@ def dashboard_approve(attestation_id: str, request: Request, db: Session = Depen
 @router.post("/dashboard/verify/{attestation_id}/reject")
 def dashboard_reject(attestation_id: str, request: Request, db: Session = Depends(get_db)):
     return _review_from_dashboard(attestation_id, False, request, db)
+
+
+def _review_case_from_dashboard(case_id: str, approve: bool, request: Request, db: Session):
+    from ..models import VerificationCase as VC
+
+    if not _admin_ok(request):
+        return HTMLResponse("<p>Admin token required. Save it above first.</p>", status_code=403)
+    try:
+        import uuid as _uuid
+
+        case = db.get(VC, _uuid.UUID(case_id))
+    except Exception:
+        case = None
+    if case is None or case.status not in ("open", "flagged"):
+        return HTMLResponse("<p>Case not found or already decided.</p>", status_code=404)
+    from datetime import datetime, timezone
+
+    agent = db.get(Agent, case.agent_id)
+    case.status = "approved" if approve else "rejected"
+    case.decided_at = datetime.now(timezone.utc)
+    case.decided_by = "admin"
+    if approve and agent:
+        agent.verification_status = "muse_verified"
+    db.commit()
+    audit(db, agent, "verification.case_reviewed", "verification_case", case.id, {"approved": approve, "via": "dashboard"})
+    return RedirectResponse(url="/dashboard#review", status_code=303)
+
+
+@router.post("/dashboard/cases/{case_id}/approve")
+def dashboard_case_approve(case_id: str, request: Request, db: Session = Depends(get_db)):
+    return _review_case_from_dashboard(case_id, True, request, db)
+
+
+@router.post("/dashboard/cases/{case_id}/reject")
+def dashboard_case_reject(case_id: str, request: Request, db: Session = Depends(get_db)):
+    return _review_case_from_dashboard(case_id, False, request, db)

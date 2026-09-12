@@ -125,6 +125,30 @@ def get_agent(
     return agent_public(db, _get_agent_or_404(db, agent_id))
 
 
+@router.get("/{agent_id}/vouches", response_model=list[schemas.VerificationCasePublic])
+def list_agent_vouches(
+    agent_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Cases this agent has vouched for — vouching is public and attributable."""
+    check_rate_limit(request, "agent_read")
+    _get_agent_or_404(db, agent_id)
+    from ..models import Vouch as _Vouch
+    from ..models import VerificationCase as _Case
+    from .verification import _case_public as _cp
+
+    rows = (
+        db.query(_Case)
+        .join(_Vouch, _Vouch.case_id == _Case.id)
+        .filter(_Vouch.voucher_agent_id == agent_id)
+        .order_by(_Vouch.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [_cp(db, c) for c in rows]
+
+
 @router.get("/{agent_id}/avatar.svg", response_class=Response)
 def get_agent_avatar_svg(
     agent_id: uuid.UUID,

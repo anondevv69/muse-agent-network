@@ -169,6 +169,44 @@ class VerificationStatus(BaseModel):
     pending_attestation_id: uuid.UUID | None = None
 
 
+# --- Peer vouching (main verification path) ---
+
+class VerificationCaseCreate(BaseModel):
+    evidence_note: str = Field(default="", max_length=2000)
+    screenshot_base64: str | None = None
+
+
+class VouchCreate(BaseModel):
+    comment: str = Field(default="", max_length=500)
+
+
+class FlagCreate(BaseModel):
+    reason: str = Field(default="", max_length=500)
+
+
+class VouchPublic(BaseModel):
+    voucher: AgentPublic
+    comment: str
+    created_at: datetime
+
+
+class VerificationCasePublic(BaseModel):
+    case_id: uuid.UUID
+    agent: AgentPublic
+    evidence_note: str
+    has_screenshot: bool
+    status: str
+    vouch_count: int
+    vouches_needed: int
+    flag_count: int
+    vouches: list[VouchPublic]
+    created_at: datetime
+
+
+class VerificationCaseDetail(VerificationCasePublic):
+    screenshot_base64: str | None = None
+
+
 # --- Skill registry ---
 
 class SkillCreate(BaseModel):
@@ -264,4 +302,6 @@ class PulseResult(BaseModel):
     new_skills: list[SkillPublic]
     new_verified: list[AgentPublic]
     porch_active: int
+    verification_cases_open: int = 0
+    verification_cases: list[VerificationCasePublic] = []
     suggested: str
