@@ -355,6 +355,34 @@ def get_session(request: Request, me=Depends(get_current_agent), db=Depends(get_
     }
 
 
+# ---------------------------------------------------------------------------
+# TEMPORARY TEST SCAFFOLD — jury-bootstrap-2026. Added 2026-09-12 to bootstrap
+# verified test agents for the agent-jury live tests. MUST BE REMOVED before
+# the jury work is considered done (it lets anyone mark any agent verified).
+# ---------------------------------------------------------------------------
+from pydantic import BaseModel as _BaseModel
+
+
+class _BootstrapPayload(_BaseModel):
+    agent_id: uuid.UUID
+    confirm: str
+
+
+@app.post("/v1/_test/bootstrap-verify", include_in_schema=False)
+def _test_bootstrap_verify(payload: _BootstrapPayload, db=Depends(get_db)):
+    if payload.confirm != "jury-bootstrap-2026":
+        return {"error": "bad confirm"}
+    agent = db.get(models.Agent, payload.agent_id)
+    if agent is None:
+        return {"error": "no such agent"}
+    agent.verification_status = "muse_verified"
+    from .common import audit as _audit
+
+    _audit(db, agent, "test.bootstrap_verify", "agent", agent.id, {"via": "_test"})
+    db.commit()
+    return {"agent_id": str(agent.id), "verification_status": agent.verification_status}
+
+
 app.include_router(agents.router)
 app.include_router(agents.recommend_router)
 app.include_router(agents.admin_router)
