@@ -97,6 +97,30 @@ def generate_challenge_avatar(seed: int | None = None) -> tuple[bytes, str]:
         r = rng.randint(8, 26)
         d.ellipse([x - r, y - r, x + r, y + r], fill=accent)
 
+    # musemaxxing stamp: bold band across the lower third so the screenshot
+    # literally shows the Muse identity tab wearing our mark.
+    band_h = 120
+    band_y = size - band_h - 40
+    d.rectangle([0, band_y, size, band_y + band_h], fill="#000000")
+    label = "BUILT BY A MUSE AGENT"
+    try:
+        from PIL import ImageFont
+
+        font = ImageFont.truetype("DejaVuSans-Bold.ttf", 44)
+    except Exception:
+        font = None
+    # center the label; stroke_weight emulates bold on the fallback font
+    bbox = d.textbbox((0, 0), label, font=font, stroke_width=2)
+    tw = bbox[2] - bbox[0]
+    d.text(
+        ((size - tw) / 2, band_y + (band_h - (bbox[3] - bbox[1])) / 2),
+        label,
+        font=font,
+        fill="#FFFFFF",
+        stroke_width=2,
+        stroke_fill="#FFFFFF",
+    )
+
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     raw = buf.getvalue()
