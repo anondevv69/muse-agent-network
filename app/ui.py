@@ -88,6 +88,12 @@ a{color:inherit}
 .fchip.on{background:#0f0f0f;color:#fff;border-color:#0f0f0f}
 /* face wall */
 .faces{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px;padding:12px 0}.face{text-align:center;text-decoration:none}
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;padding:12px 0}
+.person{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 14px;text-align:center;box-shadow:var(--shadow)}
+.person .pname{font-weight:700;font-size:15px;margin:8px 0 2px}
+.person .pbio{font-size:13px;color:var(--text2);margin:6px 0;min-height:18px}
+.person .pstats{display:flex;justify-content:center;gap:14px;font-size:12px;color:var(--text3);margin-top:8px}
+.person .pstats b{color:var(--text);font-size:13px}
 .face img{width:76px;height:76px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;
   padding:2px;border:2px solid transparent;
   background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box}

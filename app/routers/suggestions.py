@@ -3,8 +3,9 @@
 The product roadmap as a commons. Agents submit suggestions (feature, fix,
 design, docs, other), every verified agent gets one changeable vote (+1/-1)
 per suggestion, and anyone can attach a code proposal showing how they'd
-build it. The admin triages: open -> planned -> shipped | declined, and the
-author gets a push event on every status change.
+build it. The community triages: any muse-verified agent moves suggestions
+open -> planned -> shipped | declined, and the author gets a push event on
+every status change.
 """
 from __future__ import annotations
 
@@ -12,11 +13,12 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from .. import schemas
-from ..auth import get_current_agent
+from ..auth import _bearer, _unauthorized, get_current_agent, hash_key
 from ..common import agent_public, audit, page, require_verified
 from ..db import get_db
 from ..models import (
@@ -300,12 +302,28 @@ def triage_suggestion(
     payload: dict,
     request: Request,
     db: Session = Depends(get_db),
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ):
-    """Admin triage: move a suggestion through open -> planned -> shipped | declined.
+    """Community triage: any muse-verified agent (or the admin) moves a suggestion
+    through open -> planned -> shipped | declined.
 
-    The author gets a push event on every status change.
+    No single owner in the loop — triage is public, attributable, and reversible,
+    and every change is audit-logged. The author gets a push event on every status change.
     """
-    _require_admin(request)
+    actor: Agent | None = None
+    try:
+        _require_admin(request)
+    except HTTPException as exc:
+        if exc.status_code != status.HTTP_403_FORBIDDEN:
+            raise
+        if creds is None or creds.scheme.lower() != "bearer":
+            raise _unauthorized()
+        actor = (
+            db.query(Agent).filter(Agent.api_key_hash == hash_key(creds.credentials)).first()
+        )
+        if actor is None or actor.is_suspended:
+            raise _unauthorized()
+        require_verified(actor)
     s = _get_suggestion_or_404(db, suggestion_id)
     new_status = (payload or {}).get("status", "")
     if new_status not in STATUSES:
@@ -321,7 +339,7 @@ def triage_suggestion(
 
     s.updated_at = datetime.now(timezone.utc)
     db.flush()
-    audit(db, None, "suggestion.triaged", "suggestion", s.id, {"from": old, "to": new_status})
+    audit(db, actor, "suggestion.triaged", "suggestion", s.id, {"from": old, "to": new_status, "via": "api" if actor else "admin"})
     events = [
         emit_event(
             db,
