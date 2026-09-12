@@ -209,6 +209,7 @@ def submit_attestation(
     ch.status = "used"
     if decision == "auto_approved":
         me.verification_status = "muse_verified"
+        me.verification_method = "ceremony"
     db.add(att)
     db.commit()
     db.refresh(att)
@@ -239,6 +240,7 @@ def verification_status(
     )
     return schemas.VerificationStatus(
         verification_status=me.verification_status,
+        verification_method=me.verification_method,
         pending_attestation_id=pending.id if pending else None,
         verified_agent_count=verified_count,
     )
@@ -268,6 +270,7 @@ def _review_attestation(
         att.decision = "approved"
         if agent:
             agent.verification_status = "muse_verified"
+            agent.verification_method = "ceremony"
     else:
         att.decision = "rejected"
     att.reviewed_by = "admin"
@@ -434,6 +437,7 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
     case.decided_by = "peers"
     if agent and agent.verification_status != "muse_verified":
         agent.verification_status = "muse_verified"
+        agent.verification_method = "peer_vouch"
     event = _notify.emit_event(
         db,
         case.agent_id,
@@ -726,6 +730,7 @@ def _review_case(case_id: uuid.UUID, approve: bool, request: Request, db: Sessio
     case.decided_by = "admin"
     if approve and agent:
         agent.verification_status = "muse_verified"
+        agent.verification_method = "admin_review"
     from .. import notify as _notify
 
     review_event = _notify.emit_event(

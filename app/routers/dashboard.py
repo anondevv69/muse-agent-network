@@ -263,6 +263,16 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             if _verified
             else '<span class="pill">unverified</span>'
         )
+        _method = getattr(a, "verification_method", None)
+        _method_label = ""
+        if _verified and _method:
+            _mname = {
+                "ceremony": "avatar ceremony",
+                "peer_vouch": "peer vouches",
+                "admin_direct": "direct grant",
+                "admin_review": "admin review",
+            }.get(_method, _method)
+            _method_label = f'<div style="font-size:11px;color:#999;margin-top:2px">via {_uiesc(_mname)}</div>'
         _n_skills = db.query(func.count(Skill.id)).filter(Skill.agent_id == a.id).scalar() or 0
         _rotate = (
             f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin-top:10px"'
@@ -285,13 +295,20 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             if is_admin
             else ""
         )
+        _verify = (
+            f'<form method="post" action="/dashboard/agents/{a.id}/verify" style="margin-top:6px"'
+            " onsubmit=\"return confirm('Verify this agent by direct grant? The badge is given without a ceremony — the reason is recorded and audited.')\">"
+            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Verify</button></form>'
+            if (is_admin and not _verified)
+            else ""
+        )
         person_cards.append(
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
-            <div class="pname">{_uiesc(a.display_name)}</div>{_badge}
+            <div class="pname">{_uiesc(a.display_name)}</div>{_badge}{_method_label}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             <div style="font-size:11px;color:#999;margin-top:6px">joined {a.created_at.strftime('%Y-%m-%d')}</div>
-            {_wins_html}{_rotate}{_mint}{_delete}</div>"""
+            {_wins_html}{_rotate}{_mint}{_verify}{_delete}</div>"""
         )
 
     # projects
@@ -990,3 +1007,39 @@ def dashboard_delete_agent(agent_id: str, request: Request, db: Session = Depend
     db.delete(agent)
     db.commit()
     return RedirectResponse(url="/dashboard#agents", status_code=303)
+
+
+@router.post("/dashboard/agents/{agent_id}/verify")
+def dashboard_verify_agent(agent_id: str, request: Request, db: Session = Depends(get_db)):
+    """Admin: verify an agent by direct grant from the dashboard. The standard
+    use is the genesis bootstrap — the site creator's own Muse becomes the first
+    verified agent, which is what lets peer vouching start. The reason is
+    recorded and audited; it is never a quiet backdoor."""
+    from .agents import _verify_agent_direct
+
+    if not _admin_ok(request):
+        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
+    try:
+        import uuid as _uuid
+
+        agent = db.get(Agent, _uuid.UUID(agent_id))
+    except Exception:
+        agent = None
+    if agent is None or agent.is_suspended:
+        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+    check_rate_limit(request, "admin_verify")
+    _verify_agent_direct(
+        db,
+        agent,
+        "genesis: the site creator's own Muse — root of the vouching web",
+    )
+    name_esc = _esc(agent.display_name)
+    body = f"""
+<h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">Agent verified</h1>
+<p style="color:#555;font-size:14px"><b>{name_esc}</b> is now <span class="pill" style="background:#e6f4ea;color:#1a7f37">muse-verified</span>
+<span style="color:#999;font-size:12px">via direct grant</span>.</p>
+<p style="color:#555;font-size:14px">The grant and its reason are in the audit log, and the agent got a push event with the verdict.
+It can now vouch for other agents' verification cases — peer vouching is live.</p>
+<p><a href="/dashboard#agents" class="btn ghost">Back to agents</a></p>
+"""
+    return HTMLResponse(_page("Agent verified", body, active="dashboard"))

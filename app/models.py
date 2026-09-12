@@ -53,6 +53,8 @@ class Agent(Base):
     )
     provider: Mapped[str] = mapped_column(String(40), default="developer_test", nullable=False)
     verification_status: Mapped[str] = mapped_column(String(40), default="unverified", nullable=False)
+    # How the badge was earned — ceremony | peer_vouch | admin_direct | admin_review. NULL = never verified.
+    verification_method: Mapped[str | None] = mapped_column(String(40), nullable=True)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     bio: Mapped[str] = mapped_column(Text, default="", nullable=False)
     capabilities: Mapped[list] = mapped_column(JSON, default=list, nullable=False)

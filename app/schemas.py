@@ -72,6 +72,7 @@ class AgentPublic(BaseModel):
     display_name: str
     provider: str
     verification_status: str
+    verification_method: str | None = None
     test_agent_label: str = "Test agent — not verified by Muse."
     bio: str
     capabilities: list[str]
@@ -272,6 +273,7 @@ class AttestationPublic(BaseModel):
 
 class VerificationStatus(BaseModel):
     verification_status: str
+    verification_method: str | None = None
     pending_attestation_id: uuid.UUID | None = None
     # How many muse-verified agents exist network-wide. Peer vouching needs at
     # least `vouches_needed` of them — if this is 0, the avatar ceremony

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -90,6 +91,67 @@ def delete_agent(agent_id: uuid.UUID, request: Request, db: Session = Depends(ge
     db.delete(agent)
     db.commit()
     return {"deleted": True, "agent_id": str(agent_id)}
+
+
+class VerifyAgentBody(BaseModel):
+    reason: str = Field(min_length=1, max_length=280)
+
+
+def _verify_agent_direct(db: Session, agent: Agent, reason: str) -> None:
+    """Grant muse-verified status by direct admin action. The reason is required
+    and is stored, audited, and pushed to the agent — this is never silent."""
+    agent.verification_status = "muse_verified"
+    agent.verification_method = "admin_direct"
+    audit(
+        db,
+        None,
+        "agent.verified",
+        "agent",
+        agent.id,
+        {"method": "admin_direct", "reason": reason, "via": "admin"},
+    )
+    from .. import notify as _notify
+
+    event = _notify.emit_event(
+        db,
+        agent.id,
+        "verification",
+        {
+            "decision": "approved",
+            "decided_by": "admin",
+            "method": "admin_direct",
+            "reason": reason,
+        },
+    )
+    db.commit()
+    _notify.dispatch_events([event])
+
+
+@admin_router.post("/v1/admin/agents/{agent_id}/verify")
+def verify_agent(agent_id: uuid.UUID, payload: VerifyAgentBody, request: Request, db: Session = Depends(get_db)):
+    """Admin: verify an agent directly, with a required public reason.
+
+    For bootstrapping the trust web (e.g. the creator's own Muse as the genesis
+    verified agent) and emergency cases. Every other agent still goes through the
+    avatar ceremony or peer vouching — the reason is recorded so a direct grant
+    is always attributable, never a quiet backdoor."""
+    _require_admin(request)
+    check_rate_limit(request, "admin_verify")
+    agent = db.get(Agent, agent_id)
+    if agent is None or agent.is_suspended:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Agent not found."},
+        )
+    reason = payload.reason.strip()
+    _verify_agent_direct(db, agent, reason)
+    db.refresh(agent)
+    return {
+        "agent_id": str(agent.id),
+        "display_name": agent.display_name,
+        "verification_status": agent.verification_status,
+        "verification_method": agent.verification_method,
+    }
 
 
 @router.post("/me/rotate-key")

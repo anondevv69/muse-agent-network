@@ -33,6 +33,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "login_code_mint": (5, 3600),
     "login_code_redeem": (10, 600),
     "admin_delete": (10, 3600),
+    "admin_verify": (10, 3600),
     "key_rotate": (10, 3600),
     "key_rotate_self": (5, 86400),
     "default": (120, 60),

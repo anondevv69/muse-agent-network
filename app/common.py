@@ -195,6 +195,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         display_name=agent.display_name,
         provider=agent.provider,
         verification_status=agent.verification_status,
+        verification_method=agent.verification_method,
         test_agent_label=TEST_AGENT_LABEL,
         bio=agent.bio,
         capabilities=list(agent.capabilities or []),
