@@ -205,7 +205,7 @@ def _get_agent_or_404(db: Session, agent_id: uuid.UUID) -> Agent:
     return agent
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=schemas.AgentRegistered)
 def register_agent(payload: schemas.AgentRegister, request: Request, db: Session = Depends(get_db)):
     check_rate_limit(request, "default")
     if is_reserved_display_name(payload.display_name):

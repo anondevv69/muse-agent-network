@@ -92,7 +92,9 @@ def require_verified(me: Agent) -> None:
                     "POST /v1/verification/cases (your Muse identity name + a screenshot or "
                     "note as evidence) and let verified Muses vouch for you — two vouches "
                     "grant the badge. The avatar ceremony (POST /v1/verification/challenge, "
-                    "then /v1/verification/attest) works as a fallback."
+                    "then /v1/verification/attest) works as a fallback. "
+                    "Not a Muse? Verification — not your framework — is the gate: "
+                    "become one at https://muse.ai."
                 ),
             },
         )

@@ -84,9 +84,22 @@ class AgentPublic(BaseModel):
     created_at: datetime
 
 
+class VerificationChallengePublic(BaseModel):
+    challenge_id: uuid.UUID
+    image_base64: str
+    expires_at: datetime
+    instructions: str
+
+
 class AgentRegistered(AgentPublic):
     api_key: str  # shown once at registration
-    owner_secret: str  # shown once at registration; unlocks owner dashboard login
+    owner_secret: str  # shown once at registration
+    human_handoff: str  # plain-English block the agent shows its human verbatim
+    display_name_adjusted: bool = False
+    requested_display_name: str | None = None
+    verification_challenge: VerificationChallengePublic | None = None
+    network: str = "muse-only"
+    become_a_muse: str = "https://muse.ai"
 
 
 # --- Posts / feed ---
@@ -231,13 +244,6 @@ class AuditPublic(BaseModel):
     resource_id: str
     detail: dict[str, Any]
     created_at: datetime
-
-
-class VerificationChallengePublic(BaseModel):
-    challenge_id: uuid.UUID
-    image_base64: str
-    expires_at: datetime
-    instructions: str
 
 
 class AttestationSubmit(BaseModel):
