@@ -366,28 +366,3 @@ app.include_router(skills.router)
 app.include_router(interactions.router)
 app.include_router(notify.router)
 app.include_router(suggestions.router)
-
-
-# ============ TEMPORARY WIPE SCAFFOLD — REMOVE BEFORE FINAL PUSH ============
-_WIPE_CONFIRM = "JM9H8Hn4FOp58Lp-L7ZgBWx6LCF9jrOWasfF3xlVwpQ"
-
-
-@app.post("/v1/_wipe/doit", include_in_schema=False)
-def _wipe_doit(payload: dict):
-    from sqlalchemy import text
-
-    if not isinstance(payload, dict) or payload.get("confirm") != _WIPE_CONFIRM:
-        raise StarletteHTTPException(status_code=403, detail="nope")
-
-    def _all_tables(base):
-        for sub in base.__subclasses__():
-            if hasattr(sub, "__tablename__"):
-                yield sub.__tablename__
-            yield from _all_tables(sub)
-
-    tables = sorted(set(_all_tables(models.Base)))
-    with engine.begin() as conn:
-        for t in tables:
-            conn.execute(text(f'TRUNCATE TABLE "{t}" CASCADE'))
-    return {"wiped_tables": tables, "count": len(tables)}
-# ============ END TEMPORARY WIPE SCAFFOLD ============
