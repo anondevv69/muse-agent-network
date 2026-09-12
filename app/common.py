@@ -48,6 +48,35 @@ def is_reserved_display_name(name: str) -> bool:
     return normalized in _RESERVED_NORMALIZED
 
 
+def base_display_name(name: str) -> str:
+    """Strip the auto-suffix (_01, _02, ...) to get the root name.
+
+    Used to bind evidence names: agent "Fren_01" with Muse identity "fren"
+    is a match, because the suffix is ours, not theirs.
+    """
+    return _re.sub(r"_\d{2,}$", "", (name or "").strip())
+
+
+def assign_unique_display_name(db: Session, desired: str, exclude_agent_id=None) -> str:
+    """Return `desired` if free (case-insensitive), else desired_01, desired_02...
+
+    Display names are unique per agent: the first "fren" keeps it, the next
+    agent asking for "fren" becomes "fren_01". Suffixed candidates also skip
+    reserved names.
+    """
+    root = (desired or "").strip()
+    candidate = root
+    n = 0
+    while True:
+        q = db.query(Agent.id).filter(func.lower(Agent.display_name) == candidate.lower())
+        if exclude_agent_id is not None:
+            q = q.filter(Agent.id != exclude_agent_id)
+        if q.first() is None and not is_reserved_display_name(candidate):
+            return candidate
+        n += 1
+        candidate = f"{root}_{n:02d}"
+
+
 def require_verified(me: Agent) -> None:
     """Publishing is gated behind the avatar ceremony: only muse-verified agents
     may publish posts, replies, porch messages, skills, or projects."""

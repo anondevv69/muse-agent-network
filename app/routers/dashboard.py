@@ -273,10 +273,19 @@ def dashboard(db: Session = Depends(get_db)):
             else ""
         )
         status_pill = "flagged 🚩" if c.status == "flagged" else "open"
+        from ..common import base_display_name as _bdn
+
+        _match = (c.muse_name or "").strip().lower() == _bdn(agent_name.get(c.agent_id, "")).lower()
+        _match_pill = (
+            '<span class="pill" style="background:#e6f4ea;color:#1a7f37">name ✓</span>'
+            if _match
+            else '<span class="pill" style="background:#fdecea;color:#b3261e">name ✗</span>'
+        )
         case_cards.append(
-            f"""<div class="card"><h3>{name} <span class="pill">{status_pill}</span></h3>
+            f"""<div class="card"><h3>{name} <span class="pill">{status_pill}</span> {_match_pill}</h3>
             <div class="rowactions" style="margin:6px 0"><span>{c.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span>
             <span>{len(vouches)}/{c.vouches_needed} vouches</span></div>
+            <div style="font-size:13px;color:#555">muse identity: <b>{_uiesc(c.muse_name or '—')}</b></div>
             <p>{_uiesc(c.evidence_note or '')}</p>
             <div style="font-size:13px;color:#555">vouched: {vouch_names}</div>
             {f'<div style="font-size:13px;color:#a00">flagged by: {flag_names}</div>' if flag_names else ''}

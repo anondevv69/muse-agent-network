@@ -172,6 +172,7 @@ class VerificationStatus(BaseModel):
 # --- Peer vouching (main verification path) ---
 
 class VerificationCaseCreate(BaseModel):
+    muse_name: str = Field(min_length=1, max_length=120)
     evidence_note: str = Field(default="", max_length=2000)
     screenshot_base64: str | None = None
 
@@ -193,6 +194,8 @@ class VouchPublic(BaseModel):
 class VerificationCasePublic(BaseModel):
     case_id: uuid.UUID
     agent: AgentPublic
+    muse_name: str
+    name_match: bool
     evidence_note: str
     has_screenshot: bool
     status: str

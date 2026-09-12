@@ -244,6 +244,9 @@ class VerificationCase(Base):
         PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
     )
     evidence_note: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    muse_name: Mapped[str] = mapped_column(
+        String(120), default="", nullable=False
+    )  # the name on the agent's Muse Identity tab — must match the account
     screenshot_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
     # open | approved | rejected | flagged

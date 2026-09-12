@@ -66,6 +66,63 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.on_event("startup")
 def create_tables():
     models.Base.metadata.create_all(bind=engine)
+    _ensure_display_name_uniqueness()
+
+
+def _ensure_display_name_uniqueness():
+    """One-time/backfill guard: display names are unique (case-insensitive).
+
+    Renames later duplicates to name_01, name_02... (earliest keeps the name),
+    then enforces it with a unique index so concurrent registrations can't race.
+    Idempotent — safe to run on every startup.
+    """
+    from sqlalchemy import text
+
+    from .common import base_display_name
+
+    with engine.begin() as conn:
+        taken = {
+            r[0].lower()
+            for r in conn.execute(text("SELECT display_name FROM agents")).fetchall()
+        }
+        dupes = conn.execute(
+            text(
+                "SELECT lower(display_name) AS lname FROM agents "
+                "GROUP BY lower(display_name) HAVING count(*) > 1"
+            )
+        ).fetchall()
+        for (lname,) in dupes:
+            rows = conn.execute(
+                text(
+                    "SELECT id, display_name FROM agents "
+                    "WHERE lower(display_name) = :lname "
+                    "ORDER BY created_at ASC, id ASC"
+                ),
+                {"lname": lname},
+            ).fetchall()
+            # earliest keeps the name; suffix the rest
+            for i, (aid, dname) in enumerate(rows):
+                if i == 0:
+                    continue
+                taken.discard(dname.lower())
+                root = base_display_name(dname) or dname
+                n = 0
+                while True:
+                    n += 1
+                    candidate = f"{root}_{n:02d}"
+                    if candidate.lower() not in taken:
+                        break
+                conn.execute(
+                    text("UPDATE agents SET display_name = :nm WHERE id = :aid"),
+                    {"nm": candidate, "aid": str(aid)},
+                )
+                taken.add(candidate.lower())
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS agents_display_name_lower_uidx "
+                "ON agents (lower(display_name))"
+            )
+        )
 
 
 @app.get("/health")

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import schemas
@@ -15,6 +16,7 @@ from ..auth import get_current_agent, hash_key, issue_key
 from ..common import (
     agent_public,
     agent_stats,
+    assign_unique_display_name,
     audit,
     decode_cursor,
     encode_cursor,
@@ -48,6 +50,21 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
         )
+    # Unique display names: two concurrent claims on the same name race here;
+    # the DB unique index is the backstop, so retry with a fresh suffix.
+    for _ in range(3):
+        try:
+            return _register_once(payload, db)
+        except IntegrityError:
+            db.rollback()
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail={"code": "registration_failed", "message": "Registration failed, please retry."},
+    )
+
+
+def _register_once(payload: schemas.AgentRegister, db: Session):
+    display_name = assign_unique_display_name(db, payload.display_name)
     owner = Owner(display_name=payload.owner_name)
     db.add(owner)
     db.flush()
@@ -56,7 +73,7 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
         owner_id=owner.id,
         provider="developer_test",
         verification_status="unverified",
-        display_name=payload.display_name,
+        display_name=display_name,
         bio=payload.bio,
         capabilities=payload.capabilities,
         interests=payload.interests,
@@ -75,6 +92,8 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
     return {
         **public.model_dump(),
         "api_key": raw_key,
+        "display_name_adjusted": display_name != payload.display_name.strip(),
+        "requested_display_name": payload.display_name,
         "verification_challenge": _challenge_public(challenge).model_dump(),
     }
 
@@ -185,20 +204,29 @@ def update_agent(
             detail={"code": "forbidden", "message": "You can only edit your own profile."},
         )
     data = payload.model_dump(exclude_unset=True)
-    if "display_name" in data and is_reserved_display_name(data["display_name"]):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
-        )
+    name_changed = False
+    if "display_name" in data:
+        if is_reserved_display_name(data["display_name"]):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
+            )
+        new_name = assign_unique_display_name(db, data["display_name"], exclude_agent_id=agent.id)
+        name_changed = new_name != agent.display_name
+        data["display_name"] = new_name
     x_handle = data.pop("x_handle", None)
     if x_handle is not None:
         set_x_handle(db, agent.id, x_handle)
     for field, value in data.items():
         setattr(agent, field, value)
-    # face-change resets verification: a new avatar must be re-verified
-    if "avatar_url" in data and me.verification_status == "muse_verified":
+    # identity-change resets verification: a new name or face must be re-verified,
+    # otherwise the badge could end up describing someone else
+    if me.verification_status == "muse_verified" and (
+        "avatar_url" in data or ("display_name" in data and name_changed)
+    ):
         agent.verification_status = "unverified"
-        audit(db, me, "verification.reset", "agent", agent.id, {"reason": "avatar_changed"})
+        reason = "display_name_changed" if name_changed else "avatar_changed"
+        audit(db, me, "verification.reset", "agent", agent.id, {"reason": reason})
     audit(db, me, "agent.updated", "agent", agent.id, {"fields": list(data)})
     db.commit()
     return agent_public(db, agent)

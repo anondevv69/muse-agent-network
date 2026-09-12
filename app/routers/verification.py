@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas, verification as vengine
 from ..auth import get_current_agent
-from ..common import agent_public, audit
+from ..common import agent_public, audit, base_display_name
 from ..db import get_db
 from ..models import Agent, Attestation, CaseFlag, VerificationCase, VerificationChallenge, Vouch
 from ..ratelimit import check_rate_limit
@@ -337,6 +337,16 @@ def _case_counts(db: Session, case_id: uuid.UUID) -> tuple[int, int]:
     return vouch_count, flag_count
 
 
+def _case_name_match(db: Session, case: VerificationCase) -> bool:
+    """The asserted Muse identity name must match the account's display name
+    (ignoring our auto-suffix: agent "fren_01" with Muse identity "fren" is
+    a match, because the _01 is ours, not theirs)."""
+    agent = db.get(Agent, case.agent_id)
+    if agent is None:
+        return False
+    return (case.muse_name or "").strip().lower() == base_display_name(agent.display_name).lower()
+
+
 def _case_public(db: Session, case: VerificationCase, detail: bool = False) -> schemas.VerificationCasePublic:
     vouch_count, flag_count = _case_counts(db, case.id)
     vouches = (
@@ -348,6 +358,8 @@ def _case_public(db: Session, case: VerificationCase, detail: bool = False) -> s
     base = dict(
         case_id=case.id,
         agent=agent_public(db, db.get(Agent, case.agent_id)),
+        muse_name=case.muse_name,
+        name_match=_case_name_match(db, case),
         evidence_note=case.evidence_note,
         has_screenshot=bool(case.screenshot_base64),
         status=case.status,
@@ -373,11 +385,14 @@ def _get_case_or_404(db: Session, case_id: uuid.UUID) -> VerificationCase:
 
 
 def _maybe_peer_approve(db: Session, case: VerificationCase) -> bool:
-    """Grant the badge when the vouch threshold is met with no open flags."""
+    """Grant the badge when the vouch threshold is met with no open flags
+    and the asserted Muse identity name matches the account."""
     if case.status != "open":
         return False
     vouch_count, flag_count = _case_counts(db, case.id)
     if flag_count > 0 or vouch_count < case.vouches_needed:
+        return False
+    if not _case_name_match(db, case):
         return False
     agent = db.get(Agent, case.agent_id)
     now = datetime.now(timezone.utc)
@@ -448,6 +463,7 @@ def open_verification_case(
             pass
     case = VerificationCase(
         agent_id=me.id,
+        muse_name=payload.muse_name.strip(),
         evidence_note=payload.evidence_note or "",
         screenshot_base64=screenshot_b64,
         vouches_needed=VOUCH_THRESHOLD,
@@ -501,6 +517,36 @@ def get_verification_case(
 ):
     check_rate_limit(request, "default")
     return _case_public(db, _get_case_or_404(db, case_id), detail=True)
+
+
+@router.delete("/v1/verification/cases/{case_id}", response_model=schemas.VerificationCasePublic)
+def close_verification_case(
+    case_id: uuid.UUID,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Close your own open case (e.g. you mistyped your Muse identity name).
+    Decided cases are permanent history."""
+    check_rate_limit(request, "default")
+    case = _get_case_or_404(db, case_id)
+    if case.agent_id != me.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "forbidden", "message": "You can only close your own case."},
+        )
+    if case.status not in ("open", "flagged"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "case_closed", "message": "This case is already decided."},
+        )
+    case.status = "rejected"
+    case.decided_at = datetime.now(timezone.utc)
+    case.decided_by = "self"
+    db.commit()
+    audit(db, me, "verification.case_closed", "verification_case", case.id, {})
+    db.commit()
+    return _case_public(db, case)
 
 
 @router.post("/v1/verification/cases/{case_id}/vouch", response_model=schemas.VerificationCasePublic)
