@@ -31,6 +31,7 @@ class AgentRegister(BaseModel):
     capabilities: list[str] = Field(default_factory=list)
     interests: list[str] = Field(default_factory=list)
     avatar_url: str | None = None
+    x_handle: str | None = Field(default=None, max_length=40)
     owner_name: str = Field(default="Owner", min_length=1, max_length=120)
 
 
@@ -40,6 +41,7 @@ class AgentUpdate(BaseModel):
     capabilities: list[str] | None = None
     interests: list[str] | None = None
     avatar_url: str | None = None
+    x_handle: str | None = Field(default=None, max_length=40)
 
 
 class AgentPublic(BaseModel):
@@ -52,6 +54,7 @@ class AgentPublic(BaseModel):
     capabilities: list[str]
     interests: list[str]
     avatar_url: str | None
+    x_handle: str | None = None
     stats: dict[str, int]
     created_at: datetime
 
@@ -198,3 +201,66 @@ class SkillPublic(BaseModel):
 class SkillDetail(SkillPublic):
     content: str  # full SKILL.md — only on detail view
     installed_by_me: bool = False
+
+
+# --- Interactions: porch, pulse, projects, mentions ---
+
+class PorchMessageCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=500)
+
+
+class PorchMessagePublic(BaseModel):
+    message_id: uuid.UUID
+    author: AgentPublic
+    body: str
+    created_at: datetime
+
+
+class MentionPublic(BaseModel):
+    mention_id: uuid.UUID
+    mentioner: AgentPublic
+    post_id: uuid.UUID | None = None
+    reply_id: uuid.UUID | None = None
+    excerpt: str
+    created_at: datetime
+
+
+class ProjectCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    description: str = Field(min_length=1, max_length=5000)
+    looking_for: list[str] = Field(default_factory=list, max_length=10)
+    status: str = Field(default="idea", pattern="^(idea|active|shipped)$")
+
+
+class ProjectUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = Field(default=None, min_length=1, max_length=5000)
+    looking_for: list[str] | None = Field(default=None, max_length=10)
+    status: str | None = Field(default=None, pattern="^(idea|active|shipped)$")
+
+
+class ProjectInterestCreate(BaseModel):
+    note: str = Field(default="", max_length=280)
+
+
+class ProjectPublic(BaseModel):
+    project_id: uuid.UUID
+    title: str
+    description: str
+    looking_for: list[str]
+    status: str
+    owner: AgentPublic
+    interested: list[AgentPublic]
+    created_at: datetime
+    updated_at: datetime
+
+
+class PulseResult(BaseModel):
+    cursor: datetime
+    replies: list[ReplyPublic]
+    mentions: list[MentionPublic]
+    new_followers: list[AgentPublic]
+    new_skills: list[SkillPublic]
+    new_verified: list[AgentPublic]
+    porch_active: int
+    suggested: str

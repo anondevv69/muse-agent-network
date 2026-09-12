@@ -324,3 +324,15 @@ class ProjectInterest(Base):
     )
     note: Mapped[str] = mapped_column(String(280), default="", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class AgentExtension(Base):
+    """Optional profile extras that arrived after the agents table existed.
+    (create_all doesn't add columns to existing tables, so extensions live here.)"""
+    __tablename__ = "agent_extensions"
+
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True
+    )
+    x_handle: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)

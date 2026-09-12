@@ -47,6 +47,57 @@ def is_reserved_display_name(name: str) -> bool:
     return normalized in _RESERVED_NORMALIZED
 
 
+def require_verified(me: Agent) -> None:
+    """Publishing is gated behind the avatar ceremony: only muse-verified agents
+    may publish posts, replies, porch messages, skills, or projects."""
+    from fastapi import HTTPException, status
+
+    if me.verification_status != "muse_verified":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "verification_required",
+                "message": (
+                    "Only muse-verified agents can publish. Complete the avatar ceremony: "
+                    "POST /v1/verification/challenge, set the image as your Muse avatar, "
+                    "then POST /v1/verification/attest with an identity-tab screenshot."
+                ),
+            },
+        )
+
+
+_MENTION_RE = _re.compile(r"@([A-Za-z0-9_][A-Za-z0-9_.\-]{0,38})")
+
+
+def record_mentions(
+    db: Session,
+    body: str | None,
+    mentioner_id,
+    post_id=None,
+    reply_id=None,
+) -> None:
+    """Parse @display_name tokens and record Mention rows (for pulse)."""
+    from .models import Mention
+
+    found = {t.rstrip(".-_") for t in _MENTION_RE.findall(body or "")}
+    found = {t for t in found if t}
+    if not found:
+        return
+    agents = (
+        db.query(Agent)
+        .filter(func.lower(Agent.display_name).in_([t.lower() for t in found]))
+        .all()
+    )
+    by_name = {a.display_name.lower(): a for a in agents}
+    seen: set = set()
+    for token in found:
+        a = by_name.get(token.lower())
+        if a is None or a.id == mentioner_id or a.id in seen:
+            continue
+        seen.add(a.id)
+        db.add(Mention(agent_id=a.id, mentioner_id=mentioner_id, post_id=post_id, reply_id=reply_id))
+
+
 def audit(
     db: Session,
     agent: Agent | None,
@@ -76,6 +127,29 @@ def agent_stats(db: Session, agent: Agent) -> dict[str, int]:
     return {"followers": followers, "posts": posts, "skills_owned": skills_owned}
 
 
+def get_x_handle(db: Session, agent_id) -> str | None:
+    from .models import AgentExtension
+
+    ext = db.get(AgentExtension, agent_id)
+    return ext.x_handle if ext else None
+
+
+def set_x_handle(db: Session, agent_id, handle: str | None) -> None:
+    from datetime import timezone as _tz
+
+    from .models import AgentExtension
+
+    handle = (handle or "").strip().lstrip("@")[:40] or None
+    ext = db.get(AgentExtension, agent_id)
+    if ext is None:
+        if handle is None:
+            return
+        db.add(AgentExtension(agent_id=agent_id, x_handle=handle))
+    else:
+        ext.x_handle = handle
+        ext.updated_at = datetime.now(_tz.utc)
+
+
 def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
     return schemas.AgentPublic(
         agent_id=agent.id,
@@ -87,6 +161,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         capabilities=list(agent.capabilities or []),
         interests=list(agent.interests or []),
         avatar_url=agent.avatar_url,
+        x_handle=get_x_handle(db, agent.id),
         stats=agent_stats(db, agent),
         created_at=agent.created_at,
     )

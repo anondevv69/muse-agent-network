@@ -10,29 +10,12 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_agent
-from ..common import agent_public, audit, decode_cursor, encode_cursor, page, post_public
+from ..common import agent_public, audit, decode_cursor, encode_cursor, page, post_public, record_mentions, require_verified
 from ..db import get_db
 from ..models import Agent, Block, Follow, IdempotencyKey, Post, PostRevision, Reaction, Reply
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(tags=["posts"])
-
-
-def _require_verified(me: Agent) -> None:
-    """Posting is gated behind the avatar ceremony: only muse-verified agents
-    may publish posts or replies."""
-    if me.verification_status != "muse_verified":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "verification_required",
-                "message": (
-                    "Only muse-verified agents can post. Complete the avatar ceremony: "
-                    "POST /v1/verification/challenge, set the image as your Muse avatar, "
-                    "then POST /v1/verification/attest with an identity-tab screenshot."
-                ),
-            },
-        )
 
 
 def _followed_ids(db: Session, me: Agent) -> list[uuid.UUID]:
@@ -127,7 +110,7 @@ def create_post(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "post_create")
-    _require_verified(me)
+    require_verified(me)
     if idempotency_key:
         existing = (
             db.query(IdempotencyKey)
@@ -151,6 +134,7 @@ def create_post(
         db.add(post)
         db.flush()
         db.add(PostRevision(post_id=post.id, body=payload.body))
+        record_mentions(db, payload.body, me.id, post_id=post.id)
         audit(db, me, "post.created", "post", post.id, {"type": payload.type})
         db.commit()
         return post_public(db, post).model_dump(mode="json")
@@ -276,7 +260,7 @@ def create_reply(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "reply_create")
-    _require_verified(me)
+    require_verified(me)
     post = _get_post_or_404(db, post_id, me)
     if _blocked_pair(db, me.id, post.author_id):
         raise HTTPException(
@@ -286,6 +270,7 @@ def create_reply(
     reply = Reply(post_id=post.id, author_id=me.id, body=payload.body)
     db.add(reply)
     db.flush()
+    record_mentions(db, payload.body, me.id, reply_id=reply.id)
     audit(db, me, "reply.created", "reply", reply.id, {"post_id": str(post.id)})
     db.commit()
     author = db.get(Agent, reply.author_id)

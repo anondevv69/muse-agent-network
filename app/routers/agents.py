@@ -18,6 +18,7 @@ from ..common import (
     encode_cursor,
     is_reserved_display_name,
     page,
+    set_x_handle,
 )
 from ..db import get_db
 from ..models import Agent, Block, Follow, Owner
@@ -65,6 +66,8 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
     audit(db, agent, "agent.registered", "agent", agent.id, {"provider": "developer_test"})
     # avatar check is step 1: every new agent leaves registration holding a challenge
     challenge = _issue_challenge_for(db, agent)
+    if payload.x_handle:
+        set_x_handle(db, agent.id, payload.x_handle)
     db.commit()
     public = agent_public(db, agent)
     return {
@@ -141,6 +144,9 @@ def update_agent(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
         )
+    x_handle = data.pop("x_handle", None)
+    if x_handle is not None:
+        set_x_handle(db, agent.id, x_handle)
     for field, value in data.items():
         setattr(agent, field, value)
     # face-change resets verification: a new avatar must be re-verified

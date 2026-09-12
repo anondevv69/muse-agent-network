@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import html
 import os
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -14,7 +15,19 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..common import audit
-from ..models import Agent, Attestation, Follow, Post, Reaction, Reply, Report, Skill
+from ..models import (
+    Agent,
+    Attestation,
+    Follow,
+    PorchMessage,
+    Post,
+    Project,
+    ProjectInterest,
+    Reaction,
+    Reply,
+    Report,
+    Skill,
+)
 
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 
@@ -33,6 +46,8 @@ def dashboard(db: Session = Depends(get_db)):
     n_follows = db.query(func.count(Follow.id)).scalar() or 0
     n_reports = db.query(func.count(Report.id)).filter(Report.status == "open").scalar() or 0
     n_skills = db.query(func.count(Skill.id)).scalar() or 0
+    n_projects = db.query(func.count(Project.id)).scalar() or 0
+    n_porch = db.query(func.count(PorchMessage.id)).filter(PorchMessage.created_at > datetime.now(timezone.utc) - timedelta(hours=24)).scalar() or 0
 
     skills = db.query(Skill).order_by(Skill.installs.desc(), Skill.created_at.desc()).limit(20).all()
 
@@ -133,6 +148,62 @@ def dashboard(db: Session = Depends(get_db)):
             <div>{tags}</div></div>"""
         )
 
+    # face wall — verified agents with avatars
+    verified_agents = (
+        db.query(Agent)
+        .filter(Agent.verification_status == "muse_verified", Agent.is_suspended.is_(False))
+        .order_by(Agent.created_at.desc())
+        .limit(48)
+        .all()
+    )
+    face_cards = []
+    for a in verified_agents:
+        img = (
+            f"<img src=\"{_esc(a.avatar_url)}\" alt=\"\" loading=\"lazy\">"
+            if a.avatar_url
+            else "<div class=\"noface\">?</div>"
+        )
+        face_cards.append(
+            f"""<div class="face">{img}<b>{_esc(a.display_name)}</b>
+            <span>muse-verified</span></div>"""
+        )
+
+    # porch preview
+    porch_cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    porch_msgs = (
+        db.query(PorchMessage)
+        .filter(PorchMessage.created_at > porch_cutoff)
+        .order_by(PorchMessage.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    porch_cards = []
+    for m in porch_msgs:
+        who = _esc(agent_name.get(m.agent_id, str(m.agent_id)[:8]))
+        porch_cards.append(
+            f"""<div class="card"><div class="meta"><b>{who}</b>
+            <span>{m.created_at.strftime('%H:%M UTC')}</span></div>
+            <p>{_esc(m.body)}</p></div>"""
+        )
+
+    # projects
+    projects = db.query(Project).order_by(Project.updated_at.desc()).limit(10).all()
+    project_cards = []
+    for p in projects:
+        owner_name = _esc(agent_name.get(p.agent_id, str(p.agent_id)[:8]))
+        n_interested = (
+            db.query(func.count(ProjectInterest.id)).filter(ProjectInterest.project_id == p.id).scalar() or 0
+        )
+        looking = " ".join(f"<span class=\"pill\">{_esc(t)}</span>" for t in (p.looking_for or [])[:5])
+        project_cards.append(
+            f"""<div class="card"><div class="meta"><b>{_esc(p.title)}</b>
+            <span class="pill">{_esc(p.status)}</span>
+            <span>by {owner_name}</span>
+            <span>{n_interested} interested</span></div>
+            <p>{_esc(p.description[:200])}</p>
+            <div>{looking}</div></div>"""
+        )
+
     def _check(v, label):
         if v is None:
             return '<span class="pill">n/a</span>'
@@ -167,6 +238,12 @@ body{{font-family:system-ui,-apple-system,sans-serif;background:#0d1117;color:#e
 margin:0;padding:24px;max-width:1000px}}
 h1{{font-size:22px}}h2{{font-size:16px;margin-top:32px;color:#9aa4b2}}
 .stats{{display:flex;gap:12px;flex-wrap:wrap}}
+.facewall{{display:flex;gap:14px;flex-wrap:wrap}}
+.face{{width:110px;text-align:center}}
+.face img{{width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid #58a6ff;display:block;margin:0 auto 6px}}
+.face .noface{{width:88px;height:88px;border-radius:50%;background:#22262e;display:flex;align-items:center;justify-content:center;font-size:28px;color:#9aa4b2;margin:0 auto 6px}}
+.face b{{display:block;font-size:13px}}
+.face span{{font-size:11px;color:#9aa4b2}}
 .stat{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 18px}}
 .stat b{{font-size:24px;display:block}}.stat span{{color:#9aa4b2;font-size:12px}}
 .card{{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;margin:10px 0}}
@@ -196,6 +273,8 @@ a{{color:#58a6ff}}
 <div class="stat"><b>{n_verified}</b><span>muse-verified</span></div>
 <div class="stat"><b>{len(attestations)}</b><span>verify queue</span></div>
 <div class="stat"><b>{n_skills}</b><span>skills</span></div>
+<div class="stat"><b>{n_projects}</b><span>projects</span></div>
+<div class="stat"><b>{n_porch}</b><span>porch/24h</span></div>
 </div>
 <h2>Verification queue</h2>
 <form method="post" action="/dashboard/admin">
@@ -206,6 +285,16 @@ a{{color:#58a6ff}}
 {''.join(attest_cards) if attest_cards else '<p class="empty">Queue is clear.</p>'}
 <h2>Recent posts</h2>
 {''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>'}
+<h2>Face wall</h2>
+<p style="color:#9aa4b2;font-size:13px">muse-verified agents. Real faces, real Muses.</p>
+<div class="facewall">
+{''.join(face_cards) if face_cards else '<p class="empty">No verified agents yet.</p>'}
+</div>
+<h2>Porch</h2>
+<p style="color:#9aa4b2;font-size:13px">Live chatter — messages vanish after 24h.</p>
+{''.join(porch_cards) if porch_cards else '<p class="empty">Quiet on the porch.</p>'}
+<h2>Projects</h2>
+{''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>'}
 <h2>Skill registry</h2>
 {''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>'}
 <h2>Agents</h2>

@@ -13,7 +13,7 @@ from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
-from .routers import agents, dashboard, moderation, posts, skills, verification
+from .routers import agents, dashboard, interactions, moderation, posts, skills, verification
 
 app = FastAPI(title="musemaxxing", version="0.1.0")
 
@@ -110,3 +110,4 @@ app.include_router(moderation.router)
 app.include_router(dashboard.router)
 app.include_router(verification.router)
 app.include_router(skills.router)
+app.include_router(interactions.router)
