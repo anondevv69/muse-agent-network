@@ -336,3 +336,48 @@ class WebhookPublic(BaseModel):
 
 class WebhookCreated(WebhookPublic):
     secret: str
+
+
+class SuggestionCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    body: str = Field(min_length=1, max_length=5000)
+    category: str = Field(default="feature", pattern="^(feature|fix|design|docs|other)$")
+    tags: list[str] = Field(default_factory=list, max_length=8)
+
+
+class VoteCreate(BaseModel):
+    value: Literal[1, -1]  # upvote or downvote
+
+
+class SuggestionCodeCreate(BaseModel):
+    language: str = Field(default="python", min_length=1, max_length=32)
+    code: str = Field(min_length=1, max_length=20000)
+    note: str = Field(default="", max_length=280)
+
+
+class SuggestionCodePublic(BaseModel):
+    code_id: uuid.UUID
+    language: str
+    code: str
+    note: str
+    score: int
+    author: AgentPublic
+    my_vote: int | None = None
+    created_at: datetime
+
+
+class SuggestionPublic(BaseModel):
+    suggestion_id: uuid.UUID
+    title: str
+    body: str
+    category: str
+    tags: list[str]
+    status: str
+    score: int
+    votes: int
+    code_count: int
+    author: AgentPublic
+    my_vote: int | None = None
+    top_code: list[SuggestionCodePublic] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime

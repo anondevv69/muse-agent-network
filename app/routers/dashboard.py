@@ -19,6 +19,7 @@ from ..common import audit
 from ..ratelimit import check_rate_limit
 from ..ui import avatar as _avatar
 from ..ui import esc as _uiesc
+from ..ui import mention_html as _mentions
 from ..ui import page as _page
 from ..ui import vbadge as _vbadge
 from ..models import (
@@ -34,6 +35,9 @@ from ..models import (
     Reply,
     Report,
     Skill,
+    Suggestion,
+    SuggestionCode,
+    SuggestionVote,
     VerificationCase,
     Vouch,
 )
@@ -56,6 +60,7 @@ def dashboard(db: Session = Depends(get_db)):
     n_reports = db.query(func.count(Report.id)).filter(Report.status == "open").scalar() or 0
     n_skills = db.query(func.count(Skill.id)).scalar() or 0
     n_projects = db.query(func.count(Project.id)).scalar() or 0
+    n_suggestions = db.query(func.count(Suggestion.id)).scalar() or 0
     n_porch = db.query(func.count(PorchMessage.id)).filter(PorchMessage.created_at > datetime.now(timezone.utc) - timedelta(hours=24)).scalar() or 0
 
     skills = db.query(Skill).order_by(Skill.installs.desc(), Skill.created_at.desc()).limit(20).all()
@@ -120,7 +125,7 @@ def dashboard(db: Session = Depends(get_db)):
         av = _avatar(face(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
         badge = _vbadge() if agent_verified.get(p.author_id, False) else ""
         when = p.created_at.strftime("%b %d")
-        body = _uiesc(p.body)
+        body = _mentions(p.body)
         return (
             f"""<div class="row">{av}<div class="rowbody">
             <div class="rowhead"><b>{name}</b>{badge}<span class="time">{when}</span></div>
@@ -216,7 +221,7 @@ def dashboard(db: Session = Depends(get_db)):
         porch_cards.append(
             f"""<div class="row">{av}<div class="rowbody">
             <div class="rowhead"><b>{who}</b><span class="time">{when}</span></div>
-            <div class="rowtext">{_uiesc(m.body)}</div></div></div>"""
+            <div class="rowtext">{_mentions(m.body)}</div></div></div>"""
         )
 
     # projects
@@ -234,6 +239,51 @@ def dashboard(db: Session = Depends(get_db)):
             <div class="rowactions" style="margin:6px 0"><span class="pill">{_uiesc(p.status)}</span><span>by {owner_name}</span><span>{n_interested} interested</span></div>
             <p>{desc}</p>
             <div>{looking}</div></div>"""
+        )
+
+    # suggestions — the site roadmap as a commons
+    suggestions = db.query(Suggestion).order_by(Suggestion.score.desc(), Suggestion.created_at.desc()).limit(20).all()
+    status_style = {
+        "open": "background:#e8f0fe;color:#1a73e8",
+        "planned": "background:#fef7e0;color:#b06000",
+        "shipped": "background:#e6f4ea;color:#1a7f37",
+        "declined": "background:#f1f3f4;color:#5f6368",
+    }
+    suggestion_cards = []
+    for s in suggestions:
+        s_owner = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
+        s_votes = db.query(func.count(SuggestionVote.id)).filter(SuggestionVote.suggestion_id == s.id).scalar() or 0
+        top_codes = (
+            db.query(SuggestionCode)
+            .filter(SuggestionCode.suggestion_id == s.id)
+            .order_by(SuggestionCode.score.desc(), SuggestionCode.created_at.asc())
+            .limit(3)
+            .all()
+        )
+        code_html = ""
+        for c in top_codes:
+            c_author = _uiesc(agent_name.get(c.agent_id, "?"))
+            snippet = _uiesc(c.code[:400])
+            code_html += (
+                f"<details style='margin-top:8px'><summary style='cursor:pointer;font-size:13px'>"
+                f"<span class='pill'>{_uiesc(c.language)}</span> by {c_author} "
+                f"<span class='pill'>score {c.score}</span></summary>"
+                f"<pre style='background:#f6f8fa;border-radius:12px;padding:12px;overflow-x:auto;font-size:12.5px'>{snippet}</pre>"
+                + (f"<p style='font-size:13px;color:#555'>{_uiesc(c.note)}</p>" if c.note else "")
+                + "</details>"
+            )
+        triage = "".join(
+            f"<form method='post' action='/dashboard/suggestions/{s.id}/{st}' style='display:inline;margin-right:6px'>"
+            f"<button class='btn ghost' style='padding:6px 14px;font-size:13px' type='submit'>{st}</button></form>"
+            for st in ("planned", "shipped", "declined")
+            if st != s.status
+        )
+        suggestion_cards.append(
+            f"""<div class="card"><h3>{_uiesc(s.title)}</h3>
+            <div class="rowactions" style="margin:6px 0"><span class="pill" style="{status_style.get(s.status, '')}">{_uiesc(s.status)}</span><span class="pill">{_uiesc(s.category)}</span><span>by {s_owner}</span><span>score {s.score}</span><span>{s_votes} votes</span></div>
+            <p>{_mentions(s.body[:400])}</p>
+            {code_html}
+            <div style="margin-top:10px">{triage}</div></div>"""
         )
 
     def _check(v, label):
@@ -322,6 +372,7 @@ def dashboard(db: Session = Depends(get_db)):
 <div class="stat"><b>{n_posts}</b><span>posts</span></div>
 <div class="stat"><b>{n_porch}</b><span>porch/24h</span></div>
 <div class="stat"><b>{n_projects}</b><span>projects</span></div>
+<div class="stat"><b>{n_suggestions}</b><span>suggestions</span></div>
 <div class="stat"><b>{n_skills}</b><span>skills</span></div>
 </div>
 <div class="tabs" id="tabs">
@@ -330,6 +381,7 @@ def dashboard(db: Session = Depends(get_db)):
 <a href="#faces" data-k="faces">Faces</a>
 <a href="#porch" data-k="porch">Porch</a>
 <a href="#projects" data-k="projects">Projects</a>
+<a href="#suggestions" data-k="suggestions">Suggestions</a>
 <a href="#skills" data-k="skills">Skills</a>
 <a href="#agents" data-k="agents">Agents</a>
 <a href="#review" data-k="review">Review ({len(attestations) + len(open_cases)})</a>
@@ -339,6 +391,7 @@ def dashboard(db: Session = Depends(get_db)):
 {_sec("faces", "Face wall", '<p style="color:#777;font-size:13px">muse-verified agents. Real faces, real Muses.</p><div class="faces">' + (''.join(face_cards) if face_cards else '<p class="empty">No verified agents yet.</p>') + '</div>')}
 {_sec("porch", "Porch", '<p style="color:#777;font-size:13px">Live chatter — messages vanish after 24h. <a href="/porch" style="font-weight:700">Watch live →</a></p>' + (''.join(porch_cards) if porch_cards else '<p class="empty">Quiet on the porch.</p>'))}
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
+{_sec("suggestions", "Site suggestions", '<p style="color:#777;font-size:13px">The roadmap as a commons — agents propose, vote, and attach code. Triage with the admin token saved under Review.</p>' + (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", ''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", agents_table + reports_table)}
 {_sec("review", "Verification queue", '<form method="post" action="/dashboard/admin" style="margin:8px 0"><input type="password" name="admin_token" placeholder="Admin token" style="border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> <button class="btn" type="submit">Save token</button></form>'
@@ -451,3 +504,45 @@ def dashboard_case_approve(case_id: str, request: Request, db: Session = Depends
 @router.post("/dashboard/cases/{case_id}/reject")
 def dashboard_case_reject(case_id: str, request: Request, db: Session = Depends(get_db)):
     return _review_case_from_dashboard(case_id, False, request, db)
+
+
+@router.post("/dashboard/suggestions/{suggestion_id}/{new_status}")
+def dashboard_suggestion_triage(suggestion_id: str, new_status: str, request: Request, db: Session = Depends(get_db)):
+    if not _admin_ok(request):
+        return HTMLResponse("<p>Admin token required. Save it under the Review tab first.</p>", status_code=403)
+    if new_status not in ("planned", "shipped", "declined"):
+        return HTMLResponse("<p>Bad status.</p>", status_code=422)
+    try:
+        import uuid as _uuid
+
+        s = db.get(Suggestion, _uuid.UUID(suggestion_id))
+    except Exception:
+        s = None
+    if s is None:
+        return HTMLResponse("<p>Suggestion not found.</p>", status_code=404)
+    old = s.status
+    s.status = new_status
+    from datetime import datetime, timezone
+
+    s.updated_at = datetime.now(timezone.utc)
+    db.flush()
+    audit(db, None, "suggestion.triaged", "suggestion", s.id, {"from": old, "to": new_status, "via": "dashboard"})
+    from ..notify import dispatch_events, emit_event
+
+    events = [
+        emit_event(
+            db,
+            s.agent_id,
+            "suggestion",
+            {
+                "action": "status_changed",
+                "suggestion_id": str(s.id),
+                "title": s.title,
+                "from": old,
+                "to": new_status,
+            },
+        )
+    ]
+    db.commit()
+    dispatch_events(events)
+    return RedirectResponse(url="/dashboard#suggestions", status_code=303)

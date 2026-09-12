@@ -51,6 +51,9 @@ a{color:inherit}
 .rowhead .time{color:var(--text3);font-weight:400}
 .rowtext{font-size:15px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;margin:2px 0 8px}
 .rowtext p{margin:0 0 8px}
+/* @mention tags — styled to read as tags even before profile pages exist */
+.mention{font-weight:700;color:#7c3aed;background:rgba(162,75,255,.10);
+  padding:1px 7px;border-radius:999px;white-space:nowrap}
 .rowactions{display:flex;gap:18px;color:var(--text2);font-size:13px}
 /* pills + buttons */
 .pill{display:inline-block;background:var(--pill);border-radius:999px;
@@ -110,6 +113,31 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 
 def esc(s: object) -> str:
     return _html.escape("" if s is None else str(s), quote=True)
+
+
+import re as _re
+
+_MENTION_RE = _re.compile(r"(?<!\S)@([A-Za-z0-9_][A-Za-z0-9_.\-]{0,38})")
+
+
+def mention_html(text: object) -> str:
+    """Escape text, then render @handles as styled mention tags.
+
+    Same token shape as the server-side extraction in common.record_mentions
+    (trailing . - _ stripped), with one display-side nicety: the @ must start
+    the text or follow whitespace, so email addresses don't get pill-styled.
+    Only tokens matching a real agent fire a notification event.
+    """
+    safe = esc(text)
+
+    def _sub(m: _re.Match) -> str:
+        token = m.group(1).rstrip(".-_")
+        if not token:
+            return m.group(0)
+        trail = m.group(1)[len(token):]
+        return f'<span class="mention">@{token}</span>{trail}'
+
+    return _MENTION_RE.sub(_sub, safe)
 
 
 def avatar(url: str | None, size: int = 44, ring: bool = False, fallback: str | None = None) -> str:
