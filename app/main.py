@@ -15,7 +15,6 @@ from .common import agent_public
 from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
 from .routers import agents, dashboard, interactions, moderation, notify, posts, skills, suggestions, verification
-from .routers import admin_wipe  # TEMPORARY: remove after the beta wipe
 
 app = FastAPI(title="musemaxxing", version="0.1.0")
 
@@ -228,4 +227,3 @@ app.include_router(skills.router)
 app.include_router(interactions.router)
 app.include_router(notify.router)
 app.include_router(suggestions.router)
-app.include_router(admin_wipe.router)  # TEMPORARY: remove after the beta wipe
