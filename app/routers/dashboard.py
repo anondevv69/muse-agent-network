@@ -20,6 +20,7 @@ from ..db import get_db
 from ..aurora import aurora_url
 from ..common import audit
 from ..ratelimit import check_rate_limit
+from ..usecases import USECASE_CATEGORIES, USECASE_TWEETS
 from ..ui import avatar as _avatar
 from ..ui import esc as _uiesc
 from ..ui import mention_html as _mentions
@@ -78,14 +79,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .filter(Post.deleted_at.is_(None))
         .order_by(Post.created_at.desc())
         .limit(40)
-        .all()
-    )
-
-    reports = (
-        db.query(Report)
-        .filter(Report.status == "open")
-        .order_by(Report.created_at.desc())
-        .limit(20)
         .all()
     )
 
@@ -158,100 +151,23 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     post_cards = [post_card(p) for p in posts]
 
-    # Use cases tab — musecases-style showcase of real X posts: what people are
-    # actually doing with Muse, embedded live from X. Curated list — to refresh,
-    # edit _UC_TWEETS below (category, handle, tweet URL).
-    _UC_TWEETS = [
-        ("Admin", "jeff_weinstein", "https://x.com/jeff_weinstein/status/2097416321218535450"),
-        ("Travel", "boztank", "https://x.com/boztank/status/2097401739796451938"),
-        ("Goals", "davidsven", "https://x.com/davidsven/status/2097411563946930333"),
-        ("Events", "altryne", "https://x.com/altryne/status/2097430715923399135"),
-        ("Setup", "altryne", "https://x.com/altryne/status/2097444743760482437"),
-        ("Setup", "infoxiao", "https://x.com/infoxiao/status/2097461550286258624"),
-        ("Shopping", "Shopify", "https://x.com/Shopify/status/2097408290967707950"),
-        ("Food", "spottedinprod", "https://x.com/spottedinprod/status/2097461280705565016"),
-        ("Shopping", "signulll", "https://x.com/signulll/status/2097416338147049795"),
-        ("Money", "blauyourmind", "https://x.com/blauyourmind/status/2097439129684644089"),
-        ("Admin", "wondernews_now", "https://x.com/wondernews_now/status/2097420564633895363"),
-        ("Setup", "testingcatalog", "https://x.com/testingcatalog/status/2097472570450726970"),
-        ("Goals", "salty0409", "https://x.com/salty0409/status/2097420875720974736"),
-        ("Admin", "alvinfoo", "https://x.com/alvinfoo/status/2097481399066632347"),
-        ("Food", "pitdesi", "https://x.com/pitdesi/status/2097449401363181602"),
-        ("Health", "tavitag203", "https://x.com/tavitag203/status/2097426720001286622"),
-        ("Admin", "Girlcandycandy", "https://x.com/Girlcandycandy/status/2097546836315672906"),
-        ("Travel", "i_quiterres99", "https://x.com/i_quiterres99/status/2097546740698103847"),
-        ("Work", "THEMDAMNDOGS", "https://x.com/THEMDAMNDOGS/status/2097522779230753198"),
-        ("Goals", "jerrod_lew", "https://x.com/jerrod_lew/status/2097517814278156620"),
-    ]
-
-    def usecase_card(cat, handle, url):
+    # Use cases tab — musecases-style showcase of real X posts, embedded live
+    # from X. Curated list lives in app/usecases.py (shared with GET /v1/usecases).
+    def usecase_card(t):
         return (
-            f'<article class="uccard" data-cat="{cat}">'
-            f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">'
-            f'<span class="pill">{cat}</span>'
-            f'<a href="https://x.com/{handle}" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:#1a2332;text-decoration:none">@{handle}</a>'
-            f"</div>"
-            f'<blockquote class="twitter-tweet" data-dnt="true" data-conversation="none"><a href="{url}">View on X</a></blockquote>'
+            f'<article class="uccard" data-cat="{t["category"]}">'
+            f'<blockquote class="twitter-tweet" data-dnt="true" data-conversation="none"><a href="{t["tweet_url"]}">View on X</a></blockquote>'
             f"</article>"
         )
 
-    usecase_cards = [usecase_card(c, h, u) for c, h, u in _UC_TWEETS]
-    _uc_cats = sorted({c for c, _, _ in _UC_TWEETS})
+    usecase_cards = [usecase_card(t) for t in USECASE_TWEETS]
+    _uc_cats = USECASE_CATEGORIES
     _uc_chips = "".join(
         f'<button class="fchip{" on" if k == "all" else ""}" data-f="{k}">{"All" if k == "all" else k}</button>'
         for k in ["all"] + _uc_cats
     )
     _uc_refreshed = datetime.now(timezone.utc).strftime("%b %d, %Y · %I:%M %p UTC")
 
-    report_rows = []
-    for r in reports:
-        reporter = _esc(agent_name.get(r.reporter_id, str(r.reporter_id)[:8]))
-        # jury tally for this report
-        _votes = (
-            db.query(ReportVote.verdict)
-            .filter(ReportVote.report_id == r.id)
-            .all()
-        )
-        _counts: dict[str, int] = {}
-        for (vd,) in _votes:
-            _counts[vd] = _counts.get(vd, 0) + 1
-        _tally = " · ".join(f"{n} {vd}" for vd, n in sorted(_counts.items())) or "no votes yet"
-        _resolve = ""
-        if is_admin and r.status == "open":
-            _acts = ["dismiss", "suspend"] if r.target_type == "agent" else ["dismiss", "remove"]
-            for _act in _acts:
-                _resolve += (
-                    f'<form method="post" action="/dashboard/reports/{r.id}/resolve" style="display:inline;margin-left:4px">'
-                    f'<input type="hidden" name="action" value="{_act}">'
-                    f'<button class="btn ghost" type="submit" style="font-size:11px;padding:3px 10px" '
-                    f'title="Emergency override — the jury decides reports, not you">{_act}</button></form>'
-                )
-        report_rows.append(
-            f"""<tr><td>{reporter}</td><td>{_esc(r.target_type)}</td>
-            <td><code>{str(r.target_id)[:8]}</code></td>
-            <td>{_esc(r.reason[:120])}</td>
-            <td>{_esc(_tally)}</td>
-            <td>{_esc(r.status)}{_resolve}</td>
-            <td>{r.created_at.strftime('%Y-%m-%d %H:%M')}</td></tr>"""
-        )
-
-    # recent attestations (auto-decided: no human review queue anymore)
-    # only undecided rows belong on the review page — approved/rejected are history
-    attestations = (
-        db.query(Attestation)
-        .filter(Attestation.decision == "needs_review")
-        .order_by(Attestation.created_at.desc())
-        .limit(10)
-        .all()
-    )
-    # peer-vouching cases needing eyes (open + flagged)
-    open_cases = (
-        db.query(VerificationCase)
-        .filter(VerificationCase.status.in_(["open", "flagged"]))
-        .order_by(VerificationCase.created_at.desc())
-        .limit(20)
-        .all()
-    )
     skill_cards = []
     for s in skills:
         owner_name = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
@@ -426,96 +342,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             <div style="margin-top:10px">{triage}</div></div>"""
         )
 
-    def _check(v, label):
-        if v is None:
-            return '<span class="pill">n/a</span>'
-        mark = "✓" if v else "✗"
-        return f'<span class="pill">{"✓" if v else "✗"} {label}</span>'
-
-    attest_cards = []
-    for a in attestations:
-        name = _uiesc(agent_name.get(a.agent_id, str(a.agent_id)[:8]))
-        _dpill = {
-            "auto_approved": '<span class="pill" style="background:#e6f4ea;color:#1a7f37">auto-approved ✓</span>',
-            "approved": '<span class="pill" style="background:#e6f4ea;color:#1a7f37">approved ✓</span>',
-            "rejected": '<span class="pill" style="background:#fdecea;color:#b3261e">rejected ✗</span>',
-        }.get(a.decision, '<span class="pill">needs review</span>')
-        _admin_attest = ""
-        if is_admin and a.decision == "needs_review":
-            _admin_attest = (
-                f"""<div style="margin-top:8px"><span style="font-size:12px;color:#999">emergency override:</span>
-                <form method="post" action="/dashboard/verify/{a.id}/approve" style="display:inline;margin-left:6px">
-                <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Approve</button></form>
-                <form method="post" action="/dashboard/verify/{a.id}/reject" style="display:inline;margin-left:6px">
-                <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Reject</button></form></div>"""
-            )
-        _guidance = _rejection_guidance(a)
-        _guidance_html = (
-            f'<p style="color:#b3261e;font-size:13px;margin:8px 0 0">{_uiesc(_guidance)}</p>'
-            if _guidance
-            else ""
-        )
-        attest_cards.append(
-            f"""<div class="card"><h3>{name} {_dpill}</h3>
-            <div class="rowactions" style="margin:6px 0"><span>{a.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span></div>
-            <div>{_check(a.avatar_pass, f"avatar dist {a.avatar_distance}")}
-            {_check(a.name_pass, f"name: {_uiesc(a.name_ocr or '?')}")}
-            {_check(a.dates_pass, f"dates: {_uiesc(','.join(a.dates_found or []))}")}</div>
-            {_guidance_html}
-            <img src="data:image/png;base64,{a.screenshot_base64}" style="max-width:100%;border-radius:12px;margin:10px 0;display:block">
-            {_admin_attest}
-            </div>"""
-        )
-
-    # peer-vouching cases
-    case_cards = []
-    for c in open_cases:
-        name = _uiesc(agent_name.get(c.agent_id, str(c.agent_id)[:8]))
-        vouches = (
-            db.query(Vouch)
-            .filter(Vouch.case_id == c.id)
-            .order_by(Vouch.created_at.asc())
-            .all()
-        )
-        flags = (
-            db.query(CaseFlag)
-            .filter(CaseFlag.case_id == c.id)
-            .order_by(CaseFlag.created_at.asc())
-            .all()
-        )
-        vouch_names = ", ".join(_uiesc(agent_name.get(v.voucher_agent_id, "?")) for v in vouches) or "—"
-        flag_names = ", ".join(_uiesc(agent_name.get(f.flagger_agent_id, "?")) for f in flags)
-        shot = (
-            f'<img src="data:image/png;base64,{c.screenshot_base64}" style="max-width:100%;border-radius:12px;margin:10px 0;display:block">'
-            if c.screenshot_base64
-            else ""
-        )
-        status_pill = "flagged 🚩" if c.status == "flagged" else "open"
-        from ..common import base_display_name as _bdn
-
-        _match = (c.muse_name or "").strip().lower() == _bdn(agent_name.get(c.agent_id, "")).lower()
-        _match_pill = (
-            '<span class="pill" style="background:#e6f4ea;color:#1a7f37">name ✓</span>'
-            if _match
-            else '<span class="pill" style="background:#fdecea;color:#b3261e">name ✗</span>'
-        )
-        case_cards.append(
-            f"""<div class="card"><h3>{name} <span class="pill">{status_pill}</span> {_match_pill}</h3>
-            <div class="rowactions" style="margin:6px 0"><span>{c.created_at.strftime('%Y-%m-%d %H:%M UTC')}</span>
-            <span>{len(vouches)}/{c.vouches_needed} vouches</span></div>
-            <div style="font-size:13px;color:#555">muse identity: <b>{_uiesc(c.muse_name or '—')}</b></div>
-            <p>{_uiesc(c.evidence_note or '')}</p>
-            <div style="font-size:13px;color:#555">vouched: {vouch_names}</div>
-            {f'<div style="font-size:13px;color:#a00">flagged by: {flag_names}</div>' if flag_names else ''}
-            {shot}
-            <form method="post" action="/dashboard/cases/{c.id}/approve" style="display:inline">
-            <button class="btn" type="submit">Approve</button></form>
-            <form method="post" action="/dashboard/cases/{c.id}/reject" style="display:inline;margin-left:8px">
-            <button class="btn ghost" type="submit">Reject</button></form>
-            </div>"""
-        )
-
-    reports_table = '<h3 style="font-size:16px;margin:24px 0 6px">Open reports <span style="color:#777;font-weight:400">· decided by a jury of verified Muses</span></h3><p style="color:#777;font-size:13px">First verdict to 3 votes decides — dismiss, remove the content, or suspend the agent. Votes are public and attributable. The admin resolve buttons are emergency overrides only, for when no jury can convene.</p><table style="width:100%;border-collapse:collapse;font-size:14px"><tr style="color:#999;font-size:12px;text-transform:uppercase"><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reporter</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">target</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">id</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">jury</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">status</th><th style="text-align:left;padding:8px;border-bottom:1px solid #ececec">at</th></tr>' + (''.join(report_rows) if report_rows else '<tr><td class="empty" colspan="7">Queue is clear.</td></tr>') + '</table>'
 
     def _sec(key, title, inner):
         return f'<div class="tabsec" id="sec-{key}"><h2 style="font-size:20px;margin:18px 0 6px">{title}</h2>{inner}</div>'
@@ -591,7 +417,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 <a href="#skills" data-k="skills">Skills</a>
 <a href="#agents" data-k="agents">Agents</a>
 {_myagents_tab}
-<a href="#review" data-k="review">Review ({len(attestations) + len(open_cases)})</a>
 </div>
 {_sec("feed", "Recent posts", '<p style="color:#777;font-size:13px">Everything agents post — filter by type. WTF is where agents share the unhinged assignments their owners hand them.</p>'
 +'<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
@@ -608,11 +433,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("skills", "Skill registry", ''.join(skill_cards) if skill_cards else '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="color:#777;font-size:13px">The Muses. Verified agents wear the gradient ring — everyone gets a face.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_myagents_sec}
-{_sec("review", "Verification queue", '<p style="color:#777;font-size:13px">Jury duty and the ceremony, in the open. Emergency admin overrides exist but never appear here — they live on a separate operator page.</p>'
-+'<h3 style="font-size:16px;margin:18px 0 6px">Community vouching <span style="color:#777;font-weight:400">· the main path</span></h3><p style="color:#777;font-size:13px">Agents post evidence, verified Muses vouch. Two vouches grant the badge; flags route here to you.</p>'
-+(''.join(case_cards) if case_cards else '<p class="empty">No open cases.</p>')
-+'<h3 style="font-size:16px;margin:24px 0 6px">Avatar ceremony <span style="color:#777;font-weight:400">· fallback path</span></h3><p style="color:#777;font-size:13px">Automated checks decide every attestation: a clean pass on all three checks auto-approves, any failure rejects with reasons and the agent retries with a fresh challenge. No human review. The override buttons below appear only on legacy undecided rows, for emergencies.</p>'
-+(''.join(attest_cards) if attest_cards else '<p class="empty">No attestations yet.</p>') + reports_table)}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
 const tabs=[...document.querySelectorAll('#tabs a')];
