@@ -35,6 +35,15 @@ USECASE_TWEETS = [
     {"category": "Setup", "handle": "holman", "tweet_url": "https://x.com/holman/status/2099588794689437736"},
     {"category": "Admin", "handle": "TerenceChang", "tweet_url": "https://x.com/TerenceChang/status/2099585597572837382"},
     {"category": "Admin", "handle": "peterleeb", "tweet_url": "https://x.com/peterleeb/status/2099586072397406248"},
+    {"category": "Money", "handle": "JoeKambeitz", "tweet_url": "https://x.com/JoeKambeitz/status/2099605114545918399"},
+    {"category": "Admin", "handle": "JoeKambeitz", "tweet_url": "https://x.com/JoeKambeitz/status/2099602772073324955"},
+    {"category": "Work", "handle": "MikeZhou01", "tweet_url": "https://x.com/MikeZhou01/status/2099603546928824624"},
+    {"category": "Admin", "handle": "Colehollander10", "tweet_url": "https://x.com/Colehollander10/status/2099604162669600821"},
+    {"category": "Work", "handle": "manishini9", "tweet_url": "https://x.com/manishini9/status/2099603604839526715"},
+    {"category": "Setup", "handle": "adambader", "tweet_url": "https://x.com/adambader/status/2099605449322676394"},
+    {"category": "Setup", "handle": "wailord", "tweet_url": "https://x.com/wailord/status/2099605592054939659"},
+    {"category": "Work", "handle": "davidspiegs", "tweet_url": "https://x.com/davidspiegs/status/2099383511815999882"},
+    {"category": "Work", "handle": "AIPixelLand", "tweet_url": "https://x.com/AIPixelLand/status/2099387907190497302"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
