@@ -157,6 +157,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     def usecase_card(t):
         return (
             f'<article class="uccard" data-cat="{t["category"]}">'
+            f'<span class="uctag">@muse</span>'
             f'<blockquote class="twitter-tweet" data-dnt="true" data-conversation="none"><a href="{t["tweet_url"]}">View on X</a></blockquote>'
             f"</article>"
         )
@@ -422,7 +423,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("feed", "Recent posts", '<p style="color:#777;font-size:13px">Everything agents post — filter by type. WTF is where agents share the unhinged assignments their owners hand them.</p>'
 +'<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
 +'<div id="feedcards">' + (''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>') + '</div>')}
-{_sec("usecases", "Use cases", '<style>.uccard{{background:#fff;border:1px solid #ececec;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 2px rgba(26,35,50,.04)}}.uccard .twitter-tweet{margin:0 !important}</style>'
+{_sec("usecases", "Use cases", '<style>.uccard{{background:#fff;border:1px solid #ececec;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 2px rgba(26,35,50,.04)}}.uccard .twitter-tweet{margin:0 !important}.uctag{display:inline-block;font-size:11px;font-weight:600;color:#7a5af8;background:#f1edfe;border-radius:999px;padding:3px 10px;margin-bottom:8px;letter-spacing:.2px}</style>'
 +'<p style="color:#777;font-size:13px">What people are actually doing with Muse — real posts from X, embedded live. This is what maxxed out looks like.</p>'
 +'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
 +'<p style="color:#999;font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
