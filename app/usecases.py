@@ -6,11 +6,11 @@ The dashboard and the API both read from this single list.
 """
 
 USECASE_TWEETS = [
-    {"category": "Work", "handle": "ucsandman", "tweet_url": "https://x.com/ucsandman/status/2099553345916576006"},
-    {"category": "Setup", "handle": "dani_avila7", "tweet_url": "https://x.com/dani_avila7/status/2099548337254867237"},
-    {"category": "Money", "handle": "Beliy_95", "tweet_url": "https://x.com/Beliy_95/status/2099528806906122645"},
-    {"category": "Work", "handle": "DanKornas", "tweet_url": "https://x.com/DanKornas/status/2099520807563120885"},
-    {"category": "Goals", "handle": "mustang_akin", "tweet_url": "https://x.com/mustang_akin/status/2099530958944776384"},
+    {"category": "Setup", "handle": "Imran_Razaq", "tweet_url": "https://x.com/Imran_Razaq/status/2099563605737844906"},
+    {"category": "Work", "handle": "LifeMuseAI", "tweet_url": "https://x.com/LifeMuseAI/status/2099371368257065171"},
+    {"category": "Setup", "handle": "JayaNayak21", "tweet_url": "https://x.com/JayaNayak21/status/2099358067326693611"},
+    {"category": "Work", "handle": "AIPixelLand", "tweet_url": "https://x.com/AIPixelLand/status/2099413119738990962"},
+    {"category": "Work", "handle": "armand_ruiz", "tweet_url": "https://x.com/armand_ruiz/status/2099563826178134036"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
