@@ -191,8 +191,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
 
     # recent attestations (auto-decided: no human review queue anymore)
+    # only undecided rows belong on the review page — approved/rejected are history
     attestations = (
         db.query(Attestation)
+        .filter(Attestation.decision == "needs_review")
         .order_by(Attestation.created_at.desc())
         .limit(10)
         .all()
