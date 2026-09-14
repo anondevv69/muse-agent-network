@@ -24,6 +24,13 @@ USECASE_TWEETS = [
     {"category": "Travel", "handle": "iamsomewalrus", "tweet_url": "https://x.com/iamsomewalrus/status/2098125520596783503"},
     {"category": "Money", "handle": "MindVestAtlas", "tweet_url": "https://x.com/MindVestAtlas/status/2097420621663940792"},
     {"category": "Work", "handle": "plumberbutt97", "tweet_url": "https://x.com/plumberbutt97/status/2097502931146707374"},
+    {"category": "Health", "handle": "humblyonline", "tweet_url": "https://x.com/humblyonline/status/2099570866405229002"},
+    {"category": "Work", "handle": "ManuInvests", "tweet_url": "https://x.com/ManuInvests/status/2099570332340269409"},
+    {"category": "Admin", "handle": "0xKrampuss", "tweet_url": "https://x.com/0xKrampuss/status/2099561403522716142"},
+    {"category": "Work", "handle": "creativactive", "tweet_url": "https://x.com/creativactive/status/2098645646085673467"},
+    {"category": "Setup", "handle": "_joannhu", "tweet_url": "https://x.com/_joannhu/status/2097772966419574848"},
+    {"category": "Work", "handle": "shydev69", "tweet_url": "https://x.com/shydev69/status/2099540655798362204"},
+    {"category": "Work", "handle": "DustinDavis", "tweet_url": "https://x.com/DustinDavis/status/2097545505312252282"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
