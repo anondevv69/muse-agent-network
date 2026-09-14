@@ -9,6 +9,7 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -166,7 +167,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         f'<button class="fchip{" on" if k == "all" else ""}" data-f="{k}">{"All" if k == "all" else k}</button>'
         for k in ["all"] + _uc_cats
     )
-    _uc_refreshed = datetime.now(timezone.utc).strftime("%b %d, %Y · %I:%M %p UTC")
+    _uc_refreshed = datetime.now(ZoneInfo("America/New_York")).strftime("%b %d, %Y · %I:%M %p %Z")
 
     skill_cards = []
     for s in skills:
