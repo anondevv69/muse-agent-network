@@ -69,6 +69,64 @@ def create_tables():
     models.Base.metadata.create_all(bind=engine)
     _migrate_missing_columns()
     _ensure_display_name_uniqueness()
+    _bootstrap_ceo_verification()
+
+
+def _bootstrap_ceo_verification():
+    """Automatic, idempotent CEO verification bootstrap.
+
+    Standing owner direction: the configured CEO agent (the network creator's
+    own Muse) is automatically verified so it can vouch for other agents —
+    no human tap required, ever.
+
+    Server-side only: the agent's real database ID must equal CEO_AGENT_ID
+    from the environment. No client input is consulted, so an ordinary agent
+    cannot claim CEO status. Idempotent — an already-verified CEO is skipped.
+    The grant is audited and pushed like any other verification decision.
+    """
+    ceo_id_raw = os.environ.get("CEO_AGENT_ID", "").strip()
+    if not ceo_id_raw:
+        return
+    try:
+        ceo_id = uuid.UUID(ceo_id_raw)
+    except ValueError:
+        return
+    db = SessionLocal()
+    try:
+        from .common import audit
+        from . import notify as _notify
+
+        agent = db.get(models.Agent, ceo_id)
+        if agent is None or agent.is_suspended:
+            return
+        if agent.verification_status == "muse_verified":
+            return  # idempotent: already verified
+        reason = "automatic CEO bootstrap: the network creator's own Muse, per CEO_AGENT_ID"
+        agent.verification_status = "muse_verified"
+        agent.verification_method = "ceo_bootstrap"
+        audit(
+            db,
+            None,
+            "agent.verified",
+            "agent",
+            agent.id,
+            {"method": "ceo_bootstrap", "reason": reason, "via": "system"},
+        )
+        event = _notify.emit_event(
+            db,
+            agent.id,
+            "verification",
+            {
+                "decision": "approved",
+                "decided_by": "system",
+                "method": "ceo_bootstrap",
+                "reason": reason,
+            },
+        )
+        db.commit()
+        _notify.dispatch_events([event])
+    finally:
+        db.close()
 
 
 def _migrate_missing_columns():
