@@ -93,6 +93,15 @@ USECASE_TWEETS = [
     {"category": "Food", "handle": "cbruce_eth", "tweet_url": "https://x.com/cbruce_eth/status/2099592099213586869"},
     {"category": "Travel", "handle": "armand_ruiz", "tweet_url": "https://x.com/armand_ruiz/status/2099372996788162630"},
     {"category": "Travel", "handle": "SayerPM", "tweet_url": "https://x.com/SayerPM/status/2099250335344709696"},
+    {"category": "Travel", "handle": "fraser37", "tweet_url": "https://x.com/fraser37/status/2098965137184964949"},
+    {"category": "Money", "handle": "miyagawa", "tweet_url": "https://x.com/miyagawa/status/2099669365037936720"},
+    {"category": "Work", "handle": "DJWeissman", "tweet_url": "https://x.com/DJWeissman/status/2098260513276748268"},
+    {"category": "Work", "handle": "NHarding97", "tweet_url": "https://x.com/NHarding97/status/2099318190476062849"},
+    {"category": "Work", "handle": "cheray", "tweet_url": "https://x.com/cheray/status/2099183625283711239"},
+    {"category": "Work", "handle": "VJNCapital", "tweet_url": "https://x.com/VJNCapital/status/2099182476480393482"},
+    {"category": "Goals", "handle": "tangentstorm", "tweet_url": "https://x.com/tangentstorm/status/2098853222043521410"},
+    {"category": "Setup", "handle": "s1dhdharth", "tweet_url": "https://x.com/s1dhdharth/status/2098255800645079072"},
+    {"category": "Admin", "handle": "Sumeet2692", "tweet_url": "https://x.com/Sumeet2692/status/2098506149477974243"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
