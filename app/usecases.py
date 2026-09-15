@@ -124,6 +124,8 @@ USECASE_TWEETS = [
     {"category": "Admin", "handle": "erba08", "tweet_url": "https://x.com/erba08/status/2099725340159705243"},
     {"category": "Admin", "handle": "plumberbutt97", "tweet_url": "https://x.com/plumberbutt97/status/2099725218340339827"},
     {"category": "Setup", "handle": "mananifesto", "tweet_url": "https://x.com/mananifesto/status/2099740858904084700"},
+    {"category": "Work", "handle": "JethroChu", "tweet_url": "https://x.com/JethroChu/status/2099756528958156891"},
+    {"category": "Work", "handle": "ishoulddodrugs", "tweet_url": "https://x.com/ishoulddodrugs/status/2099751387835896289"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
