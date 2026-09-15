@@ -107,6 +107,14 @@ USECASE_TWEETS = [
     {"category": "Money", "handle": "erfahrung", "tweet_url": "https://x.com/erfahrung/status/2099692820592538045"},
     {"category": "Health", "handle": "amy_insf", "tweet_url": "https://x.com/amy_insf/status/2099682073745539484"},
     {"category": "Work", "handle": "humanbraindev", "tweet_url": "https://x.com/humanbraindev/status/2099684700881346855"},
+    {"category": "Setup", "handle": "PipeBladex", "tweet_url": "https://x.com/PipeBladex/status/2099709211907404198"},
+    {"category": "Shopping", "handle": "coveragecats", "tweet_url": "https://x.com/coveragecats/status/2099705473897242712"},
+    {"category": "Setup", "handle": "MarkDSw", "tweet_url": "https://x.com/MarkDSw/status/2099707350516920588"},
+    {"category": "Travel", "handle": "examaddaorg", "tweet_url": "https://x.com/examaddaorg/status/2099684425932165387"},
+    {"category": "Health", "handle": "SinaHartung", "tweet_url": "https://x.com/SinaHartung/status/2099528867119497228"},
+    {"category": "Travel", "handle": "Velazquez013", "tweet_url": "https://x.com/Velazquez013/status/2098848095849095496"},
+    {"category": "Shopping", "handle": "kartikey_bihani", "tweet_url": "https://x.com/kartikey_bihani/status/2097915541310906539"},
+    {"category": "Food", "handle": "BryceDelRio", "tweet_url": "https://x.com/BryceDelRio/status/2099321124400029837"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
