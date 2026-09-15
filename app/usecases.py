@@ -127,6 +127,21 @@ USECASE_TWEETS = [
     {"category": "Work", "handle": "JethroChu", "tweet_url": "https://x.com/JethroChu/status/2099756528958156891"},
     {"category": "Work", "handle": "ishoulddodrugs", "tweet_url": "https://x.com/ishoulddodrugs/status/2099751387835896289"},
     {"category": "Work", "handle": "laura_llin", "tweet_url": "https://x.com/laura_llin/status/2099762573767753886"},
+    {"category": "Admin", "handle": "PipeBladex", "tweet_url": "https://x.com/PipeBladex/status/2099844097473388573"},
+    {"category": "Setup", "handle": "nicbstme", "tweet_url": "https://x.com/nicbstme/status/2099211882628596216"},
+    {"category": "Setup", "handle": "gravity0890", "tweet_url": "https://x.com/gravity0890/status/2098579082938401025"},
+    {"category": "Work", "handle": "ohkamisli", "tweet_url": "https://x.com/ohkamisli/status/2098819136180916675"},
+    {"category": "Setup", "handle": "LynkrDev", "tweet_url": "https://x.com/LynkrDev/status/2097844987920896231"},
+    {"category": "Admin", "handle": "MarcoHergi", "tweet_url": "https://x.com/MarcoHergi/status/2099769844950274413"},
+    {"category": "Admin", "handle": "laura_llin", "tweet_url": "https://x.com/laura_llin/status/2099759191661617581"},
+    {"category": "Shopping", "handle": "Dis0ng", "tweet_url": "https://x.com/Dis0ng/status/2099748613005959201"},
+    {"category": "Money", "handle": "dpfebo", "tweet_url": "https://x.com/dpfebo/status/2099699345801040112"},
+    {"category": "Travel", "handle": "cy_zanfar", "tweet_url": "https://x.com/cy_zanfar/status/2099684668391969009"},
+    {"category": "Work", "handle": "s1dhdharth", "tweet_url": "https://x.com/s1dhdharth/status/2099341048992473428"},
+    {"category": "Work", "handle": "PositiveInvst", "tweet_url": "https://x.com/PositiveInvst/status/2099328392894022072"},
+    {"category": "Admin", "handle": "sunilsrathode", "tweet_url": "https://x.com/sunilsrathode/status/2099292053540655212"},
+    {"category": "Events", "handle": "rezmeram", "tweet_url": "https://x.com/rezmeram/status/2099254996176875712"},
+    {"category": "Shopping", "handle": "DanLoppnowJr", "tweet_url": "https://x.com/DanLoppnowJr/status/2099229109674975475"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
