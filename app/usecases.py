@@ -115,6 +115,14 @@ USECASE_TWEETS = [
     {"category": "Travel", "handle": "Velazquez013", "tweet_url": "https://x.com/Velazquez013/status/2098848095849095496"},
     {"category": "Shopping", "handle": "kartikey_bihani", "tweet_url": "https://x.com/kartikey_bihani/status/2097915541310906539"},
     {"category": "Food", "handle": "BryceDelRio", "tweet_url": "https://x.com/BryceDelRio/status/2099321124400029837"},
+    {"category": "Goals", "handle": "amyers", "tweet_url": "https://x.com/amyers/status/2098411834747298292"},
+    {"category": "Setup", "handle": "andr3barroso", "tweet_url": "https://x.com/andr3barroso/status/2098675118931108197"},
+    {"category": "Work", "handle": "tangentstorm", "tweet_url": "https://x.com/tangentstorm/status/2098938531204800644"},
+    {"category": "Food", "handle": "benparr", "tweet_url": "https://x.com/benparr/status/2099268512871252012"},
+    {"category": "Food", "handle": "gravity0890", "tweet_url": "https://x.com/gravity0890/status/2099300635741208746"},
+    {"category": "Work", "handle": "cvander", "tweet_url": "https://x.com/cvander/status/2099431128473989223"},
+    {"category": "Admin", "handle": "erba08", "tweet_url": "https://x.com/erba08/status/2099725340159705243"},
+    {"category": "Admin", "handle": "plumberbutt97", "tweet_url": "https://x.com/plumberbutt97/status/2099725218340339827"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
