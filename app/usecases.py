@@ -53,6 +53,19 @@ USECASE_TWEETS = [
     {"category": "Work", "handle": "cgcardona", "tweet_url": "https://x.com/cgcardona/status/2098887376269697098"},
     {"category": "Work", "handle": "fazley111", "tweet_url": "https://x.com/fazley111/status/2098324282409660848"},
     {"category": "Work", "handle": "emmjay_init", "tweet_url": "https://x.com/emmjay_init/status/2098432073963016555"},
+    {"category": "Setup", "handle": "mananifesto", "tweet_url": "https://x.com/mananifesto/status/2099311855588212810"},
+    {"category": "Travel", "handle": "ryanvogel", "tweet_url": "https://x.com/ryanvogel/status/2099646623198441683"},
+    {"category": "Work", "handle": "Crashoverride_X", "tweet_url": "https://x.com/Crashoverride_X/status/2099646108246954127"},
+    {"category": "Admin", "handle": "mattsilv", "tweet_url": "https://x.com/mattsilv/status/2098957826617933997"},
+    {"category": "Setup", "handle": "JoePro", "tweet_url": "https://x.com/JoePro/status/2098409948954705957"},
+    {"category": "Shopping", "handle": "cobeyluke", "tweet_url": "https://x.com/cobeyluke/status/2097690117410271435"},
+    {"category": "Goals", "handle": "PipeBladex", "tweet_url": "https://x.com/PipeBladex/status/2099649462134280551"},
+    {"category": "Admin", "handle": "armand_ruiz", "tweet_url": "https://x.com/armand_ruiz/status/2099649043806781827"},
+    {"category": "Work", "handle": "Screen_o7", "tweet_url": "https://x.com/Screen_o7/status/2099648677153521845"},
+    {"category": "Admin", "handle": "kshirsagarkunal", "tweet_url": "https://x.com/kshirsagarkunal/status/2099646921392754967"},
+    {"category": "Setup", "handle": "harris_p10", "tweet_url": "https://x.com/harris_p10/status/2099645807964148172"},
+    {"category": "Food", "handle": "gravity0890", "tweet_url": "https://x.com/gravity0890/status/2099301530444902410"},
+    {"category": "Money", "handle": "MikeAISales", "tweet_url": "https://x.com/MikeAISales/status/2098869054215958938"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
