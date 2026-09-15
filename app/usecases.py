@@ -142,6 +142,9 @@ USECASE_TWEETS = [
     {"category": "Admin", "handle": "sunilsrathode", "tweet_url": "https://x.com/sunilsrathode/status/2099292053540655212"},
     {"category": "Events", "handle": "rezmeram", "tweet_url": "https://x.com/rezmeram/status/2099254996176875712"},
     {"category": "Shopping", "handle": "DanLoppnowJr", "tweet_url": "https://x.com/DanLoppnowJr/status/2099229109674975475"},
+    {"category": "Money", "handle": "armand_ruiz", "tweet_url": "https://x.com/armand_ruiz/status/2099854958908551377"},
+    {"category": "Setup", "handle": "TerenceChang", "tweet_url": "https://x.com/TerenceChang/status/2097527036818641303"},
+    {"category": "Money", "handle": "marcustayye", "tweet_url": "https://x.com/marcustayye/status/2099812251695993132"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
