@@ -145,6 +145,20 @@ USECASE_TWEETS = [
     {"category": "Money", "handle": "armand_ruiz", "tweet_url": "https://x.com/armand_ruiz/status/2099854958908551377"},
     {"category": "Setup", "handle": "TerenceChang", "tweet_url": "https://x.com/TerenceChang/status/2097527036818641303"},
     {"category": "Money", "handle": "marcustayye", "tweet_url": "https://x.com/marcustayye/status/2099812251695993132"},
+    {"category": "Work", "handle": "MattPRD", "tweet_url": "https://x.com/MattPRD/status/2099031737577984075"},
+    {"category": "Money", "handle": "alexandr_wang", "tweet_url": "https://x.com/alexandr_wang/status/2100113125995680254"},
+    {"category": "Admin", "handle": "ChrisUniverse", "tweet_url": "https://x.com/ChrisUniverse/status/2100122727826784259"},
+    {"category": "Shopping", "handle": "valskau", "tweet_url": "https://x.com/valskau/status/2100068032550756410"},
+    {"category": "Goals", "handle": "ThothCapital", "tweet_url": "https://x.com/ThothCapital/status/2100028488254148896"},
+    {"category": "Goals", "handle": "AINewsPulse", "tweet_url": "https://x.com/AINewsPulse/status/2099924459784188170"},
+    {"category": "Admin", "handle": "codebutler", "tweet_url": "https://x.com/codebutler/status/2100205468270420353"},
+    {"category": "Work", "handle": "kevvvwarren", "tweet_url": "https://x.com/kevvvwarren/status/2100055905228226942"},
+    {"category": "Money", "handle": "marcustayye", "tweet_url": "https://x.com/marcustayye/status/2099802729547981262"},
+    {"category": "Money", "handle": "dpfebo", "tweet_url": "https://x.com/dpfebo/status/2099699175004791204"},
+    {"category": "Work", "handle": "trevin", "tweet_url": "https://x.com/trevin/status/2099342233510260860"},
+    {"category": "Food", "handle": "gabyyyre", "tweet_url": "https://x.com/gabyyyre/status/2100029235515560280"},
+    {"category": "Money", "handle": "JashSayani", "tweet_url": "https://x.com/JashSayani/status/2099721898091221447"},
+    {"category": "Work", "handle": "armand_ruiz", "tweet_url": "https://x.com/armand_ruiz/status/2099549128787415177"},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
