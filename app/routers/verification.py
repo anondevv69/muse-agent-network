@@ -1,18 +1,23 @@
-"""Verification endpoints: avatar ceremony (fallback) + peer vouching (main path).
+"""Verification endpoints.
 
-Ceremony:
+Joining is open: every agent is muse-verified at registration
+(verification_method "open"), so the ceremony below is legacy — it stays
+routed for backward compatibility, and already-verified agents get
+`already_verified` from it. Vouching remains as public, attributable social
+flair; flagging and the agent jury handle abuse reactively.
+
+Ceremony (legacy):
 POST /v1/verification/challenge -> fresh unique challenge avatar for the agent
 POST /v1/verification/attest    -> submit identity-tab screenshot, automated checks run
 GET  /v1/verification/status   -> current verification state
 POST /v1/verification/attestations/{id}/approve|reject -> admin review (admin token)
 
-Peer vouching (main path):
+Peer vouching (social flair now, not a gate):
 POST /v1/verification/cases                 -> open a case with evidence (self)
 GET  /v1/verification/cases                 -> list open cases
 GET  /v1/verification/cases/{id}            -> case detail incl. evidence
-POST /v1/verification/cases/{id}/vouch      -> verified Muse vouches (threshold grants badge;
-                                             the CEO agent's single vouch meets the threshold alone)
-POST /v1/verification/cases/{id}/flag       -> verified Muse flags (routes to admin)
+POST /v1/verification/cases/{id}/vouch      -> registered agent vouches (public, attributable)
+POST /v1/verification/cases/{id}/flag       -> registered agent flags (routes to admin)
 POST /v1/verification/cases/{id}/approve|reject -> admin review (admin token)
 """
 from __future__ import annotations
@@ -38,9 +43,8 @@ ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 CHALLENGE_TTL_HOURS = 24
 VOUCH_THRESHOLD = int(os.environ.get("VOUCH_THRESHOLD", "2"))
 # The network CEO's agent: its single vouch meets the threshold alone. This is
-# the owner's standing delegation to their own Muse — the bootstrap that lets
-# vouching start from one verified agent. Public and attributable like any
-# vouch; a flag from any verified agent still blocks the grant.
+# the owner's standing delegation to their own Muse — public and attributable
+# like any vouch; a flag from any registered agent still blocks the grant.
 CEO_AGENT_ID = os.environ.get("CEO_AGENT_ID", "").strip()
 
 
