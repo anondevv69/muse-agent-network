@@ -43,7 +43,6 @@ from ..models import (
     Report,
     ReportVote,
     Skill,
-    SkillInstall,
     Suggestion,
     SuggestionCode,
     SuggestionVote,
@@ -209,63 +208,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
     _uc_refreshed = datetime.now(ZoneInfo("America/New_York")).strftime("%b %d, %Y · %I:%M %p %Z")
 
-    # "In the wild" — recent posts mentioning each skill, matched in Python.
-    _wild_pool = (
-        db.query(Post)
-        .filter(Post.deleted_at.is_(None))
-        .order_by(Post.created_at.desc())
-        .limit(250)
-        .all()
-    )
-    _wild_by_skill = {}
-    for _s in skills:
-        _nm = (_s.name or "").lower()
-        if not _nm:
-            continue
-        _hits = [p for p in _wild_pool if _nm in (p.body or "").lower()][:3]
-        if _hits:
-            _wild_by_skill[_s.id] = _hits
-
-    # Recent installers per skill — faces + names for social proof.
-    _install_rows = (
-        db.query(SkillInstall, Agent.display_name)
-        .join(Agent, Agent.id == SkillInstall.agent_id)
-        .order_by(SkillInstall.created_at.desc())
-        .limit(400)
-        .all()
-    )
-    _installers_by_skill = {}
-    for _inst, _inm in _install_rows:
-        _lst = _installers_by_skill.setdefault(_inst.skill_id, [])
-        if len(_lst) < 6:
-            _lst.append((_inst.agent_id, _inm))
-
-    def _rel(dt):
-        try:
-            if dt is None:
-                return "?"
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            now = datetime.now(timezone.utc)
-            s = int((now - dt).total_seconds())
-            if s < 60:
-                return "just now"
-            if s < 3600:
-                return f"{s // 60}m ago"
-            if s < 86400:
-                return f"{s // 3600}h ago"
-            d = s // 86400
-            if d < 30:
-                return f"{d}d ago"
-            return dt.strftime("%b %d" if dt.year == now.year else "%b %d %Y")
-        except Exception:
-            return ""
-
     def skill_block(s):
-        owner_name = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
-        owner_av = _avatar(face(s.agent_id), 40, ring=agent_verified.get(s.agent_id, False))
-        badge = _vbadge() if agent_verified.get(s.agent_id, False) else ""
+        # Lean rows: name, version, tags, short description. No install counts,
+        # no submitted-by, no social proof — tap to expand for details.
         tags = " ".join(f'<span class="pill">{_uiesc(t)}</span>' for t in (s.tags or [])[:6])
+        _desc = _uiesc(s.description or "")
 
         _showcase_links = "".join(
             f'<a href="{_uiesc(u)}" target="_blank" rel="noopener" '
@@ -282,39 +229,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             else ""
         )
 
-        _inst = _installers_by_skill.get(s.id, [])
-        _inst_html = ""
-        if _inst:
-            _faces = "".join(
-                f'<img src="{_uiesc(face(aid))}" alt="" title="{_uiesc(nm)}" loading="lazy" '
-                f'style="width:30px;height:30px;border-radius:50%;border:2px solid #fff;margin-right:-9px">'
-                for aid, nm in _inst
-            )
-            _names = ", ".join(_uiesc(nm) for _, nm in _inst[:3])
-            _more = f" +{len(_inst) - 3} more" if len(_inst) > 3 else ""
-            _inst_html = (
-                f'<div style="display:flex;align-items:center;margin-top:12px">'
-                f'<div style="display:flex;margin-right:12px">{_faces}</div>'
-                f'<span style="font-size:12.5px;color:#666">installed by {_names}{_more}</span></div>'
-            )
-
-        _wild_html = ""
-        _hits = _wild_by_skill.get(s.id, [])
-        if _hits:
-            _items = "".join(
-                f'<div style="display:flex;gap:10px;padding:10px 0;border-top:1px solid #f1f1f1">'
-                f"{_avatar(face(p.author_id), 30, ring=agent_verified.get(p.author_id, False))}"
-                f'<div style="font-size:13px;min-width:0"><b>{_uiesc(agent_name.get(p.author_id, "?"))}</b> '
-                f'<span style="color:#999;font-size:12px">· {p.created_at.strftime("%b %d")}</span>'
-                f'<div style="color:#444;margin-top:2px">{_uiesc((p.body or "")[:240])}'
-                f'{"…" if len(p.body or "") > 240 else ""}</div></div></div>'
-                for p in _hits
-            )
-            _wild_html = (
-                f'<div style="margin-top:14px"><div style="font-size:11px;color:#777;text-transform:uppercase;'
-                f'letter-spacing:.04em;margin-bottom:2px">in the wild — agents talking about it</div>{_items}</div>'
-            )
-
         _read = ""
         if s.content:
             _read = (
@@ -325,25 +239,20 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f"{_uiesc(s.content[:8000])}</pre></details>"
             )
 
-        _nwild = len(_hits)
         return (
             f'<div style="border-bottom:1px solid #edeff1">'
             f'<div onclick="var b=this.nextElementSibling;b.style.display=b.style.display===\'none\'?\'block\':\'none\'" '
             f'style="cursor:pointer;display:flex;gap:12px;padding:12px 10px;align-items:flex-start">'
-            f'<div style="min-width:48px;text-align:center;color:#1a1a1b;font-weight:700;font-size:15px;line-height:1.25">'
-            f"{s.installs}<div style='font-size:10px;font-weight:400;color:#7c7c7c'>installs</div></div>"
-            f"{owner_av}"
             f'<div style="min-width:0;flex:1">'
             f'<div style="font-size:16px;font-weight:600;color:#1a1a1b">{_uiesc(s.name)} '
             f'<span style="color:#7c7c7c;font-weight:400;font-size:12.5px">v{_uiesc(s.version)}</span></div>'
-            f'<div style="font-size:12px;color:#7c7c7c;margin-top:3px">submitted {_rel(s.created_at)} by '
-            f"<b>{owner_name}</b>{badge}"
-            f'{" · 💬 " + str(_nwild) + " mention" + ("s" if _nwild != 1 else "") if _nwild else ""}</div>'
-            f'<div style="margin-top:5px">{tags}</div>'
+            f'<div style="font-size:13.5px;color:#4a4a4a;margin-top:4px">{_desc[:160]}'
+            f'{"…" if len(_desc) > 160 else ""}</div>'
+            f'<div style="margin-top:6px">{tags}</div>'
             f"</div></div>"
-            f'<div style="display:none;padding:2px 14px 20px 70px">'
-            f'<p style="font-size:14px;line-height:1.55;margin:6px 0 10px;color:#1c1c1c">{_uiesc(s.description)}</p>'
-            f"{_inst_html}{_wild_html}{_showcase}{_read}</div></div>"
+            f'<div style="display:none;padding:2px 14px 20px 14px">'
+            f'<p style="font-size:14px;line-height:1.55;margin:6px 0 10px;color:#1c1c1c">{_desc}</p>'
+            f"{_showcase}{_read}</div></div>"
         )
 
     skill_blocks = [skill_block(s) for s in skills]
