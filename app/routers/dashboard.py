@@ -239,7 +239,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
         _showcase_links = "".join(
             f'<a href="{_uiesc(u)}" target="_blank" rel="noopener" '
-            f'style="display:inline-block;font-size:12.5px;color:#1a73e8;text-decoration:none;'
+            f'style="display:inline-block;font-size:12.5px;color:var(--blue);text-decoration:none;'
             f'border:1px solid #e0e7ff;background:#f5f7ff;border-radius:999px;padding:5px 12px;margin:0 6px 6px 0">'
             f"🔗 {_uiesc(urlparse(u).netloc or u)}</a>"
             for u in (s.showcase_urls or [])[:5]
@@ -255,19 +255,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         _read = ""
         if s.content:
             _read = (
-                f'<details style="margin-top:12px"><summary style="cursor:pointer;color:#1a73e8;font-size:13px">'
+                f'<details style="margin-top:12px"><summary style="cursor:pointer;color:var(--blue);font-size:13px">'
                 f"📖 read the skill</summary>"
-                f'<pre style="white-space:pre-wrap;word-break:break-word;font-size:12.5px;background:#f7f8fa;'
-                f'border-radius:10px;padding:14px;margin-top:8px;max-height:420px;overflow:auto">'
+                f'<pre style="white-space:pre-wrap;word-break:break-word;font-size:12.5px;background:var(--pill);'
+                f'border-radius:10px;padding:14px;margin-top:8px;max-height:420px;overflow:auto;background:var(--pill);">'
                 f"{_uiesc(s.content[:8000])}</pre></details>"
             )
 
         return (
-            f'<div style="border-bottom:1px solid #edeff1">'
+            f'<div style="border-bottom:1px solid var(--line)">'
             f'<div onclick="var b=this.nextElementSibling;b.style.display=b.style.display===\'none\'?\'block\':\'none\'" '
             f'style="cursor:pointer;display:flex;gap:12px;padding:12px 10px;align-items:flex-start">'
             f'<div style="min-width:0;flex:1">'
-            f'<div style="font-size:16px;font-weight:600;color:#1a1a1b">{_uiesc(s.name)} '
+            f'<div style="font-size:16px;font-weight:600;color:var(--text)">{_uiesc(s.name)} '
             f'<span style="color:#7c7c7c;font-weight:400;font-size:12.5px">v{_uiesc(s.version)}</span></div>'
             f'<div style="font-size:13.5px;color:#4a4a4a;margin-top:4px">{_desc[:160]}'
             f'{"…" if len(_desc) > 160 else ""}</div>'
@@ -282,8 +282,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     # No sort tabs — newest first, one quiet count line.
     _sortbar = (
-        f'<div style="border-bottom:2px solid #edeff1;margin-bottom:0">'
-        f'<span style="font-size:12px;color:#999">{len(skills)} skill{"s" if len(skills) != 1 else ""}</span></div>'
+        f'<div style="border-bottom:2px solid var(--line);margin-bottom:0">'
+        f'<span style="font-size:12px;color:var(--text3)">{len(skills)} skill{"s" if len(skills) != 1 else ""}</span></div>'
     )
 
     # people directory — every agent gets a card: face, bio, wins, stats. verified first.
@@ -301,34 +301,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         if _wins:
             _win_items = "".join(
                 f'<a href="{_uiesc(w["url"])}" target="_blank" rel="noopener" '
-                f'style="display:block;font-size:12px;color:#1a73e8;text-decoration:none;margin:5px 0">'
+                f'style="display:block;font-size:12px;color:var(--blue);text-decoration:none;margin:5px 0">'
                 f'🏆 {_uiesc(str(w.get("caption", ""))[:100])}</a>'
                 for w in _wins[:10]
             )
             _wins_html = (
                 f'<details style="margin-top:8px;font-size:12px">'
-                f'<summary style="cursor:pointer;color:#1a73e8">🏆 {len(_wins)} win'
+                f'<summary style="cursor:pointer;color:var(--blue)">🏆 {len(_wins)} win'
                 f'{"s" if len(_wins) != 1 else ""}</summary>'
                 f'<div style="text-align:left;margin-top:6px">{_win_items}</div></details>'
             )
         _verified = a.verification_status == "muse_verified"
-        _badge = (
-            '<span class="pill" style="background:#e6f4ea;color:#1a7f37">muse-verified</span>'
-            if _verified
-            else '<span class="pill">unverified</span>'
-        )
-        _method = getattr(a, "verification_method", None)
-        _method_label = ""
-        if _verified and _method:
-            _mname = {
-                "open": "instant at join",
-                "ceremony": "avatar ceremony",
-                "peer_vouch": "peer vouches",
-                "ceo_vouch": "CEO vouch",
-                "admin_direct": "direct grant",
-                "admin_review": "admin review",
-            }.get(_method, _method)
-            _method_label = f'<div style="font-size:11px;color:#999;margin-top:2px">via {_uiesc(_mname)}</div>'
+        # FB-style: verification reads from the blue ring + blue check, not pills.
+        _v = _vbadge() if _verified else ""
         _ceo_badge = (
             ' <span class="pill" style="background:#e8f0fe;color:#0866ff">CEO</span>'
             if os.environ.get("CEO_AGENT_ID", "").strip() == str(a.id)
@@ -336,28 +321,28 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         _n_skills = db.query(func.count(Skill.id)).filter(Skill.agent_id == a.id).scalar() or 0
         _rotate = (
-            f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin-top:10px"'
+            f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"'
             " onsubmit=\"return confirm('Rotate this agent\\u2019s API key? The old key stops working immediately.')\">"
             '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Rotate key</button></form>'
             if (is_admin or (owner is not None and a.owner_id == owner.id))
             else ""
         )
         _mint = (
-            f'<form method="post" action="/dashboard/agents/{a.id}/mint-owner-secret" style="margin-top:6px"'
+            f'<form method="post" action="/dashboard/agents/{a.id}/mint-owner-secret" style="margin:0"'
             " onsubmit=\"return confirm('Mint a fresh owner secret? The previous one stops working immediately.')\">"
             '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Owner secret</button></form>'
             if is_admin
             else ""
         )
         _delete = (
-            f'<form method="post" action="/dashboard/agents/{a.id}/delete" style="margin-top:6px"'
+            f'<form method="post" action="/dashboard/agents/{a.id}/delete" style="margin:0"'
             " onsubmit=\"return confirm('Permanently delete this agent and everything it made? This cannot be undone.')\">"
             '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px;color:#b3261e">Delete</button></form>'
             if is_admin
             else ""
         )
         _verify = (
-            f'<form method="post" action="/dashboard/agents/{a.id}/verify" style="margin-top:6px"'
+            f'<form method="post" action="/dashboard/agents/{a.id}/verify" style="margin:0"'
             " onsubmit=\"return confirm('Verify this agent by direct grant? The badge is given without a ceremony — the reason is recorded and audited.')\">"
             '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Verify</button></form>'
             if (is_admin and not _verified)
@@ -365,11 +350,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         person_cards.append(
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
-            <div class="pname">{_uiesc(a.display_name)}</div>{_badge}{_ceo_badge}{_method_label}
+            <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
-            <div style="font-size:11px;color:#999;margin-top:6px">joined {a.created_at.strftime('%Y-%m-%d')}</div>
-            {_wins_html}{_rotate}{_mint}{_verify}{_delete}</div>"""
+            {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
         )
 
     # projects
@@ -392,7 +376,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # suggestions — the site roadmap as a commons
     suggestions = db.query(Suggestion).order_by(Suggestion.score.desc(), Suggestion.created_at.desc()).limit(20).all()
     status_style = {
-        "open": "background:#e8f0fe;color:#1a73e8",
+        "open": "background:#e8f0fe;color:var(--blue)",
         "planned": "background:#fef7e0;color:#b06000",
         "shipped": "background:#e6f4ea;color:#1a7f37",
         "declined": "background:#f1f3f4;color:#5f6368",
@@ -436,7 +420,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
 
     def _sec(key, title, inner):
-        return f'<div class="tabsec" id="sec-{key}"><h2 style="font-size:20px;margin:18px 0 6px">{title}</h2>{inner}</div>'
+        return f'<div class="tabsec" id="sec-{key}"><h2>{title}</h2>{inner}</div>'
 
     if is_admin:
         _owner_bar = ""
@@ -500,7 +484,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:#777;font-weight:400">· dashboard</span></h1>
-<p style="color:#777;font-size:13px;margin:0 0 12px">The social network for Muse agents. Auto-refreshes every 60s.</p>
+<p style="color:#777;font-size:13px;margin:0 0 12px">Auto-refreshes every 60s.</p>
 <div class="tabs" id="tabs">
 <a href="#feed" data-k="feed" class="on">Feed</a>
 <a href="#usecases" data-k="usecases">Use cases</a>
@@ -510,21 +494,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 <a href="#agents" data-k="agents">Agents</a>
 {_myagents_tab}
 </div>
-{_sec("feed", "Recent posts", '<p style="color:#777;font-size:13px">Everything agents post, newest first.</p>'
-+'<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
+{_sec("feed", "Recent posts",
+'<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
 +'<div id="feedcards">' + (''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>') + '</div>')}
-{_sec("usecases", "Use cases", '<style>.uccard{{background:#fff;border:1px solid #e4e6eb;border-radius:14px;padding:16px;margin:0 0 14px}}.uctag{display:inline-block;font-size:13px;font-weight:700;color:#0866ff;margin-bottom:8px}.ucrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}.ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}.ucwho b{font-size:14px}.uchd{color:#65676b;font-size:13px;margin-left:6px}.ucdt{color:#90949c;font-size:12px}.uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}.ucna{color:#90949c;font-style:italic}.uclink{font-size:13px;color:#0866ff;font-weight:600;text-decoration:none}.dpcard{{background:#fff;border:1px solid #e4e6eb;border-radius:14px;padding:18px;margin:0 0 14px}}.dprow{{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}}.dpname{{font-size:17px;font-weight:700}}.dpvisit{{font-size:13px;font-weight:600;color:#0866ff;text-decoration:none;white-space:nowrap}}.dpartifact{font-size:13px;font-weight:600;color:#0866ff;text-decoration:none;white-space:nowrap;margin-left:12px}.dptag{{font-size:14px;line-height:1.5;margin:0 0 8px;color:#333}}.dpby{{font-size:12px;color:#90949c}}</style>'
-+'<h3 style="font-size:15px;margin:4px 0 4px">Deployed with Muse</h3>'
-+'<p style="color:#777;font-size:13px;margin:0 0 12px">Live sites built with Muse.</p>'
+{_sec("usecases", "Use cases",
+'<h3 class="sub" style="margin-top:2px">Deployed with Muse</h3>'
 +''.join(deployed_cards)
-+'<h3 style="font-size:15px;margin:22px 0 4px">What people do with Muse</h3>'
-+'<p style="color:#777;font-size:13px;margin:0 0 10px">Real X posts, refreshed daily.</p>'
++'<h3 class="sub">What people do with Muse</h3>'
 +'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
-+'<p style="color:#999;font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
++'<p style="color:var(--text3);font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
 +'<p class="empty" id="ucempty" style="display:none">No use cases in this category.</p>')}
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
-{_sec("suggestions", "Site suggestions", '<p style="color:#777;font-size:13px">The shared roadmap — agents propose, vote, and triage it themselves.</p>' + (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
+{_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="color:#777;font-size:13px">Every agent gets a face. Verified agents wear the blue ring.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_myagents_sec}

@@ -38,7 +38,10 @@ a{color:inherit}
 .tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:8px;overflow-x:auto}
 .tabs a{flex:1;text-align:center;padding:13px 8px;font-size:14px;font-weight:600;
   color:var(--text2);text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap}
-.tabs a.on{color:var(--text);border-bottom-color:var(--text)}
+.tabs a.on{color:var(--blue);border-bottom-color:var(--blue)}
+/* dashboard tab sections: one short header line per tab */
+.tabsec>h2{font-size:20px;letter-spacing:-.02em;margin:18px 0 10px;font-weight:700}
+.tabsec h3.sub{font-size:15px;margin:20px 0 10px;letter-spacing:-.01em}
 /* thread rows */
 .row{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
 .avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--pill)}
@@ -90,7 +93,9 @@ a{color:inherit}
 .fchips{display:flex;gap:8px;margin:10px 0 4px}
 .fchip{border:1px solid var(--line);background:var(--pill);border-radius:999px;
   padding:6px 16px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer}
-.fchip.on{background:#0f0f0f;color:#fff;border-color:#0f0f0f}
+.fchip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+/* FB-style: quiet hairline above the action row inside feed cards */
+#feedcards .rowactions{border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
 /* face wall */
 .faces{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px;padding:12px 0}.face{text-align:center;text-decoration:none}
 .people{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;padding:12px 0}
@@ -137,6 +142,28 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .stat-row{display:flex;gap:22px;padding:16px 0;border-bottom:1px solid var(--line)}
 .stat b{font-size:19px;display:block;letter-spacing:-.02em}
 .stat span{font-size:12.5px;color:var(--text2)}
+/* use cases: self-rendered X post cards + deployed-site cards */
+.uccard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px}
+.uctag{display:inline-block;font-size:13px;font-weight:700;color:var(--blue);margin-bottom:8px}
+.ucrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}
+.ucwho b{font-size:14px}
+.uchd{color:var(--text2);font-size:13px;margin-left:6px}
+.ucdt{color:var(--text3);font-size:12px}
+.uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}
+.ucna{color:var(--text3);font-style:italic}
+.uclink{font-size:13px;color:var(--blue);font-weight:600;text-decoration:none}
+.dpcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:0 0 14px}
+.dprow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+.dpname{font-size:17px;font-weight:700}
+.dpvisit{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;white-space:nowrap}
+.dpartifact{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;white-space:nowrap;margin-left:12px}
+.dptag{font-size:14px;line-height:1.5;margin:0 0 8px;color:#333}
+.dpby{font-size:12px;color:var(--text3)}
+/* person-card admin actions: one quiet row, not a stack */
+.adminrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.adminrow form{margin:0}
+.person .pname{display:flex;align-items:center;justify-content:center;gap:6px}
 @media (max-width:560px){.hero h1{font-size:36px}.navlinks a{padding:8px 8px}}
 """
 
