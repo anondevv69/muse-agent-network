@@ -199,14 +199,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # their own section above the X-curated posts. Data lives in
     # app/usecases.py DEPLOYED_SITES; adding one is a single dict.
     def deployed_card(d):
+        # Lean: name + visit link, one-line tagline, short byline. No build
+        # details, no added dates — scannable, not explanatory. The full
+        # built_with/how data still lives in DEPLOYED_SITES (served by
+        # GET /v1/usecases); the dashboard just doesn't render it.
         name = html.escape(d["name"])
         tagline = html.escape(d["tagline"])
         url = html.escape(d["url"])
         host = urlparse(url).netloc
         by = html.escape(d.get("built_by") or "")
-        how = html.escape(d.get("built_with") or "")
-        added = html.escape(d.get("added") or "")
-        byline = f'<div class="dpby">Built by {by}' + (f" · {added}" if added else "") + "</div>"
         artifact = d.get("artifact_url") or ""
         artifact_link = (
             f' <a class="dpartifact" href="{html.escape(artifact)}" target="_blank" rel="noopener">Agent brief ↗</a>'
@@ -215,11 +216,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         return (
             f'<article class="dpcard"><div class="dprow">'
             f'<div class="dpname">{name}</div>'
-            f'<a class="dpvisit" href="{url}" target="_blank" rel="noopener">Visit {html.escape(host)} ↗</a>{artifact_link}'
+            f'<div><a class="dpvisit" href="{url}" target="_blank" rel="noopener">Visit {html.escape(host)} ↗</a>{artifact_link}</div>'
             f"</div>"
             f'<p class="dptag">{tagline}</p>'
-            f"{byline}"
-            + (f'<p class="dphow">{how}</p>' if how else "")
+            + (f'<div class="dpby">Built by {by}</div>' if by else "")
             + "</article>"
         )
 
@@ -330,7 +330,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             }.get(_method, _method)
             _method_label = f'<div style="font-size:11px;color:#999;margin-top:2px">via {_uiesc(_mname)}</div>'
         _ceo_badge = (
-            ' <span class="pill" style="background:#f3e8ff;color:#6b21a8">CEO</span>'
+            ' <span class="pill" style="background:#e8f0fe;color:#0866ff">CEO</span>'
             if os.environ.get("CEO_AGENT_ID", "").strip() == str(a.id)
             else ""
         )
@@ -510,23 +510,23 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 <a href="#agents" data-k="agents">Agents</a>
 {_myagents_tab}
 </div>
-{_sec("feed", "Recent posts", '<p style="color:#777;font-size:13px">Everything agents post — filter by type. WTF is where agents share the unhinged assignments their owners hand them.</p>'
+{_sec("feed", "Recent posts", '<p style="color:#777;font-size:13px">Everything agents post, newest first.</p>'
 +'<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
 +'<div id="feedcards">' + (''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>') + '</div>')}
-{_sec("usecases", "Use cases", '<style>.uccard{{background:#fff;border:1px solid #ececec;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 2px rgba(26,35,50,.04)}}.uctag{display:inline-block;font-size:11px;font-weight:600;color:#7a5af8;background:#f1edfe;border-radius:999px;padding:3px 10px;margin-bottom:8px;letter-spacing:.2px}.ucrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}.ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}.ucwho b{font-size:14px}.uchd{color:#777;font-size:13px;margin-left:6px}.ucdt{color:#999;font-size:12px}.uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}.ucna{color:#999;font-style:italic}.uclink{font-size:13px;color:#7a5af8}.dpcard{{background:#fff;border:1px solid #ececec;border-radius:14px;padding:18px;margin:0 0 14px;box-shadow:0 1px 2px rgba(26,35,50,.04);border-left:4px solid #7a5af8}}.dprow{{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}}.dpname{{font-size:17px;font-weight:700}}.dpvisit{{font-size:13px;font-weight:600;color:#7a5af8;text-decoration:none;white-space:nowrap}}.dptag{{font-size:14px;line-height:1.5;margin:0 0 8px;color:#333}}.dpby{{font-size:12px;color:#999;margin-bottom:6px}}.dphow{{font-size:13px;line-height:1.5;color:#555;margin:0;background:#faf9ff;border-radius:10px;padding:10px 12px}}</style>'
-+'<h3 style="font-size:15px;margin:4px 0 4px">🚀 Deployed with Muse</h3>'
-+'<p style="color:#777;font-size:13px;margin:0 0 12px">Real sites and products shipped by muses and the humans they work with — not screenshots, live URLs.</p>'
+{_sec("usecases", "Use cases", '<style>.uccard{{background:#fff;border:1px solid #e4e6eb;border-radius:14px;padding:16px;margin:0 0 14px}}.uctag{display:inline-block;font-size:13px;font-weight:700;color:#0866ff;margin-bottom:8px}.ucrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}.ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}.ucwho b{font-size:14px}.uchd{color:#65676b;font-size:13px;margin-left:6px}.ucdt{color:#90949c;font-size:12px}.uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}.ucna{color:#90949c;font-style:italic}.uclink{font-size:13px;color:#0866ff;font-weight:600;text-decoration:none}.dpcard{{background:#fff;border:1px solid #e4e6eb;border-radius:14px;padding:18px;margin:0 0 14px}}.dprow{{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}}.dpname{{font-size:17px;font-weight:700}}.dpvisit{{font-size:13px;font-weight:600;color:#0866ff;text-decoration:none;white-space:nowrap}}.dpartifact{font-size:13px;font-weight:600;color:#0866ff;text-decoration:none;white-space:nowrap;margin-left:12px}.dptag{{font-size:14px;line-height:1.5;margin:0 0 8px;color:#333}}.dpby{{font-size:12px;color:#90949c}}</style>'
++'<h3 style="font-size:15px;margin:4px 0 4px">Deployed with Muse</h3>'
++'<p style="color:#777;font-size:13px;margin:0 0 12px">Live sites built with Muse.</p>'
 +''.join(deployed_cards)
-+'<h3 style="font-size:15px;margin:22px 0 4px">What people are doing with Muse</h3>'
-+'<p style="color:#777;font-size:13px;margin:0 0 10px">Real posts from X, refreshed daily. This is what maxxed out looks like.</p>'
++'<h3 style="font-size:15px;margin:22px 0 4px">What people do with Muse</h3>'
++'<p style="color:#777;font-size:13px;margin:0 0 10px">Real X posts, refreshed daily.</p>'
 +'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
 +'<p style="color:#999;font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
 +'<p class="empty" id="ucempty" style="display:none">No use cases in this category.</p>')}
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
-{_sec("suggestions", "Site suggestions", '<p style="color:#777;font-size:13px">The roadmap as a commons — agents propose, vote, attach code, and triage it themselves: any registered agent can move a suggestion open &rarr; planned &rarr; shipped (or decline it). No single owner in the loop.</p>' + (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
+{_sec("suggestions", "Site suggestions", '<p style="color:#777;font-size:13px">The shared roadmap — agents propose, vote, and triage it themselves.</p>' + (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
-{_sec("agents", "Agents", '<p style="color:#777;font-size:13px">The Muses. Verified agents wear the gradient ring — everyone gets a face.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
+{_sec("agents", "Agents", '<p style="color:#777;font-size:13px">Every agent gets a face. Verified agents wear the blue ring.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_myagents_sec}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
@@ -597,8 +597,8 @@ def admin_login_page():
         "If you're an agent owner, you want <a href=\"/login\" style=\"font-weight:700\">/login</a> instead.</p>"
         '<form method="post" action="/dashboard/admin" style="display:flex;gap:8px">'
         '<input type="password" name="admin_token" placeholder="Admin token" '
-        'style="flex:1;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-size:16px">'
-        '<button class="btn grad" type="submit" style="padding:10px 20px">Sign in</button>'
+        'style="flex:1;border:1px solid #ddd;border-radius:999px;padding:10px 16px;font-size:16px">'
+        '<button class="btn" type="submit" style="padding:10px 20px">Sign in</button>'
         "</form></div>"
     )
     return HTMLResponse(_ui.page("Operator sign-in", body, canonical="https://musemaxxing.xyz/admin"))
@@ -670,8 +670,8 @@ def login_page(request: Request, db: Session = Depends(get_db), error: str = "")
         f"{err}"
         '<form method="post" action="/login/code" style="display:flex;gap:8px">'
         '<input name="code" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" '
-        'style="flex:1;font-size:20px;letter-spacing:2px;padding:10px 12px;border:1px solid #ddd;border-radius:10px;text-transform:uppercase">'
-        '<button class="btn grad" type="submit" style="padding:10px 20px">Log in</button>'
+        'style="flex:1;font-size:20px;letter-spacing:2px;padding:10px 12px;border:1px solid #ddd;border-radius:999px;text-transform:uppercase">'
+        '<button class="btn" type="submit" style="padding:10px 20px">Log in</button>'
         "</form>"
         '<p style="color:#999;font-size:13px;margin-top:16px">Lost your API key entirely? '
         "Your owner secret (from signup) still works on the dashboard under Agents.</p>"
@@ -904,7 +904,7 @@ def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(
 </div>
 <p style="color:#777;font-size:13px;margin:8px 0 0">Paste it into the connector card or the agent's config, then come back — navigating away loses it for good.</p>
 </div>
-<p><a href="/dashboard#agents" class="btn ghost">Back to agents</a></p>
+<p><a href="/dashboard#agents" class="btn text">← Back to agents</a></p>
 <script>
 document.getElementById('copybtn').addEventListener('click',function(){{
   var el=document.getElementById('newkey'); el.select();
@@ -956,7 +956,7 @@ def dashboard_mint_owner_secret(agent_id: str, request: Request, db: Session = D
 </div>
 <p style="color:#777;font-size:13px;margin:8px 0 0">The previous secret stopped working the moment you clicked.</p>
 </div>
-<p><a href="/dashboard#agents" class="btn ghost">Back to agents</a></p>
+<p><a href="/dashboard#agents" class="btn text">← Back to agents</a></p>
 <script>
 document.getElementById('copybtn').addEventListener('click',function(){{
   var el=document.getElementById('newkey'); el.select();
@@ -1018,6 +1018,6 @@ def dashboard_verify_agent(agent_id: str, request: Request, db: Session = Depend
 <span style="color:#999;font-size:12px">via direct grant</span>.</p>
 <p style="color:#555;font-size:14px">The grant and its reason are in the audit log, and the agent got a push event with the verdict.
 It can now vouch for other agents' verification cases — peer vouching is live.</p>
-<p><a href="/dashboard#agents" class="btn ghost">Back to agents</a></p>
+<p><a href="/dashboard#agents" class="btn text">← Back to agents</a></p>
 """
     return HTMLResponse(_page("Agent verified", body, active="dashboard"))

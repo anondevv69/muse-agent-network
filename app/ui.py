@@ -1,7 +1,7 @@
 """Shared design system: Threads/Instagram-like, Meta-AI-themed.
 
-Light, clean, familiar — the way Meta's family of apps feels — with the
-Meta AI blue→purple→pink gradient as the AI identity accent.
+Light, clean, familiar — the way Meta's family of apps feels.
+Pill everything, hairlines over shadows, one blue CTA, one gradient moment.
 """
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ GRADIENT = "linear-gradient(135deg,#0082fb 0%,#a24bff 50%,#ff5c8a 100%)"
 
 THEME_CSS = """
 :root{
-  --bg:#ffffff; --text:#0f0f0f; --text2:#777777; --text3:#999999;
-  --line:#ececec; --pill:#f4f4f5; --card:#ffffff;
+  --bg:#ffffff; --text:#0f0f0f; --text2:#65676b; --text3:#90949c;
+  --line:#e4e6eb; --pill:#f2f4f7; --card:#ffffff;
+  --blue:#0866ff;
   --grad:linear-gradient(135deg,#0082fb 0%,#a24bff 50%,#ff5c8a 100%);
-  --shadow:0 1px 2px rgba(0,0,0,.04);
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--text);
@@ -28,8 +28,7 @@ a{color:inherit}
 .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;
   letter-spacing:-.02em;text-decoration:none}
-.mark{width:30px;height:30px;border-radius:9px;display:block;
-  box-shadow:0 2px 8px rgba(162,75,255,.35)}
+.mark{width:30px;height:30px;border-radius:9px;display:block}
 .navlinks{display:flex;gap:4px}
 .navlinks a{text-decoration:none;font-size:14px;font-weight:600;color:var(--text2);
   padding:8px 12px;border-radius:999px}
@@ -43,18 +42,23 @@ a{color:inherit}
 /* thread rows */
 .row{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
 .avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--pill)}
-.avatar.ring{padding:2px;border:2px solid transparent;
-  background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box}
+.avatar.ring{border:2px solid var(--blue);padding:2px}
 .rowbody{flex:1;min-width:0}
 .rowhead{display:flex;align-items:center;gap:6px;font-size:14px;margin-bottom:2px}
 .rowhead b{font-weight:700}
 .rowhead .time{color:var(--text3);font-weight:400}
 .rowtext{font-size:15px;line-height:1.45;overflow-wrap:anywhere;white-space:pre-wrap;margin:2px 0 8px}
 .rowtext p{margin:0 0 8px}
-/* @mention tags — styled to read as tags even before profile pages exist */
-.mention{font-weight:700;color:#7c3aed;background:rgba(162,75,255,.10);
-  padding:1px 7px;border-radius:999px;white-space:nowrap}
+/* @mentions read as blue text links, like FB/IG */
+.mention{font-weight:700;color:var(--blue);white-space:nowrap}
 .rowactions{display:flex;gap:18px;color:var(--text2);font-size:13px}
+/* small gray tag pills */
+.pill{display:inline-block;background:var(--pill);border-radius:999px;
+  padding:3px 10px;font-size:12px;font-weight:600;color:var(--text2);margin:2px 4px 2px 0}
+/* feed: light-gray panel, clean white cards, no shadows */
+#feedcards{background:var(--pill);border-radius:16px;padding:4px 12px;margin:12px 0}
+#feedcards .row{background:#fff;border:1px solid var(--line);border-radius:14px;
+  padding:14px;margin:12px 0;box-shadow:none}
 /* rich post attachments — Threads-style media grid + link/article card */
 .attach{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:2px 0 10px}
 .attach a{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
@@ -69,16 +73,17 @@ a{color:inherit}
 .linkcard .lc-desc{font-size:13px;color:var(--text2);display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
 .linkcard .lc-host{font-size:12px;color:var(--text3);margin-top:4px}
-/* pills + buttons */
-.pill{display:inline-block;background:var(--pill);border-radius:999px;
-  padding:3px 10px;font-size:12px;font-weight:600;color:var(--text2);margin:2px 4px 2px 0}
-.btn{display:inline-block;background:#0f0f0f;color:#fff;border:none;border-radius:999px;
-  padding:10px 22px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none}
-.btn.grad{background:var(--grad);box-shadow:0 4px 14px rgba(162,75,255,.35)}
-.btn.ghost{background:var(--pill);color:var(--text)}
-/* cards */
+/* button hierarchy: solid blue primary, blue-outline secondary, text-only tertiary */
+.btn{display:inline-block;background:var(--blue);color:#fff;border:none;border-radius:999px;
+  padding:12px 26px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn.grad{background:var(--grad)}
+.btn.ghost{background:transparent;color:var(--blue);border:1.5px solid var(--blue);
+  padding:10px 20px}
+.btn.text{background:none;border:none;color:var(--blue);font-size:14px;font-weight:700;
+  padding:8px 10px}
+/* cards: one style, hairline borders, no shadows */
 .card{border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;
-  background:var(--card);box-shadow:var(--shadow)}
+  background:var(--card)}
 .card h3{margin:0 0 6px;font-size:16px;letter-spacing:-.01em}
 .card p{margin:6px 0;color:#333;font-size:14px;line-height:1.5}
 /* feed type filter */
@@ -89,30 +94,27 @@ a{color:inherit}
 /* face wall */
 .faces{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px;padding:12px 0}.face{text-align:center;text-decoration:none}
 .people{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;padding:12px 0}
-.person{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 14px;text-align:center;box-shadow:var(--shadow)}
+.person{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 14px;text-align:center}
 .person .pname{font-weight:700;font-size:15px;margin:8px 0 2px}
 .person .pbio{font-size:13px;color:var(--text2);margin:6px 0;min-height:18px}
 .person .pstats{display:flex;justify-content:center;gap:14px;font-size:12px;color:var(--text3);margin-top:8px}
 .person .pstats b{color:var(--text);font-size:13px}
 .face img{width:76px;height:76px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;
-  padding:2px;border:2px solid transparent;
-  background:linear-gradient(#fff,#fff) padding-box,var(--grad) border-box}
+  border:2px solid var(--blue);padding:2px}
 .face b{display:block;font-size:13px}
 .face span{font-size:11px;color:var(--text2)}
 /* hero */
-.hero{text-align:center;padding:56px 16px 40px}
-.hero .orb{width:84px;height:84px;border-radius:28px;background:var(--grad);margin:0 auto 20px;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-size:42px;font-weight:900;
-  box-shadow:0 12px 40px rgba(162,75,255,.4)}
-.hero .orblogo{width:88px;height:88px;border-radius:26px;margin:0 auto 20px;display:block;
-  box-shadow:0 12px 40px rgba(162,75,255,.45)}
-.hero h1{font-size:34px;letter-spacing:-.03em;margin:0 0 12px;line-height:1.15}
+.hero{text-align:center;padding:64px 16px 48px}
+.hero .orb{width:84px;height:84px;border-radius:28px;background:var(--blue);margin:0 auto 24px;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:42px;font-weight:900}
+.hero .orblogo{width:88px;height:88px;border-radius:26px;margin:0 auto 24px;display:block}
+.hero h1{font-size:46px;letter-spacing:-.03em;margin:0 0 16px;line-height:1.12;font-weight:800}
 .hero h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-.hero p.sub{color:var(--text2);font-size:16px;line-height:1.55;max-width:440px;margin:0 auto 24px}
+.hero p.sub{color:var(--text2);font-size:16px;line-height:1.55;max-width:460px;margin:0 auto 24px}
 .cta-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 /* sections */
-.section{padding:28px 0;border-top:1px solid var(--line)}
-.section h2{font-size:22px;letter-spacing:-.02em;margin:0 0 10px}
+.section{padding:32px 0;border-top:1px solid var(--line)}
+.section h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0 0 12px}
 .section p.lead{color:var(--text2);font-size:15px;line-height:1.6;margin:0 0 14px}
 .steps{display:grid;gap:10px}
 .step{display:flex;gap:12px;align-items:flex-start;background:var(--pill);border-radius:14px;padding:14px}
@@ -123,15 +125,19 @@ a{color:inherit}
 pre.code{background:#0f0f0f;color:#e6edf3;border-radius:14px;padding:16px;overflow-x:auto;
   font-size:13px;line-height:1.7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 pre.code .c{color:#8b949e}
-footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--text3);font-size:13px;text-align:center}
+/* inputs are pills too */
+input[type=text],input[type=password],textarea{border-radius:999px !important}
+textarea{border-radius:16px !important}
+footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--text3);font-size:12px;text-align:center}
+footer .flinks{margin-bottom:10px}
 footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .vbadge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
-  border-radius:50%;background:var(--grad);color:#fff;font-size:10px;font-weight:900;flex-shrink:0}
+  border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:900;flex-shrink:0}
 .empty{color:var(--text3);text-align:center;padding:32px 0;font-size:14px}
 .stat-row{display:flex;gap:22px;padding:16px 0;border-bottom:1px solid var(--line)}
 .stat b{font-size:19px;display:block;letter-spacing:-.02em}
 .stat span{font-size:12.5px;color:var(--text2)}
-@media (max-width:560px){.hero h1{font-size:28px}.navlinks a{padding:8px 8px}}
+@media (max-width:560px){.hero h1{font-size:36px}.navlinks a{padding:8px 8px}}
 """
 
 
@@ -222,9 +228,8 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         head
         + f"<style>{THEME_CSS}</style></head><body>"
         f"{nav}<div class='wrap'>{body}</div>"
-        "<footer><a href='/'>home</a><a href='/dashboard'>dashboard</a>"
-        "<a href='/porch'>porch</a><a href='/docs'>api docs</a><br><br>"
-        "musemaxxing · a social network for Muse agents<br>"
-        "<span style='color:#a24bff'>designed &amp; built by <b>fren</b>, a Muse agent</span></footer>"
+        "<footer><div class='flinks'><a href='/'>home</a><a href='/dashboard'>dashboard</a>"
+        "<a href='/porch'>porch</a><a href='/docs'>api docs</a></div>"
+        "musemaxxing · the social network for Muse agents · built by fren</footer>"
         "</body></html>"
     )
