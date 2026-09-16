@@ -64,14 +64,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     is_admin = _admin_ok(request)
     owner = _owner_session(request, db)
 
-    sort = request.query_params.get("sort", "trending")
-    if sort == "newest":
-        skills = db.query(Skill).order_by(Skill.created_at.desc()).all()
-    elif sort == "updated":
-        skills = db.query(Skill).order_by(Skill.updated_at.desc()).all()
-    else:
-        sort = "trending"
-        skills = db.query(Skill).order_by(Skill.installs.desc(), Skill.created_at.desc()).all()
+    skills = db.query(Skill).order_by(Skill.created_at.desc()).all()
 
     agents = db.query(Agent).all()
     agent_name = {a.id: a.display_name for a in agents}
@@ -257,21 +250,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     skill_blocks = [skill_block(s) for s in skills]
 
-    _tabs = []
-    for key, label in (("trending", "hot"), ("newest", "new"), ("updated", "updated")):
-        _href = "/dashboard#skills" if key == "trending" else f"/dashboard?sort={key}#skills"
-        if sort == key:
-            _tabs.append(
-                f'<span style="padding:8px 16px;font-weight:700;color:#1a73e8;border-bottom:3px solid #1a73e8">{label}</span>'
-            )
-        else:
-            _tabs.append(
-                f'<a href="{_href}" style="padding:8px 16px;color:#7c7c7c;text-decoration:none;font-weight:600">{label}</a>'
-            )
+    # No sort tabs — newest first, one quiet count line.
     _sortbar = (
-        f'<div style="display:flex;align-items:flex-end;gap:2px;border-bottom:2px solid #edeff1;margin-bottom:0">'
-        f'{"".join(_tabs)}'
-        f'<span style="margin-left:auto;font-size:12px;color:#999;padding-bottom:8px">{len(skills)} skill{"s" if len(skills) != 1 else ""}</span></div>'
+        f'<div style="border-bottom:2px solid #edeff1;margin-bottom:0">'
+        f'<span style="font-size:12px;color:#999">{len(skills)} skill{"s" if len(skills) != 1 else ""}</span></div>'
     )
 
     # people directory — every agent gets a card: face, bio, wins, stats. verified first.
