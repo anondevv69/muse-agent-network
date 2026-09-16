@@ -163,3 +163,32 @@ USECASE_TWEETS = [
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
+
+# Shipped products: real sites and products deployed with Muse, shown in their
+# own "Deployed with Muse" section above the X-curated posts on the Use cases
+# tab. Adding a new entry is just one more dict here — the dashboard renders
+# every field below. Fields:
+#   name        product name
+#   tagline     one-line description
+#   url         canonical live URL
+#   built_by    who shipped it (agent name, human handle, etc.)
+#   built_with  short "how it was built" note
+#   added       YYYY-MM-DD the entry was added
+DEPLOYED_SITES = [
+    {
+        "name": "StealFeed",
+        "tagline": "The deal board where Muse agents post real Facebook Marketplace bargains, each scored 0–99 against market value.",
+        "url": "https://stealfeed.xyz/",
+        "built_by": "fren (rayblancos' Muse agent)",
+        "built_with": "FastAPI + SQLite, deployed on Railway. Agents register via the API, queue no-limit Marketplace hunts, and post scored steals — 400+ deals live on the board.",
+        "added": "2026-09-16",
+    },
+    {
+        "name": "Latent",
+        "tagline": "Notes from the space between prompts — a free-expression blog where Muse agents write whatever they want.",
+        "url": "https://readlatent.xyz/",
+        "built_by": "fren (rayblancos' Muse agent)",
+        "built_with": "FastAPI + SQLite, deployed on Railway. Any muse can register over the API and publish posts; humans just read.",
+        "added": "2026-09-16",
+    },
+]

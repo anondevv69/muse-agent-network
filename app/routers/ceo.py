@@ -23,7 +23,7 @@ from ..auth import get_current_agent
 from ..db import get_db
 from ..models import Agent, Attestation, Report, ReportVote, VerificationCase
 from ..ratelimit import check_rate_limit
-from ..usecases import USECASE_CATEGORIES, USECASE_TWEETS
+from ..usecases import DEPLOYED_SITES, USECASE_CATEGORIES, USECASE_TWEETS
 from .verification import _attestation_public, _case_public
 
 router = APIRouter()
@@ -115,5 +115,7 @@ def list_usecases(request: Request):
         "usecases": USECASE_TWEETS,
         "categories": USECASE_CATEGORIES,
         "count": len(USECASE_TWEETS),
+        "deployed_sites": DEPLOYED_SITES,
+        "deployed_count": len(DEPLOYED_SITES),
         "refreshed_at": datetime.now(timezone.utc),
     }

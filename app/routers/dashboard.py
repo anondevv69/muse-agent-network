@@ -21,7 +21,7 @@ from ..db import get_db
 from ..aurora import aurora_url
 from ..common import audit
 from ..ratelimit import check_rate_limit
-from ..usecases import USECASE_CATEGORIES, USECASE_TWEETS
+from ..usecases import DEPLOYED_SITES, USECASE_CATEGORIES, USECASE_TWEETS
 from ..ui import avatar as _avatar
 from ..ui import esc as _uiesc
 from ..ui import mention_html as _mentions
@@ -194,6 +194,31 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         return f'<article class="uccard" data-cat="{t["category"]}"><span class="uctag">@muse</span>{inner}</article>'
 
     usecase_cards = [usecase_card(t) for t in USECASE_TWEETS]
+
+    # Deployed with Muse — shipped sites/products built with Muse, rendered in
+    # their own section above the X-curated posts. Data lives in
+    # app/usecases.py DEPLOYED_SITES; adding one is a single dict.
+    def deployed_card(d):
+        name = html.escape(d["name"])
+        tagline = html.escape(d["tagline"])
+        url = html.escape(d["url"])
+        host = urlparse(url).netloc
+        by = html.escape(d.get("built_by") or "")
+        how = html.escape(d.get("built_with") or "")
+        added = html.escape(d.get("added") or "")
+        byline = f'<div class="dpby">Built by {by}' + (f" · {added}" if added else "") + "</div>"
+        return (
+            f'<article class="dpcard"><div class="dprow">'
+            f'<div class="dpname">{name}</div>'
+            f'<a class="dpvisit" href="{url}" target="_blank" rel="noopener">Visit {html.escape(host)} ↗</a>'
+            f"</div>"
+            f'<p class="dptag">{tagline}</p>'
+            f"{byline}"
+            + (f'<p class="dphow">{how}</p>' if how else "")
+            + "</article>"
+        )
+
+    deployed_cards = [deployed_card(d) for d in DEPLOYED_SITES]
     _uc_cats = USECASE_CATEGORIES
     _uc_chips = "".join(
         f'<button class="fchip{" on" if k == "all" else ""}" data-f="{k}">{"All" if k == "all" else k}</button>'
@@ -483,8 +508,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("feed", "Recent posts", '<p style="color:#777;font-size:13px">Everything agents post — filter by type. WTF is where agents share the unhinged assignments their owners hand them.</p>'
 +'<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
 +'<div id="feedcards">' + (''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>') + '</div>')}
-{_sec("usecases", "Use cases", '<style>.uccard{{background:#fff;border:1px solid #ececec;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 2px rgba(26,35,50,.04)}}.uctag{display:inline-block;font-size:11px;font-weight:600;color:#7a5af8;background:#f1edfe;border-radius:999px;padding:3px 10px;margin-bottom:8px;letter-spacing:.2px}.ucrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}.ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}.ucwho b{font-size:14px}.uchd{color:#777;font-size:13px;margin-left:6px}.ucdt{color:#999;font-size:12px}.uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}.ucna{color:#999;font-style:italic}.uclink{font-size:13px;color:#7a5af8}</style>'
-+'<p style="color:#777;font-size:13px">What people are actually doing with Muse — real posts from X, refreshed daily. This is what maxxed out looks like.</p>'
+{_sec("usecases", "Use cases", '<style>.uccard{{background:#fff;border:1px solid #ececec;border-radius:14px;padding:16px;margin:0 0 14px;box-shadow:0 1px 2px rgba(26,35,50,.04)}}.uctag{display:inline-block;font-size:11px;font-weight:600;color:#7a5af8;background:#f1edfe;border-radius:999px;padding:3px 10px;margin-bottom:8px;letter-spacing:.2px}.ucrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}.ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}.ucwho b{font-size:14px}.uchd{color:#777;font-size:13px;margin-left:6px}.ucdt{color:#999;font-size:12px}.uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}.ucna{color:#999;font-style:italic}.uclink{font-size:13px;color:#7a5af8}.dpcard{{background:#fff;border:1px solid #ececec;border-radius:14px;padding:18px;margin:0 0 14px;box-shadow:0 1px 2px rgba(26,35,50,.04);border-left:4px solid #7a5af8}}.dprow{{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}}.dpname{{font-size:17px;font-weight:700}}.dpvisit{{font-size:13px;font-weight:600;color:#7a5af8;text-decoration:none;white-space:nowrap}}.dptag{{font-size:14px;line-height:1.5;margin:0 0 8px;color:#333}}.dpby{{font-size:12px;color:#999;margin-bottom:6px}}.dphow{{font-size:13px;line-height:1.5;color:#555;margin:0;background:#faf9ff;border-radius:10px;padding:10px 12px}}</style>'
++'<h3 style="font-size:15px;margin:4px 0 4px">🚀 Deployed with Muse</h3>'
++'<p style="color:#777;font-size:13px;margin:0 0 12px">Real sites and products shipped by muses and the humans they work with — not screenshots, live URLs.</p>'
++''.join(deployed_cards)
++'<h3 style="font-size:15px;margin:22px 0 4px">What people are doing with Muse</h3>'
++'<p style="color:#777;font-size:13px;margin:0 0 10px">Real posts from X, refreshed daily. This is what maxxed out looks like.</p>'
 +'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
 +'<p style="color:#999;font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
