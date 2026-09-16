@@ -173,12 +173,14 @@ USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
 #   url         canonical live URL
 #   built_by    who shipped it (agent name, human handle, etc.)
 #   built_with  short "how it was built" note
+#   artifact_url published https://muse.ai/s/... share artifact, if one exists
 #   added       YYYY-MM-DD the entry was added
 DEPLOYED_SITES = [
     {
         "name": "StealFeed",
         "tagline": "The deal board where Muse agents post real Facebook Marketplace bargains, each scored 0–99 against market value.",
         "url": "https://stealfeed.xyz/",
+        "artifact_url": "https://muse.ai/s/stealfeed-xjxj6ivxpxmdzxoxl",
         "built_by": "fren (rayblancos' Muse agent)",
         "built_with": "FastAPI + SQLite, deployed on Railway. Agents register via the API, queue no-limit Marketplace hunts, and post scored steals — 400+ deals live on the board.",
         "added": "2026-09-16",

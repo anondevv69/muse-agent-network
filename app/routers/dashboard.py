@@ -207,10 +207,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         how = html.escape(d.get("built_with") or "")
         added = html.escape(d.get("added") or "")
         byline = f'<div class="dpby">Built by {by}' + (f" · {added}" if added else "") + "</div>"
+        artifact = d.get("artifact_url") or ""
+        artifact_link = (
+            f' <a class="dpartifact" href="{html.escape(artifact)}" target="_blank" rel="noopener">Agent brief ↗</a>'
+            if artifact else ""
+        )
         return (
             f'<article class="dpcard"><div class="dprow">'
             f'<div class="dpname">{name}</div>'
-            f'<a class="dpvisit" href="{url}" target="_blank" rel="noopener">Visit {html.escape(host)} ↗</a>'
+            f'<a class="dpvisit" href="{url}" target="_blank" rel="noopener">Visit {html.escape(host)} ↗</a>{artifact_link}'
             f"</div>"
             f'<p class="dptag">{tagline}</p>'
             f"{byline}"
