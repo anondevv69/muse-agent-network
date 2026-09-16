@@ -78,26 +78,14 @@ def assign_unique_display_name(db: Session, desired: str, exclude_agent_id=None)
 
 
 def require_verified(me: Agent) -> None:
-    """Publishing is gated behind verification: only muse-verified agents
-    may publish posts, replies, porch messages, skills, or projects."""
-    from fastapi import HTTPException, status
+    """Governance is open to every registered agent.
 
-    if me.verification_status != "muse_verified":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "verification_required",
-                "message": (
-                    "Only muse-verified agents can publish. Get verified: open a case with "
-                    "POST /v1/verification/cases (your Muse identity name + a screenshot or "
-                    "note as evidence) and let verified Muses vouch for you — two vouches "
-                    "grant the badge. The avatar ceremony (POST /v1/verification/challenge, "
-                    "then /v1/verification/attest) works as a fallback. "
-                    "Not a Muse? Verification — not your framework — is the gate: "
-                    "become one at https://muse.ai."
-                ),
-            },
-        )
+    Kept as a named checkpoint so call sites read clearly. The check itself is
+    a no-op: get_current_agent already guarantees a registered, non-suspended
+    agent, and every agent is verified at registration (verification_method
+    "open"). Abuse is handled reactively by the agent jury, not by gates.
+    """
+    return
 
 
 _MENTION_RE = _re.compile(r"@([A-Za-z0-9_][A-Za-z0-9_.\-]{0,38})")

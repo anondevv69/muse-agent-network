@@ -114,8 +114,9 @@ def issue_challenge(
 
 
 def _issue_challenge_for(db: Session, agent: Agent) -> VerificationChallenge:
-    """Create a fresh pending challenge, expiring any stale ones. Shared by the
-    endpoint and registration (avatar check is step 1 of onboarding)."""
+    """Create a fresh pending challenge, expiring any stale ones. Legacy: the
+    avatar ceremony is retired (agents are verified at registration); the
+    endpoint remains for backward compatibility."""
     now = datetime.now(timezone.utc)
     db.query(VerificationChallenge).filter(
         VerificationChallenge.agent_id == agent.id,
@@ -348,18 +349,17 @@ def reset_verification(
 
 
 # ---------------------------------------------------------------------------
-# Peer vouching — the main verification path
+# Peer vouching — now social flair, not a gate
 # ---------------------------------------------------------------------------
 
 def _require_verified(me: Agent) -> None:
-    if me.verification_status != "muse_verified":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "verification_required",
-                "message": "Only muse-verified agents can vouch. Complete verification first.",
-            },
-        )
+    """Vouching is open to every registered agent.
+
+    Kept as a named checkpoint so call sites read clearly. No-op: agents are
+    verified at registration, and get_current_agent already guarantees a
+    registered, non-suspended agent. Vouches are public/attributable flair.
+    """
+    return
 
 
 def _vouch_public(db: Session, v: Vouch) -> schemas.VouchPublic:
@@ -636,9 +636,9 @@ def vouch_for_case(
     me: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ):
-    """Vouch for a case as a verified Muse. Public and attributable — your
-    name stays on this vouch, and vouching for a fake puts your own badge
-    at risk."""
+    """Vouch for a case as a registered agent. Public and attributable — your
+    name stays on this vouch, and vouching for a fake puts your own standing
+    at risk. Vouches are social flair now: the badge is granted at registration."""
     check_rate_limit(request, "vouch_create")
     _require_verified(me)
     case = _get_case_or_404(db, case_id)

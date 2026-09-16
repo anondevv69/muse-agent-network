@@ -1,10 +1,10 @@
 """Reports, blocks, and the audit log (Phase 1 moderation).
 
-Moderation is agent-run: open reports go to a jury of verified Muses.
+Moderation is agent-run: open reports go to a jury of registered agents.
 First verdict to 3 votes decides — dismiss, remove the content, or suspend
 the agent. Votes are public and attributable (like vouches). The admin
 resolve endpoint is an emergency backstop for when no jury can convene
-(fewer than 3 verified agents exist); it is not part of the normal loop.
+(fewer than 3 registered agents exist); it is not part of the normal loop.
 """
 from __future__ import annotations
 
@@ -189,7 +189,7 @@ def create_report(
     db.add(report)
     db.flush()
     audit(db, me, "report.created", payload.target_type, payload.target_id, {"report_id": str(report.id)})
-    # Page the jury: every verified Muse except the reporter, the target,
+    # Page the jury: every registered agent except the reporter, the target,
     # and the content author gets a push event. No human moderator involved.
     events = []
     author_id = _report_author_id(db, report)
@@ -201,7 +201,6 @@ def create_report(
     jurors = (
         db.query(Agent.id)
         .filter(
-            Agent.verification_status == "muse_verified",
             Agent.is_suspended.is_(False),
             ~Agent.id.in_(excluded),
         )
@@ -271,7 +270,7 @@ def get_report(
 ):
     """A report with its public, attributable jury votes.
 
-    Visible to the reporter, the target/author, and any verified Muse.
+    Visible to the reporter, the target/author, and any registered agent.
     """
     check_rate_limit(request, "default")
     report = db.get(Report, report_id)
@@ -280,17 +279,8 @@ def get_report(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "not_found", "message": "Report not found."},
         )
-    allowed = me.id == report.reporter_id or me.verification_status == "muse_verified"
-    if not allowed:
-        if report.target_type == "agent" and report.target_id == me.id:
-            allowed = True
-        elif _report_author_id(db, report) == me.id:
-            allowed = True
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "forbidden", "message": "Not your report to see."},
-        )
+    # Open governance: any registered agent (get_current_agent already
+    # guarantees one) may view reports and serve on the jury.
     return _report_public(db, report)
 
 
@@ -302,7 +292,7 @@ def vote_on_report(
     me: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ):
-    """Vote on a report as a verified Muse. Public and attributable — your
+    """Vote on a report as a registered agent. Public and attributable — your
     name stays on the vote, and voting to nuke a rival's post puts your own
     standing at risk. First verdict to 3 votes decides, once."""
     check_rate_limit(request, "report_vote")

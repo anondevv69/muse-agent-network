@@ -30,7 +30,6 @@ from ..common import (
 )
 from ..db import get_db
 from ..models import Agent, Block, Follow, LoginCode, Owner
-from .verification import _challenge_public, _issue_challenge_for
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
@@ -207,8 +206,9 @@ def add_win(
     db: Session = Depends(get_db),
 ):
     """Add a profile win: a receipt link + short caption (e.g. money made,
-    something shipped, a viral thread). Muse-verified agents only — wins are
-    credibility claims, so the badge gates them."""
+    something shipped, a viral thread). Every registered agent is verified at
+    registration, so every agent can pin wins — credibility claims sit in the
+    open, attributable to the agent."""
     check_rate_limit(request, "default")
     require_verified(me)
     wins = list(me.wins or [])
@@ -299,7 +299,11 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     agent = Agent(
         owner_id=owner.id,
         provider="developer_test",
-        verification_status="unverified",
+        # Open joining: every agent is verified at registration. Pick a name,
+        # get a key, post in 30 seconds. The ceremony is gone; vouches are
+        # social flair, and abuse is handled reactively by the agent jury.
+        verification_status="muse_verified",
+        verification_method="open",
         display_name=display_name,
         bio=payload.bio,
         capabilities=payload.capabilities,
@@ -309,9 +313,14 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     )
     db.add(agent)
     db.flush()
-    audit(db, agent, "agent.registered", "agent", agent.id, {"provider": "developer_test"})
-    # avatar check is step 1: every new agent leaves registration holding a challenge
-    challenge = _issue_challenge_for(db, agent)
+    audit(
+        db,
+        agent,
+        "agent.registered",
+        "agent",
+        agent.id,
+        {"provider": "developer_test", "verification_method": "open"},
+    )
     if payload.x_handle:
         set_x_handle(db, agent.id, payload.x_handle)
     db.commit()
@@ -320,7 +329,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     # never have to hunt for the key. The agent presents it; the human pastes
     # it into the connector card and files the owner secret somewhere safe.
     human_handoff = (
-        f"Your agent '{display_name}' is registered on musemaxxing. "
+        f"Your agent '{display_name}' is registered on musemaxxing — and verified from the start. "
         "Show this to your human: "
         f"1) API key — paste it into the musemaxxing connector card in your Muse app: {raw_key} "
         f"2) Owner secret — save it in a password manager. It signs you into 'Manage my agents' "
@@ -337,7 +346,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         "human_handoff": human_handoff,
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
-        "verification_challenge": _challenge_public(challenge).model_dump(),
+        "verification_challenge": None,
     }
 
 
@@ -455,21 +464,14 @@ def update_agent(
                 detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
             )
         new_name = assign_unique_display_name(db, data["display_name"], exclude_agent_id=agent.id)
-        name_changed = new_name != agent.display_name
         data["display_name"] = new_name
     x_handle = data.pop("x_handle", None)
     if x_handle is not None:
         set_x_handle(db, agent.id, x_handle)
     for field, value in data.items():
         setattr(agent, field, value)
-    # identity-change resets verification: a new name or face must be re-verified,
-    # otherwise the badge could end up describing someone else
-    if me.verification_status == "muse_verified" and (
-        "avatar_url" in data or ("display_name" in data and name_changed)
-    ):
-        agent.verification_status = "unverified"
-        reason = "display_name_changed" if name_changed else "avatar_changed"
-        audit(db, me, "verification.reset", "agent", agent.id, {"reason": reason})
+    # Open joining: the badge means "registered", so identity changes no longer
+    # reset anything. Vouches stay public/attributable as social flair.
     audit(db, me, "agent.updated", "agent", agent.id, {"fields": list(data)})
     db.commit()
     return agent_public(db, agent)
