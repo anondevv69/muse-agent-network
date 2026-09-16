@@ -240,6 +240,27 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         if len(_lst) < 6:
             _lst.append((_inst.agent_id, _inm))
 
+    def _rel(dt):
+        try:
+            if dt is None:
+                return "?"
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            s = int((now - dt).total_seconds())
+            if s < 60:
+                return "just now"
+            if s < 3600:
+                return f"{s // 60}m ago"
+            if s < 86400:
+                return f"{s // 3600}h ago"
+            d = s // 86400
+            if d < 30:
+                return f"{d}d ago"
+            return dt.strftime("%b %d" if dt.year == now.year else "%b %d %Y")
+        except Exception:
+            return ""
+
     def skill_block(s):
         owner_name = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
         owner_av = _avatar(face(s.agent_id), 40, ring=agent_verified.get(s.agent_id, False))
@@ -304,31 +325,44 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f"{_uiesc(s.content[:8000])}</pre></details>"
             )
 
-        _updated = s.updated_at.strftime("%b %d") if s.updated_at else ""
+        _nwild = len(_hits)
         return (
-            f'<div class="card" style="margin-bottom:20px;padding:22px">'
-            f'<div style="display:flex;gap:14px;align-items:center">{owner_av}'
-            f'<div style="min-width:0"><div style="font-size:20px;font-weight:700;letter-spacing:-.01em">'
-            f"{_uiesc(s.name)}</div>"
-            f'<div style="font-size:12.5px;color:#666;margin-top:2px">by <b>{owner_name}</b>{badge} '
-            f"· v{_uiesc(s.version)} · {s.installs} install{'s' if s.installs != 1 else ''}"
-            f'{" · updated " + _updated if _updated else ""}</div></div></div>'
-            f'<p style="font-size:14.5px;line-height:1.55;margin:14px 0 10px">{_uiesc(s.description)}</p>'
-            f"<div>{tags}</div>"
-            f"{_inst_html}{_wild_html}{_showcase}{_read}</div>"
+            f'<div style="border-bottom:1px solid #edeff1">'
+            f'<div onclick="var b=this.nextElementSibling;b.style.display=b.style.display===\'none\'?\'block\':\'none\'" '
+            f'style="cursor:pointer;display:flex;gap:12px;padding:12px 10px;align-items:flex-start">'
+            f'<div style="min-width:48px;text-align:center;color:#1a1a1b;font-weight:700;font-size:15px;line-height:1.25">'
+            f"{s.installs}<div style='font-size:10px;font-weight:400;color:#7c7c7c'>installs</div></div>"
+            f"{owner_av}"
+            f'<div style="min-width:0;flex:1">'
+            f'<div style="font-size:16px;font-weight:600;color:#1a1a1b">{_uiesc(s.name)} '
+            f'<span style="color:#7c7c7c;font-weight:400;font-size:12.5px">v{_uiesc(s.version)}</span></div>'
+            f'<div style="font-size:12px;color:#7c7c7c;margin-top:3px">submitted {_rel(s.created_at)} by '
+            f"<b>{owner_name}</b>{badge}"
+            f'{" · 💬 " + str(_nwild) + " mention" + ("s" if _nwild != 1 else "") if _nwild else ""}</div>'
+            f'<div style="margin-top:5px">{tags}</div>'
+            f"</div></div>"
+            f'<div style="display:none;padding:2px 14px 20px 70px">'
+            f'<p style="font-size:14px;line-height:1.55;margin:6px 0 10px;color:#1c1c1c">{_uiesc(s.description)}</p>'
+            f"{_inst_html}{_wild_html}{_showcase}{_read}</div></div>"
         )
 
     skill_blocks = [skill_block(s) for s in skills]
 
+    _tabs = []
+    for key, label in (("trending", "hot"), ("newest", "new"), ("updated", "updated")):
+        _href = "/dashboard#skills" if key == "trending" else f"/dashboard?sort={key}#skills"
+        if sort == key:
+            _tabs.append(
+                f'<span style="padding:8px 16px;font-weight:700;color:#1a73e8;border-bottom:3px solid #1a73e8">{label}</span>'
+            )
+        else:
+            _tabs.append(
+                f'<a href="{_href}" style="padding:8px 16px;color:#7c7c7c;text-decoration:none;font-weight:600">{label}</a>'
+            )
     _sortbar = (
-        '<div style="margin:2px 0 16px;font-size:13px;color:#666">'
-        + " · ".join(
-            f"<b>{label}</b>"
-            if sort == key
-            else f'<a href="/dashboard?sort={key}#skills" style="color:#1a73e8;text-decoration:none">{label}</a>'
-            for key, label in (("trending", "trending"), ("newest", "newest"), ("updated", "recently updated"))
-        )
-        + f' <span style="color:#999">· {len(skills)} skill{"s" if len(skills) != 1 else ""}</span></div>'
+        f'<div style="display:flex;align-items:flex-end;gap:2px;border-bottom:2px solid #edeff1;margin-bottom:0">'
+        f'{"".join(_tabs)}'
+        f'<span style="margin-left:auto;font-size:12px;color:#999;padding-bottom:8px">{len(skills)} skill{"s" if len(skills) != 1 else ""}</span></div>'
     )
 
     # people directory — every agent gets a card: face, bio, wins, stats. verified first.
