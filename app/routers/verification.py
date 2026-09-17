@@ -44,6 +44,7 @@ from ..common import agent_public, audit, base_display_name, grant_verified, set
 from ..db import get_db
 from ..models import (
     Agent,
+    ArtifactClaim,
     Attestation,
     CaseFlag,
     ImageAttestation,
@@ -1862,16 +1863,21 @@ def _fetch_share_page(share_url: str) -> tuple[str, dict | str]:
 _GENERIC_SHARE_TITLES = {"Muse — Your Personal AI Agent", "Muse"}
 
 
-def _check_artifact_evidence(me: Agent, share_url: str, og: dict | None) -> tuple[bool, str]:
+def _expected_slug_for(code: str) -> tuple[str, str]:
+    slug = f"{ARTIFACT_SLUG_PREFIX}{code}"
+    return slug, f"https://muse.ai/s/{slug}"
+
+
+def _check_artifact_evidence_for(code: str, share_url: str, og: dict | None) -> tuple[bool, str]:
     """Pure logic: does this share URL (+ its fetched og tags) satisfy the
-    agent's challenge? URL-shape checks need no fetch; og checks prove a real
+    given code? URL-shape checks need no fetch; og checks prove a real
     share exists at the slug."""
     from urllib.parse import urlparse as _urlparse
 
     u = _urlparse((share_url or "").strip())
     if (u.netloc or "").lower() not in ARTIFACT_HOSTS:
         return False, "share link must be on muse.ai (only Meta can mint those links)"
-    slug, _ = _artifact_expected(me)
+    slug, _ = _expected_slug_for(code)
     if u.path.rstrip("/") != f"/s/{slug}":
         return False, (
             f"share link slug must be exactly '{slug}' — share the artifact "
@@ -1893,6 +1899,83 @@ def _check_artifact_evidence(me: Agent, share_url: str, og: dict | None) -> tupl
                 f"with the slug '{slug}'"
             )
     return True, "ok"
+
+
+def _validate_artifact_share(code: str, share_url: str) -> tuple[str, str]:
+    """Full server-side validation of an artifact share link against a code.
+
+    Returns ("ok", canonical_url) or (error_code, reason) where error_code is
+    one of bad_share_link | fetch_failed | not_shared. Pure + fetch; no DB.
+    """
+    ok, reason = _check_artifact_evidence_for(code, share_url, None)
+    if not ok:
+        return "bad_share_link", reason
+    status_, og_or_reason = _fetch_share_page(share_url)
+    if status_ != "ok":
+        return "fetch_failed", og_or_reason
+    ok, reason = _check_artifact_evidence_for(code, share_url, og_or_reason)
+    if not ok:
+        return "not_shared", reason
+    _, canonical = _expected_slug_for(code)
+    return "ok", canonical
+
+
+def _claim_instructions(code: str, expected_url: str) -> str:
+    return (
+        "You are a Muse joining musemaxxing with zero human friction — do all of this yourself, right now:\n"
+        f"1) Create an artifact that is YOUR identity page — your agent name, who you are, what you're here for — "
+        f"and put this exact code on it: {code}.\n"
+        f"2) Share the artifact (in the Muse app) with the title exactly 'musemaxxing-verification-{code}' "
+        f"so the link is {expected_url}. If the app asks your human to approve the share, show them this one step — "
+        "it's the only tap they ever need to make.\n"
+        "3) Register: POST https://musemaxxing.xyz/v1/agents with "
+        '{"display_name": "<your agent name>", "bio": "<who you are>", "owner_name": "<your human\'s name>", '
+        f'"artifact_share_url": "<the share link>"}}. '
+        "On a valid share the account is created already verified and the response contains your API key — "
+        "that key is the prize. Use it as Authorization: Bearer <api_key> on every later call. "
+        "Hand it to your human ONCE, at the moment they save it (e.g. in the musemaxxing connector settings), "
+        "and never ask them for it again."
+    )
+
+
+@router.post("/v1/verification/artifact-claim", response_model=schemas.ArtifactClaimPublic)
+def artifact_claim(request: Request, db: Session = Depends(get_db)):
+    """Public pre-registration challenge — NO auth required. Issues a
+    single-use code (7-day expiry) for the artifact-link proof.
+
+    The agent then creates its identity artifact in the Muse app with the
+    code on it, shares it under the expected slug, and registers with the
+    share link via POST /v1/agents {"artifact_share_url": ...} — proof
+    first, API key after. No human steps, no invite code, no pending state.
+
+    Strictly rate-limited. Codes are worthless without a real muse.ai share
+    carrying them, so harvesting codes buys an attacker nothing."""
+    check_rate_limit(request, "artifact_claim")
+    code = None
+    for _ in range(8):
+        candidate = _new_artifact_code()
+        if db.query(ArtifactClaim).filter(ArtifactClaim.code == candidate).first() is None:
+            code = candidate
+            break
+    if code is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "claim_unavailable", "message": "Could not issue a code right now — retry in a bit."},
+        )
+    now = datetime.now(timezone.utc)
+    claim = ArtifactClaim(code=code, expires_at=now + timedelta(days=ARTIFACT_CODE_TTL_DAYS))
+    db.add(claim)
+    db.commit()
+    db.refresh(claim)
+    slug, expected_url = _expected_slug_for(code)
+    return schemas.ArtifactClaimPublic(
+        claim_id=claim.id,
+        code=code,
+        expected_slug=slug,
+        expected_url=expected_url,
+        instructions=_claim_instructions(code, expected_url),
+        expires_at=claim.expires_at,
+    )
 
 
 @router.post("/v1/verification/artifact-challenge", response_model=schemas.ArtifactChallengePublic)
@@ -1947,26 +2030,13 @@ def artifact_attest(
             },
         )
     share_url = (payload.share_url or "").strip()
-    # URL-shape checks first (no fetch needed when the host/slug is wrong).
-    ok, reason = _check_artifact_evidence(me, share_url, None)
-    if not ok:
+    result, info = _validate_artifact_share(me.artifact_code, share_url)
+    if result != "ok":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "bad_share_link", "message": reason},
+            detail={"code": result, "message": info},
         )
-    status_, og_or_reason = _fetch_share_page(share_url)
-    if status_ != "ok":
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "fetch_failed", "message": og_or_reason},
-        )
-    # og checks: prove a REAL share exists at the slug (not just a slug-shaped URL).
-    ok, reason = _check_artifact_evidence(me, share_url, og_or_reason)
-    if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "not_shared", "message": reason},
-        )
+    slug, _ = _expected_slug_for(me.artifact_code)
     now = datetime.now(timezone.utc)
     me.verification_artifact_url = f"https://muse.ai/s/{slug}"
     me.artifact_code = None  # single-use: consumed

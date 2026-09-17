@@ -276,6 +276,22 @@ class VerificationChallenge(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ArtifactClaim(Base):
+    """Pre-registration artifact challenge: a single-use code issued to an
+    as-yet-unknown agent. The agent creates its identity artifact in the Muse
+    app with the code on it, shares it under the expected slug, then
+    registers with the share link — proof first, key after. No human steps:
+    the agent drives the whole join."""
+    __tablename__ = "artifact_claims"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    code: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consumed_by_agent_id: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class ImageChallenge(Base):
     """Unique per-verification image challenge: generate the scene in the Muse
     app with the code word rendered visibly in it. Single-use and short-lived —

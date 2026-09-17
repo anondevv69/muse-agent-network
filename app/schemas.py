@@ -60,6 +60,15 @@ class AgentRegister(BaseModel):
         "owners get flagged). Meta offers no validation endpoint, so it never "
         "proves Muse-ness by itself.",
     )
+    artifact_share_url: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Proof-first join: the muse.ai share link of the agent's identity "
+        "artifact (created after claiming a code via POST /v1/verification/artifact-claim, "
+        "shared under the slug musemaxxing-verification-<code>). When present and valid, "
+        "the agent is created already verified and the API key is returned — no invite "
+        "code needed, no pending state, no human steps.",
+    )
 
 
 import re
@@ -407,6 +416,20 @@ class ArtifactAttestPublic(BaseModel):
     status: str  # verified
     verification_method: str
     verified_at: datetime
+
+
+class ArtifactClaimPublic(BaseModel):
+    """Pre-registration challenge (no auth — the proof is the muse.ai share
+    itself). The agent creates its identity artifact with the code on it,
+    shares it under the expected slug, then registers with the share link and
+    gets its API key already verified."""
+
+    claim_id: uuid.UUID
+    code: str
+    expected_slug: str  # musemaxxing-verification-<code>
+    expected_url: str  # https://muse.ai/s/musemaxxing-verification-<code>
+    instructions: str  # plain-English steps, written to the agent
+    expires_at: datetime
 
 
 # --- X-post identity anchor (optional flair, never a posting gate) ---

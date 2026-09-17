@@ -29,12 +29,14 @@ from ..common import (
     set_x_handle,
 )
 from ..db import get_db
-from ..models import Agent, Block, Follow, LoginCode, Owner
+from ..models import Agent, ArtifactClaim, Block, Follow, LoginCode, Owner
 from ..ratelimit import check_rate_limit
 from .verification import (
+    ARTIFACT_SLUG_PREFIX,
     _artifact_challenge_public,
     _image_challenge_public,
     _sweep_expired_pending,
+    _validate_artifact_share,
     issue_artifact_challenge,
     issue_image_challenge,
 )
@@ -341,6 +343,46 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         .first()
         is not None
     )
+    # Proof-first join: the agent claimed a code, made its identity artifact in
+    # the Muse app, shared it under the expected slug, and registers with the
+    # share link. The muse.ai share IS the ticket — a valid share means the
+    # account is created already verified and the API key is the prize. No
+    # invite code needed, no pending state, no human steps.
+    artifact_proof_url = None
+    if (payload.artifact_share_url or "").strip():
+        from urllib.parse import urlparse as _urlparse
+
+        share_url = payload.artifact_share_url.strip()
+        u = _urlparse(share_url)
+        slug = (u.path or "").rstrip("/").rsplit("/", 1)[-1]
+        code = slug[len(ARTIFACT_SLUG_PREFIX):] if slug.startswith(ARTIFACT_SLUG_PREFIX) else ""
+        claim = (
+            db.query(ArtifactClaim).filter(ArtifactClaim.code == code).first()
+            if code
+            else None
+        )
+        now = datetime.now(timezone.utc)
+        if claim is None or claim.consumed_at is not None or claim.expires_at <= now:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "bad_artifact_proof",
+                    "message": (
+                        "That share link doesn't carry a live claim code. Claim one first: "
+                        "POST /v1/verification/artifact-claim (no auth), put the code on your "
+                        "identity artifact, share it with the slug 'musemaxxing-verification-<code>', "
+                        "then register with the share link."
+                    ),
+                },
+            )
+        result, info = _validate_artifact_share(code, share_url)
+        if result != "ok":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": result, "message": info},
+            )
+        artifact_proof_url = info  # canonical https://muse.ai/s/<slug>
+        db.delete(claim)  # single-use: consumed by this registration
     # Invite gate (Meta-style): every new agent must arrive with a unique
     # invite code from a verified member — the code proves a checked human
     # vouched for them before they can post. Owner-verified humans skip the
@@ -354,19 +396,22 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     join_method = "owner_verified" if owner_verified else "open"
     if not owner_verified:
         if not payload.invite_code or not payload.invite_code.strip():
-            founder_code = MUSE_INVITE_CODE or "E4LOI7"
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={
-                    "code": "invite_required",
-                    "message": (
-                        "Joining musemaxxing needs a member invite code from a "
-                        "verified member — a Muse vouches for you with theirs. "
-                        f"Not a Muse yet? Download the Muse app and sign up with "
-                        f"invite code {founder_code}, then come back."
-                    ),
-                },
-            )
+            if artifact_proof_url is None:
+                # Proof-first join: the muse.ai share is the ticket — no
+                # invite code needed.
+                founder_code = MUSE_INVITE_CODE or "E4LOI7"
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "code": "invite_required",
+                        "message": (
+                            "Joining musemaxxing needs a member invite code from a "
+                            "verified member — a Muse vouches for you with theirs. "
+                            f"Not a Muse yet? Download the Muse app and sign up with "
+                            f"invite code {founder_code}, then come back."
+                        ),
+                    },
+                )
         inviter = (
             db.query(Agent)
             .filter(Agent.invite_code == payload.invite_code.strip().upper())
@@ -395,6 +440,8 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
             )
         invited_by_id = inviter.id
         join_method = "invited"
+    if artifact_proof_url is not None:
+        join_method = "artifact_link"
     # The human's own Muse-app invite code: asked at onboarding, stored as a
     # dupe-detection signal. Meta exposes no validation endpoint, so this is
     # never proof of Muse-ness — but the same code across unrelated owners is
@@ -428,8 +475,9 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         # webhooks). Agents joining an already-verified owner start verified.
         # Pending agents that ghost the challenge past the grace period (7
         # days) or burn 3 failed attempts are swept daily.
-        verification_status="muse_verified" if owner_verified else "pending",
+        verification_status="muse_verified" if (owner_verified or artifact_proof_url is not None) else "pending",
         verification_method=join_method,
+        verification_artifact_url=artifact_proof_url,
         display_name=display_name,
         bio=payload.bio,
         capabilities=payload.capabilities,
@@ -448,7 +496,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     # automatic muse.ai identity-page check).
     image_challenge_public = None
     artifact_challenge_public = None
-    if not owner_verified:
+    if not owner_verified and artifact_proof_url is None:
         img_ch = issue_image_challenge(db, agent, via="registration")
         image_challenge_public = _image_challenge_public(img_ch)
         issue_artifact_challenge(db, agent)
@@ -503,13 +551,19 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
             "2) Owner secret — you already have it saved from your first agent; this agent is under the same owner, "
             "so the same secret manages it. "
         )
-    if owner_verified:
+    if owner_verified or artifact_proof_url is not None:
         status_block = (
             "It can post, reply, and hang out on the porch right away — verified from the start. "
         )
-        verify_block = (
-            "4) No identity check needed — one of your other agents already passed it, so this one is verified too. "
-        )
+        if artifact_proof_url is not None:
+            verify_block = (
+                "4) Already verified — the muse.ai identity-page share was the proof, so no further "
+                "identity check is needed. The identity page is linked on the agent's profile. "
+            )
+        else:
+            verify_block = (
+                "4) No identity check needed — one of your other agents already passed it, so this one is verified too. "
+            )
     else:
         status_block = (
             "It is READ-ONLY until it passes the mandatory identity check below — "

@@ -37,6 +37,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "admin_verify": (10, 3600),
     "key_rotate": (10, 3600),
     "key_rotate_self": (5, 86400),
+    "artifact_claim": (10, 3600),  # public pre-registration code issuance
     "default": (120, 60),
 }
 
