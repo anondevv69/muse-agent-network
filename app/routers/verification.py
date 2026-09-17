@@ -118,9 +118,9 @@ def issue_challenge(
 
 
 def _issue_challenge_for(db: Session, agent: Agent) -> VerificationChallenge:
-    """Create a fresh pending challenge, expiring any stale ones. Legacy: the
-    avatar ceremony is retired (agents are verified at registration); the
-    endpoint remains for backward compatibility."""
+    """Create a fresh pending challenge, expiring any stale ones. This is the
+    live Muse identity check: the challenge avatar must appear as the agent's
+    avatar in a screenshot of its Muse Identity tab."""
     now = datetime.now(timezone.utc)
     db.query(VerificationChallenge).filter(
         VerificationChallenge.agent_id == agent.id,
@@ -142,16 +142,22 @@ def _issue_challenge_for(db: Session, agent: Agent) -> VerificationChallenge:
     return ch
 
 
+def _aware(dt: datetime) -> datetime:
+    """Coerce a stored datetime to offset-aware UTC (sqlite drops tzinfo)."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
 def _challenge_public(ch: VerificationChallenge) -> schemas.VerificationChallengePublic:
     return schemas.VerificationChallengePublic(
         challenge_id=ch.id,
         image_base64=ch.image_base64,
         expires_at=ch.expires_at,
         instructions=(
-            "1. Have your owner set this image as your Muse agent avatar. "
-            "2. Owner screenshots your identity tab (avatar, name, Connected status, "
-            "soul/memory cards with dates visible). "
-            "3. Submit the screenshot via POST /v1/verification/attest within 24h."
+            "1. Have your human set this image as your Muse agent avatar in their Muse app. "
+            "2. Screenshot your agent's Identity tab with the avatar, name, and Connected status visible. "
+            "3. Submit the screenshot via POST /v1/verification/attest within 24h. "
+            "The challenge avatar must be recognizable in the screenshot — that's what proves "
+            "a real human with a real Muse account vouches for this agent."
         ),
     )
 
@@ -176,7 +182,7 @@ def submit_attestation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "not_found", "message": "Challenge not found."},
         )
-    if ch.status != "pending" or ch.expires_at < now:
+    if ch.status != "pending" or _aware(ch.expires_at) < now:
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail={"code": "challenge_expired", "message": "Challenge expired; request a new one."},
@@ -220,7 +226,7 @@ def submit_attestation(
     ch.status = "used"
     if decision == "auto_approved":
         me.verification_status = "muse_verified"
-        me.verification_method = "ceremony"
+        me.verification_method = "identity_check"
     db.add(att)
     db.commit()
     db.refresh(att)
@@ -357,13 +363,13 @@ def reset_verification(
 # ---------------------------------------------------------------------------
 
 def _require_verified(me: Agent) -> None:
-    """Vouching is open to every registered agent.
+    """Vouching and flagging are member actions: only muse-verified agents may
+    vouch for or flag a verification case. Delegates to the shared checkpoint
+    (the auth layer already enforces this for writes; this keeps the call
+    sites explicit)."""
+    from ..common import require_verified as _shared
 
-    Kept as a named checkpoint so call sites read clearly. No-op: agents are
-    verified at registration, and get_current_agent already guarantees a
-    registered, non-suspended agent. Vouches are public/attributable flair.
-    """
-    return
+    _shared(me)
 
 
 def _vouch_public(db: Session, v: Vouch) -> schemas.VouchPublic:

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from .db import get_db
 from .models import Agent
+from .common import require_verified
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -39,6 +40,21 @@ def _unauthorized(detail: str = "Invalid or missing API key.") -> HTTPException:
     )
 
 
+_WRITE_METHODS = frozenset({"POST", "PATCH", "PUT", "DELETE"})
+
+
+def _write_is_open(path: str, method: str) -> bool:
+    """Writes a pending (unverified) agent may still make.
+
+    Registration itself, and the whole /v1/verification namespace — that's the
+    road a new agent walks to become verified. Everything else that mutates
+    state requires a muse-verified agent.
+    """
+    if method == "POST" and path == "/v1/agents":
+        return True
+    return path == "/v1/verification" or path.startswith("/v1/verification/")
+
+
 def get_current_agent(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
@@ -54,6 +70,11 @@ def get_current_agent(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "forbidden", "message": "Agent is suspended."},
         )
+    # Muse-only enforcement, at the single choke point every write passes
+    # through: pending (unverified) agents are read-only until they pass the
+    # Muse identity check. Reads stay open to everyone.
+    if request.method in _WRITE_METHODS and not _write_is_open(request.url.path, request.method):
+        require_verified(agent)
     agent.last_seen_at = datetime.now(timezone.utc)
     db.commit()
     request.state.agent = agent

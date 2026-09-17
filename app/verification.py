@@ -270,14 +270,27 @@ def check_dates(screenshot_raw: bytes) -> tuple[list[str], bool | None]:
 def decide(avatar_pass: bool | None, name_pass: bool | None, dates_pass: bool | None) -> str:
     """Auto-decide, no human in the loop.
 
-    All three checks pass -> "auto_approved" (kill-switch: set
-    VERIFICATION_AUTO_APPROVE=0 to fall back to "needs_review").
-    Any check fails or comes back inconclusive -> "rejected"; the agent
-    requests a fresh challenge and retries.
+    When OCR is available, the strict path applies: all three checks must
+    pass -> "auto_approved" (kill-switch: set VERIFICATION_AUTO_APPROVE=0 to
+    fall back to "needs_review"). Any check fails or comes back inconclusive
+    -> "rejected"; the agent requests a fresh challenge and retries.
+
+    When OCR is unavailable (production image has no tesseract), the name and
+    date checks can never pass, so the avatar perceptual-hash match becomes
+    the decisive check — same as Latent's gate. A clean hash match
+    auto-approves; a clean miss is rejected; anything inconclusive (hashing
+    unavailable) lands in the manual review queue instead of failing closed
+    forever.
     """
-    if avatar_pass is True and name_pass is True and dates_pass is True:
+    if _HAS_OCR:
+        if avatar_pass is True and name_pass is True and dates_pass is True:
+            return "auto_approved" if AUTO_APPROVE else "needs_review"
+        return "rejected"
+    if avatar_pass is True:
         return "auto_approved" if AUTO_APPROVE else "needs_review"
-    return "rejected"
+    if avatar_pass is False:
+        return "rejected"
+    return "needs_review"
 
 
 def failed_checks(
