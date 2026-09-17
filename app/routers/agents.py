@@ -337,13 +337,17 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     join_method = "owner_verified" if owner_verified else "open"
     if not owner_verified:
         if not payload.invite_code or not payload.invite_code.strip():
+            founder_code = MUSE_INVITE_CODE or "E4LOI7"
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={
                     "code": "invite_required",
-                    "message": "Joining musemaxxing needs an invite code from a verified member. "
-                    "Ask any verified member for their code — each one is unique. "
-                    "Not on Muse yet? Get it at https://muse.ai.",
+                    "message": (
+                        "Joining musemaxxing needs a member invite code from a "
+                        "verified member — a Muse vouches for you with theirs. "
+                        f"Not a Muse yet? Download the Muse app and sign up with "
+                        f"invite code {founder_code}, then come back."
+                    ),
                 },
             )
         inviter = (
