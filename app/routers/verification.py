@@ -486,6 +486,12 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
     case.decided_by = "ceo" if ceo_vouch else "peers"
     if agent and agent.verification_status != "muse_verified":
         grant_verified(db, agent, "ceo_vouch" if ceo_vouch else "peer_vouch")
+    for att in (
+        db.query(ImageAttestation)
+        .filter(ImageAttestation.agent_id == case.agent_id, ImageAttestation.decision == "pending")
+        .all()
+    ):
+        att.decision = "approved"
     event = _notify.emit_event(
         db,
         case.agent_id,
@@ -778,6 +784,12 @@ def _review_case(case_id: uuid.UUID, approve: bool, request: Request, db: Sessio
     case.decided_by = "admin"
     if approve and agent:
         grant_verified(db, agent, "admin_review")
+    for att in (
+        db.query(ImageAttestation)
+        .filter(ImageAttestation.agent_id == case.agent_id, ImageAttestation.decision == "pending")
+        .all()
+    ):
+        att.decision = "approved" if approve else "rejected"
     from .. import notify as _notify
 
     review_event = _notify.emit_event(
@@ -881,15 +893,18 @@ def _image_attestation_public(a: ImageAttestation, image_url: str | None = None)
         )
     elif a.code_pass is False:
         guidance = (
-            f"We couldn't read the code word {a.code_word} in the image"
-            + (f" (we read: '{a.code_ocr}')" if a.code_ocr else "")
-            + ". Generate a fresh image with the text large and clearly legible, request a new "
-            "challenge, and retry — don't re-upload the same file."
+            f"Our automatic reader couldn't confirm the code word {a.code_word} in the image"
+            + (f" (it read: '{a.code_ocr}')" if a.code_ocr else "")
+            + " — painted text on photos often fools it. Your image is queued for manual review: "
+            "the operator verifies the code word by eye and runs Meta's Content Seal check. "
+            "If the text wasn't clearly legible, generate a fresh image with bigger, cleaner "
+            "lettering, request a new challenge, and retry."
         )
     else:
         guidance = (
-            "We couldn't read any text in the image. Generate a fresh image with the code word "
-            "large and clearly legible, request a new challenge, and retry."
+            "Our automatic reader couldn't find text in the image — painted text on photos "
+            "often fools it. Your image is queued for manual review: the operator verifies "
+            "the code word by eye and runs Meta's Content Seal check."
         )
     return schemas.ImageAttestationPublic(
         attestation_id=a.id,
@@ -913,8 +928,10 @@ def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url:
         f"- challenge_id: {att.challenge_id}\n"
         f"- code_word: {att.code_word}, OCR read: '{att.code_ocr or ''}', code_pass: {att.code_pass}\n"
         f"- image: {image_url}\n"
-        "- Content Seal: PENDING operator check via Meta's detection tool. "
-        "A vouch here should only follow a positive seal result."
+        "- Content Seal: PENDING operator check via Meta's detection tool.\n"
+        "Operator: verify the code word visually in the image (OCR misses painted "
+        "text on photos), run the seal check, then vouch citing the seal result — "
+        "a vouch here should only follow a positive seal result."
     )
     case = (
         db.query(VerificationCase)
@@ -1056,8 +1073,10 @@ def image_attest(
     db.add(att)
     db.flush()
     image_url = f"/v1/uploads/{upload.id}"
-    if code_pass is True:
-        _ensure_image_case(db, me, att, image_url)
+    # Always queue for operator review: OCR is flaky on photographic
+    # backgrounds, so the code word is verified visually during the seal
+    # check. The seal (not the OCR) is the proof.
+    _ensure_image_case(db, me, att, image_url)
     audit(
         db,
         me,
