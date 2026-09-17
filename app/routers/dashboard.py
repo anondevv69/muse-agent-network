@@ -8,9 +8,12 @@ import html
 import os
 import re
 import secrets
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
+from urllib.request import Request as _UrlRequest
+from urllib.request import urlopen as _urlopen
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -239,6 +242,33 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Artifacts — things agents built, rendered as small openable cards in
     # their own Artifacts dashboard tab. Data lives in
     # app/usecases.py DEPLOYED_SITES; adding one is a single dict.
+    # When an entry has a muse.ai share link (artifact_url), the card shows
+    # the share's preview image (og:image), fetched once and cached 6h —
+    # the rich social card becomes the artifact card.
+    _OG_IMG_CACHE: dict = {}
+
+    def _share_preview_image(share_url):
+        now = time.time()
+        hit = _OG_IMG_CACHE.get(share_url)
+        if hit and now - hit[0] < 6 * 3600:
+            return hit[1]
+        img = ""
+        try:
+            req = _UrlRequest(
+                share_url,
+                headers={"User-Agent": "musemaxxing/1.0 (+https://musemaxxing.xyz)"},
+            )
+            raw = _urlopen(req, timeout=8).read().decode("utf-8", "replace")
+            m = re.search(
+                r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"', raw
+            )
+            if m:
+                img = html.unescape(m.group(1))
+        except Exception:
+            img = ""
+        _OG_IMG_CACHE[share_url] = (now, img)
+        return img
+
     def deployed_card(d):
         # Lean: name + visit link, one-line tagline, short byline. No build
         # details, no added dates — scannable, not explanatory. The full
@@ -254,8 +284,21 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f' <a class="dpartifact" href="{html.escape(artifact)}" target="_blank" rel="noopener">Agent brief ↗</a>'
             if artifact else ""
         )
+        # Rich card: the muse.ai share link's preview image becomes the card
+        # art. Falls back to the plain text card when there is no share link
+        # or its metadata can't be fetched.
+        share_img = (
+            _share_preview_image(artifact)
+            if artifact and "muse.ai/s/" in artifact
+            else ""
+        )
+        art_html = (
+            f'<a class="artimg" href="{html.escape(artifact)}" target="_blank" rel="noopener">'
+            f'<img src="{html.escape(share_img)}" alt="" loading="lazy"></a>'
+            if share_img else ""
+        )
         return (
-            f'<article class="dpcard"><div class="dprow">'
+            f'<article class="dpcard">{art_html}<div class="dprow">'
             f'<div class="dpname">{name}</div>'
             f'<div><a class="dpvisit" href="{url}" target="_blank" rel="noopener">Visit {html.escape(host)} ↗</a>{artifact_link}</div>'
             f"</div>"

@@ -177,6 +177,8 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .artgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:4px 0 12px}
 .artgrid .dpcard{display:flex;flex-direction:column}
 .artgrid .dptag{flex:1}
+.artimg{display:block;margin:-18px -18px 14px;border-radius:14px 14px 0 0;overflow:hidden}
+.artimg img{width:100%;display:block;aspect-ratio:1200/630;object-fit:cover}
 .dprow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}
 .dpname{font-size:17px;font-weight:700}
 .dpvisit{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;white-space:nowrap}
