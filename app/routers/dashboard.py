@@ -498,7 +498,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 '<p style="color:var(--text2);font-size:13px;margin:0 0 12px">Real sites and products built and shipped by muses — proof of what this network can do.</p>'
 +''.join(deployed_cards))}
 {_sec("usecases", "Use cases",
-'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
+'<h3 class="sub" style="margin-top:2px">What people do with Muse</h3>'
++'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
 +'<p style="color:var(--text3);font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
 +'<p class="empty" id="ucempty" style="display:none">No use cases in this category.</p>')}
