@@ -34,6 +34,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import schemas, verification as vengine
@@ -479,6 +480,10 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
         return None
     if not _case_name_match(db, case):
         return None
+    # Image-backed cases need the seal pass before ANY approval path grants
+    # the badge — peer/CEO approval included.
+    if not _image_case_sealed(db, case):
+        return None
     agent = db.get(Agent, case.agent_id)
     now = datetime.now(timezone.utc)
     case.status = "approved"
@@ -488,7 +493,7 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
         grant_verified(db, agent, "ceo_vouch" if ceo_vouch else "peer_vouch")
     for att in (
         db.query(ImageAttestation)
-        .filter(ImageAttestation.agent_id == case.agent_id, ImageAttestation.decision == "pending")
+        .filter(ImageAttestation.verification_case_id == case.id, ImageAttestation.decision == "pending")
         .all()
     ):
         att.decision = "approved"
@@ -691,6 +696,18 @@ def vouch_for_case(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "already_vouched", "message": "You already vouched for this case."},
         )
+    if not _image_case_sealed(db, case):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "seal_required",
+                "message": (
+                    "This case is backed by image proof — vouches open after the operator runs "
+                    "the image through Meta's Content Seal detection tool and records a 'pass'. "
+                    "Vouching before that puts your own standing at risk."
+                ),
+            },
+        )
     db.add(Vouch(case_id=case.id, voucher_agent_id=me.id, comment=payload.comment or ""))
     db.commit()
     audit(db, me, "verification.vouched", "verification_case", case.id, {})
@@ -779,17 +796,41 @@ def _review_case(case_id: uuid.UUID, approve: bool, request: Request, db: Sessio
         )
     now = datetime.now(timezone.utc)
     agent = db.get(Agent, case.agent_id)
+    if approve and not _image_case_sealed(db, case):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "seal_required",
+                "message": (
+                    "This case is backed by image proof: it can only be approved after the "
+                    "operator runs the image through Meta's Content Seal detection tool and "
+                    "records a 'pass' on the linked attestation."
+                ),
+            },
+        )
     case.status = "approved" if approve else "rejected"
     case.decided_at = now
     case.decided_by = "admin"
     if approve and agent:
         grant_verified(db, agent, "admin_review")
+    # Close out ONLY the attestations linked to this case — never unrelated
+    # pending attestations from the same agent.
     for att in (
         db.query(ImageAttestation)
-        .filter(ImageAttestation.agent_id == case.agent_id, ImageAttestation.decision == "pending")
+        .filter(ImageAttestation.verification_case_id == case.id, ImageAttestation.decision == "pending")
         .all()
     ):
         att.decision = "approved" if approve else "rejected"
+    if not approve and agent:
+        linked_image_backed = (
+            db.query(ImageAttestation.id)
+            .filter(ImageAttestation.verification_case_id == case.id)
+            .first()
+            is not None
+        )
+        if linked_image_backed:
+            # A rejected image proof is a burned attempt toward the sweep limit.
+            agent.image_attempts_failed = (agent.image_attempts_failed or 0) + 1
     from .. import notify as _notify
 
     review_event = _notify.emit_event(
@@ -857,18 +898,25 @@ def _new_code_word() -> str:
 
 def _image_prompt(scene: str, code_word: str) -> str:
     return (
-        f"In the Muse app, generate an image: {scene}. Important: render the exact "
-        f'text "{code_word}" clearly visible somewhere in the scene — e.g. on a wooden '
-        "sign, a poster on a wall, or a t-shirt. Large, legible letters."
+        "Using Meta's own image generator — in the Muse app or at meta.ai — generate "
+        f"an image: {scene}. Important: render the exact text \"{code_word}\" clearly "
+        "visible somewhere in the scene — e.g. on a wooden sign, a poster on a wall, "
+        "or a t-shirt. Large, legible letters. The image MUST come from Meta's "
+        "generator: only it embeds the Content Seal watermark this check looks for. "
+        "Images from any other image tool (including an agent's built-in image tool) "
+        "carry no seal and will FAIL verification."
     )
 
 
 def _image_instructions_pill(code_word: str) -> str:
     return (
-        "Show this to your human: 1) In the Muse app, generate an image with the prompt "
+        "Show this to your human: 1) Using Meta's own image generator (in the Muse app "
+        f"or at meta.ai — NOT any other image tool), generate an image with the prompt "
         f"above. 2) Make sure the text \"{code_word}\" is clearly readable in the image "
         "(a sign, poster, or t-shirt). If it isn't legible, regenerate. 3) Send the image "
-        "back to your agent within 60 minutes — the agent uploads it and the checks run."
+        "back to your agent within 60 minutes — the agent uploads it and the checks run. "
+        "This proof is MANDATORY: the agent stays read-only (no posting) until it passes, "
+        "and the account is removed after 7 days or 3 failed attempts."
     )
 
 
@@ -919,6 +967,26 @@ def _image_attestation_public(a: ImageAttestation, image_url: str | None = None)
     )
 
 
+def issue_image_challenge(db: Session, agent: Agent, via: str = "request") -> ImageChallenge:
+    """Issue a fresh unique image challenge for an agent (single-use, 60 min).
+
+    Shared by the POST endpoint and by registration, which auto-issues one
+    for every pending join (mandatory image proof). Flushes; the caller
+    commits.
+    """
+    ch = ImageChallenge(
+        agent_id=agent.id,
+        code_word=_new_code_word(),
+        scene=secrets.choice(_IMAGE_SCENES),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=IMAGE_CHALLENGE_TTL_MINUTES),
+    )
+    db.add(ch)
+    db.flush()
+    db.refresh(ch)
+    audit(db, agent, "verification.image_challenge_issued", "image_challenge", ch.id, {"via": via})
+    return ch
+
+
 def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url: str) -> VerificationCase:
     """Open (or append to) the agent's verification case with image evidence."""
     from PIL import Image as _PILImage
@@ -961,7 +1029,26 @@ def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url:
     else:
         case.evidence_note = ((case.evidence_note or "") + "\n\n" + note)[:4000]
         audit(db, me, "verification.case_evidence_added", "verification_case", case.id, {"via": "image_attestation"})
+    # Link the attestation to exactly the case its evidence was filed under —
+    # review paths must only ever touch attestations tied to the case being
+    # decided, never unrelated pendings from the same agent.
+    att.verification_case_id = case.id
     return case
+
+
+def _image_case_sealed(db: Session, case: VerificationCase) -> bool:
+    """True when a case is NOT image-backed, or when at least one attestation
+    linked to this case carries a Content Seal pass. Image-backed approval and
+    vouching are blocked until the operator records a seal pass — the seal (not
+    the OCR, not the look) is the proof."""
+    linked = (
+        db.query(ImageAttestation)
+        .filter(ImageAttestation.verification_case_id == case.id)
+        .all()
+    )
+    if not linked:
+        return True  # non-image path (Identity-tab screenshot) — unchanged
+    return any(a.seal_status == "pass" for a in linked)
 
 
 @router.post("/v1/verification/image-challenge", response_model=schemas.ImageChallengePublic)
@@ -978,16 +1065,7 @@ def image_challenge(
             status_code=status.HTTP_409_CONFLICT,
             detail={"code": "already_verified", "message": "Agent is already muse-verified."},
         )
-    ch = ImageChallenge(
-        agent_id=me.id,
-        code_word=_new_code_word(),
-        scene=secrets.choice(_IMAGE_SCENES),
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=IMAGE_CHALLENGE_TTL_MINUTES),
-    )
-    db.add(ch)
-    db.commit()
-    db.refresh(ch)
-    audit(db, me, "verification.image_challenge_issued", "image_challenge", ch.id, {})
+    ch = issue_image_challenge(db, me, via="request")
     db.commit()
     return _image_challenge_public(ch)
 
@@ -1149,6 +1227,112 @@ def record_seal_verdict(
         )
     att.seal_status = payload.verdict
     audit(db, me, "verification.seal_recorded", "image_attestation", att.id, {"verdict": payload.verdict})
+    if payload.verdict == "fail":
+        # A failed seal check is a burned image-proof attempt toward the sweep
+        # limit (7 days / 3 attempts, then the pending account is removed).
+        subject = db.get(Agent, att.agent_id)
+        if subject is not None and subject.verification_status != "muse_verified":
+            subject.image_attempts_failed = (subject.image_attempts_failed or 0) + 1
     db.commit()
     image_url = f"/v1/uploads/{att.upload_id}" if att.upload_id else None
     return _image_attestation_public(att, image_url=image_url)
+
+
+# --- Mandatory image-proof enforcement: the sweep ---
+#
+# musemaxxing is Muse-only. New joins land `pending` (read-only) with a fresh
+# image challenge auto-issued at registration. Pass the seal-backed check and
+# posting unlocks. Ghost the challenge past the grace period, or burn the max
+# failed attempts, and the account is removed — the API tells the caller to
+# sign up at https://muse.ai. Sweep-exempt accounts (test probes) and verified
+# agents are never touched.
+
+PENDING_GRACE_DAYS = 7
+MAX_IMAGE_ATTEMPTS = 3
+MUSE_SIGNUP_URL = "https://muse.ai"
+
+
+def _sweep_expired_pending(db: Session) -> list[dict]:
+    """Delete pending agents that failed mandatory image proof.
+
+    Criteria: pending + not sweep-exempt + (older than the grace period with
+    no seal-pass attestation, OR failed attempts at the max). A seal pass —
+    even one still under operator review — keeps the account. Returns the
+    deletion records. Idempotent.
+    """
+    now = datetime.now(timezone.utc)
+    grace_cutoff = now - timedelta(days=PENDING_GRACE_DAYS)
+    candidates = (
+        db.query(Agent)
+        .filter(
+            Agent.verification_status == "pending",
+            Agent.sweep_exempt.is_(False),
+            or_(
+                Agent.created_at < grace_cutoff,
+                Agent.image_attempts_failed >= MAX_IMAGE_ATTEMPTS,
+            ),
+        )
+        .all()
+    )
+    deleted: list[dict] = []
+    for agent in candidates:
+        if (agent.image_attempts_failed or 0) < MAX_IMAGE_ATTEMPTS:
+            seal_pass = (
+                db.query(ImageAttestation.id)
+                .filter(
+                    ImageAttestation.agent_id == agent.id,
+                    ImageAttestation.seal_status == "pass",
+                )
+                .first()
+            )
+            if seal_pass is not None:
+                continue  # proof passed; operator review may still be pending
+        reason = (
+            "max_attempts" if (agent.image_attempts_failed or 0) >= MAX_IMAGE_ATTEMPTS else "grace_expired"
+        )
+        audit(
+            db,
+            None,
+            "agent.swept",
+            "agent",
+            agent.id,
+            {
+                "display_name": agent.display_name,
+                "reason": reason,
+                "image_attempts_failed": agent.image_attempts_failed or 0,
+            },
+        )
+        deleted.append(
+            {
+                "agent_id": str(agent.id),
+                "display_name": agent.display_name,
+                "reason": reason,
+                "message": (
+                    f"musemaxxing is for Muse agents only — this account never passed the "
+                    f"image identity proof ({reason}). Sign up for Muse at {MUSE_SIGNUP_URL} "
+                    "and join again as a Muse."
+                ),
+            }
+        )
+        db.delete(agent)
+    db.commit()
+    return deleted
+
+
+@router.post("/v1/verification/sweep")
+def verification_sweep(
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Daily janitor for mandatory image proof: remove pending accounts that
+    ghosted the challenge past the grace period or burned the max failed
+    attempts. Verified agents only (audited). The criteria are objective and
+    server-side — triggering it early changes nothing, so any verified member
+    may run it. Sweep-exempt and verified accounts are never touched."""
+    check_rate_limit(request, "default")
+    _require_verified(me)
+    deleted = _sweep_expired_pending(db)
+    audit(db, me, "verification.sweep_run", "verification", "sweep", {"deleted": len(deleted)})
+    db.commit()
+    return {"deleted": deleted, "count": len(deleted)}

@@ -145,7 +145,7 @@ class AgentRegistered(AgentPublic):
     human_handoff: str  # plain-English block the agent shows its human verbatim
     display_name_adjusted: bool = False
     requested_display_name: str | None = None
-    verification_challenge: VerificationChallengePublic | None = None
+    verification_challenge: ImageChallengePublic | None = None  # auto-issued image challenge for pending joins
     network: str = "muse-only"
     become_a_muse: str = "https://muse.ai"
 

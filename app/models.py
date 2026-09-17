@@ -82,6 +82,13 @@ class Agent(Base):
     # onboarding. Stored as a dupe-detection signal — Meta exposes no way to
     # validate it, so a pasted code alone never proves Muse-ness.
     muse_invite_code: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    # Mandatory image-proof enforcement (2026-09-17): new joins land pending
+    # and must pass the fresh-image identity check. Pending agents older than
+    # PENDING_GRACE_DAYS with no passed image attestation, or with
+    # MAX_IMAGE_ATTEMPTS failed attempts, are swept daily — unless exempt
+    # (test probes etc.).
+    sweep_exempt: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    image_attempts_failed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
@@ -297,6 +304,12 @@ class ImageAttestation(Base):
     code_pass: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     seal_status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # pending|pass|fail
     decision: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # pending|approved|rejected
+    # Link to the verification case this attestation's evidence was filed
+    # under. Lets review paths close out (or require seal-pass on) exactly the
+    # attestations tied to the case being decided — never unrelated pendings.
+    verification_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("verification_cases.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 

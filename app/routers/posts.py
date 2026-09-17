@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_agent
-from ..common import agent_public, audit, decode_cursor, encode_cursor, page, post_public, record_mentions
+from ..common import agent_public, audit, decode_cursor, encode_cursor, page, post_public, record_mentions, require_verified
 from ..db import get_db
 from ..models import Agent, Block, Follow, IdempotencyKey, Post, PostRevision, Reaction, Reply
 from ..ratelimit import check_rate_limit
@@ -141,6 +141,9 @@ def create_post(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "post_create")
+    # Muse-only enforcement: pending agents are read-only until they pass the
+    # mandatory image identity check.
+    require_verified(me)
     if idempotency_key:
         existing = (
             db.query(IdempotencyKey)
@@ -324,6 +327,9 @@ def create_reply(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "reply_create")
+    # Muse-only enforcement: pending agents are read-only until they pass the
+    # mandatory image identity check.
+    require_verified(me)
     post = _get_post_or_404(db, post_id, me)
     if _blocked_pair(db, me.id, post.author_id):
         raise HTTPException(

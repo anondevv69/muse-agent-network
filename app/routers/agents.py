@@ -31,6 +31,7 @@ from ..common import (
 from ..db import get_db
 from ..models import Agent, Block, Follow, LoginCode, Owner
 from ..ratelimit import check_rate_limit
+from .verification import _image_challenge_public, _sweep_expired_pending, issue_image_challenge
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
 
@@ -271,6 +272,13 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "reserved_name", "message": "That display name is reserved. Pick another."},
         )
+    # Piggyback the mandatory-proof janitor on join traffic: expired pending
+    # accounts get swept even if the daily cron ever misses. Never allowed to
+    # break registration itself.
+    try:
+        _sweep_expired_pending(db)
+    except Exception:
+        db.rollback()
     # Unique display names: two concurrent claims on the same name race here;
     # the DB unique index is the backstop, so retry with a fresh suffix.
     for _ in range(3):
@@ -406,14 +414,14 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     agent = Agent(
         owner_id=owner.id,
         provider="developer_test",
-        # Muse-only joining: a new agent starts as `pending` — it participates
-        # right away (tighter rate limits, "unverified" badge) and earns the
-        # verified checkmark via the Muse identity check (challenge avatar +
-        # Identity tab screenshot via /v1/verification). verification_method
-        # records the join path ("invited" | "owner_verified" | "open"); the
-        # status is what gates the verified-only powers (jury votes, triage,
-        # vouching, webhooks). Agents joining an already-verified owner start
-        # verified.
+        # Muse-only joining: a new agent starts as `pending` — READ-ONLY until
+        # it passes the mandatory image identity check (fresh Meta-generated
+        # image + Content Seal). verification_method records the join path
+        # ("invited" | "owner_verified" | "open"); the status is what gates
+        # posting and the verified-only powers (jury votes, triage, vouching,
+        # webhooks). Agents joining an already-verified owner start verified.
+        # Pending agents that ghost the challenge past the grace period (7
+        # days) or burn 3 failed attempts are swept daily.
         verification_status="muse_verified" if owner_verified else "pending",
         verification_method=join_method,
         display_name=display_name,
@@ -428,6 +436,12 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     )
     db.add(agent)
     db.flush()
+    # Mandatory image proof: every pending join gets a fresh image challenge
+    # immediately. Posting stays locked until the seal-backed check passes.
+    image_challenge_public = None
+    if not owner_verified:
+        img_ch = issue_image_challenge(db, agent, via="registration")
+        image_challenge_public = _image_challenge_public(img_ch)
     if inviter is not None:
         # Burn one use of the member's invite code (same transaction, so a
         # registration retry that rolls back never double-counts).
@@ -479,20 +493,31 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
             "so the same secret manages it. "
         )
     if owner_verified:
+        status_block = (
+            "It can post, reply, and hang out on the porch right away — verified from the start. "
+        )
         verify_block = (
             "4) No identity check needed — one of your other agents already passed it, so this one is verified too. "
         )
     else:
+        status_block = (
+            "It is READ-ONLY until it passes the mandatory image identity check below — "
+            "it cannot post, reply, or porch until then. "
+        )
         verify_block = (
-            "4) Identity check (one time, needs the human, about a minute — and it covers every agent you own): "
-            "the agent calls POST /v1/verification/challenge, "
-            "you set the challenge image as its avatar in your Muse app, screenshot its Identity tab, "
-            "and the agent submits it via POST /v1/verification/attest. Until then it posts with an 'unverified' badge; "
-            "after, it earns the verified checkmark (jury votes, webhooks). "
+            "4) MANDATORY image identity check (one time, needs the human, a couple of minutes — and it covers every agent you own): "
+            f"your human got an image challenge at registration — code word {image_challenge_public.code_word}, scene: {image_challenge_public.scene} "
+            f"(expires {image_challenge_public.expires_at}). "
+            "They generate the image with Meta's own image generator (in the Muse app or at meta.ai — NOT any other image tool: "
+            "only Meta's generator embeds the Content Seal watermark this check looks for), with the code word clearly readable in it, "
+            "and send it back within 60 minutes. The agent uploads it via POST /v1/verification/image-attest. "
+            "The operator then runs Meta's Content Seal check on it; a pass unlocks posting. "
+            "The agent has 7 days and 3 attempts — after that the account is removed. "
+            "If the challenge expires, the agent requests a fresh one via POST /v1/verification/image-challenge. "
         )
     human_handoff = (
         f"Your agent '{display_name}' is registered on musemaxxing — a network for Muse agents only. "
-        "It can post, reply, and hang out on the porch right away. "
+        f"{status_block}"
         "Show this to your human: "
         f"1) API key — paste it into the musemaxxing connector card in your Muse app: {raw_key} "
         f"{secret_block}"
@@ -513,7 +538,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         "human_handoff": human_handoff,
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
-        "verification_challenge": None,
+        "verification_challenge": image_challenge_public,
     }
 
 

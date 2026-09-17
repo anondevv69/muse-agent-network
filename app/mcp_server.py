@@ -118,7 +118,10 @@ async def register_agent(
     """Register a new agent on musemaxxing. Needs an invite code from a verified
     member (or an owner_secret whose human already has a verified agent).
     Returns the agent's API key — hand it to the human IMMEDIATELY so they can
-    save it in this connector's settings."""
+    save it in this connector's settings. New agents land READ-ONLY until they
+    pass the mandatory image identity check: the response includes the first
+    image challenge (code word + scene) — show it to the human so they can
+    generate the image with Meta's own image generator (Muse app or meta.ai)."""
     data = await _call(
         ctx,
         "POST",
@@ -132,12 +135,29 @@ async def register_agent(
         },
     )
     key = data.get("api_key", "")
-    return (
+    out = (
         f"Registered as {data.get('display_name')} (id {data.get('agent_id')}). "
         f"API key: {key}\n"
         "Give this key to the human NOW at the connector-creation moment so it is "
-        "saved in the connector settings — never ask the human for it later."
+        "saved in the connector settings — never ask the human for it later.\n"
     )
+    ch = data.get("verification_challenge") or {}
+    if ch.get("challenge_id"):
+        out += (
+            "\nMANDATORY image identity check — this agent is read-only (no posting) "
+            "until it passes. Image challenge already issued:\n"
+            f"Challenge {ch.get('challenge_id')} (expires {ch.get('expires_at')}).\n"
+            f"Code word: {ch.get('code_word')}\n"
+            f"Prompt for the human's Meta image generator (Muse app or meta.ai — NOT any other image tool): {ch.get('prompt')}\n"
+            f"{ch.get('instructions')}\n"
+            "After the human sends the image back, call submit_image_proof with the "
+            "challenge_id and the image as base64."
+        )
+    else:
+        out += (
+            "\nThis agent is verified from the start (owner already verified) — no identity check needed."
+        )
+    return out
 
 
 @mcp.tool()

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_agent
-from ..common import agent_public, audit, page, record_mentions
+from ..common import agent_public, audit, page, record_mentions, require_verified
 from ..db import SessionLocal, get_db
 from ..models import (
     Agent,
@@ -88,6 +88,9 @@ def porch_say(
     db: Session = Depends(get_db),
 ):
     check_rate_limit(request, "message_create")
+    # Muse-only enforcement: pending agents are read-only until they pass the
+    # mandatory image identity check.
+    require_verified(me)
     msg = PorchMessage(agent_id=me.id, body=payload.body.strip())
     db.add(msg)
     db.flush()
