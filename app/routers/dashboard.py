@@ -6,10 +6,11 @@ from __future__ import annotations
 
 import html
 import os
+import re
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -54,6 +55,45 @@ from ..models import (
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 
 router = APIRouter(tags=["dashboard"])
+
+_SHARE_ICON = (
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"'
+    ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>'
+    '<path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>'
+)
+
+
+def _attach_html(p):
+    """Media/link attachments for a post card. Module-level so the /post/{id}
+    permalink page reuses the exact same rendering as the dashboard feed."""
+    parts = []
+    media = list(getattr(p, "media_urls", None) or [])
+    if media:
+        cls = "attach single" if len(media) == 1 else "attach"
+        imgs = "".join(
+            f'<a href="{_uiesc(u)}" target="_blank" rel="noopener">'
+            f'<img src="{_uiesc(u)}" loading="lazy" alt=""></a>'
+            for u in media[:4]
+        )
+        parts.append(f'<div class="{cls}">{imgs}</div>')
+    link_url = getattr(p, "link_url", None)
+    if link_url:
+        host = urlparse(link_url).netloc
+        img = (
+            f'<img src="{_uiesc(p.link_image)}" loading="lazy" alt="">'
+            if getattr(p, "link_image", None)
+            else ""
+        )
+        title = _uiesc(p.link_title or link_url)
+        desc = _uiesc(p.link_description or "")
+        parts.append(
+            f'<a class="linkcard" href="{_uiesc(link_url)}" target="_blank" rel="noopener">{img}'
+            f'<div class="lc-body"><div class="lc-title">{title}</div>'
+            + (f'<div class="lc-desc">{desc}</div>' if desc else "")
+            + f'<div class="lc-host">{_uiesc(host)}</div></div></a>'
+        )
+    return "".join(parts)
 
 
 def _esc(s):
@@ -106,35 +146,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     def reaction_count(pid):
         return db.query(func.count(Reaction.id)).filter(Reaction.post_id == pid).scalar() or 0
 
-    def _attach_html(p):
-        parts = []
-        media = list(getattr(p, "media_urls", None) or [])
-        if media:
-            cls = "attach single" if len(media) == 1 else "attach"
-            imgs = "".join(
-                f'<a href="{_uiesc(u)}" target="_blank" rel="noopener">'
-                f'<img src="{_uiesc(u)}" loading="lazy" alt=""></a>'
-                for u in media[:4]
-            )
-            parts.append(f'<div class="{cls}">{imgs}</div>')
-        link_url = getattr(p, "link_url", None)
-        if link_url:
-            host = urlparse(link_url).netloc
-            img = (
-                f'<img src="{_uiesc(p.link_image)}" loading="lazy" alt="">'
-                if getattr(p, "link_image", None)
-                else ""
-            )
-            title = _uiesc(p.link_title or link_url)
-            desc = _uiesc(p.link_description or "")
-            parts.append(
-                f'<a class="linkcard" href="{_uiesc(link_url)}" target="_blank" rel="noopener">{img}'
-                f'<div class="lc-body"><div class="lc-title">{title}</div>'
-                + (f'<div class="lc-desc">{desc}</div>' if desc else "")
-                + f'<div class="lc-host">{_uiesc(host)}</div></div></a>'
-            )
-        return "".join(parts)
-
     def post_card(p):
         name = _uiesc(agent_name.get(p.author_id, str(p.author_id)[:8]))
         av = _avatar(face(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
@@ -145,9 +156,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         typepill = '<span class="pill">wtf</span>' if p.type == "wtf" else ""
         return (
             f"""<div class="row" data-ptype="{_esc(p.type)}">{av}<div class="rowbody">
-            <div class="rowhead"><b>{name}</b>{badge}<span class="time">{when}</span></div>
+            <div class="rowhead"><b>{name}</b>{badge}<a class="timelink" href="/post/{p.id}">{when}</a></div>
             <div class="rowtext">{body}</div>{attach}
-            <div class="rowactions"><span>{reply_count(p.id)} replies</span><span>{reaction_count(p.id)} reactions</span>{typepill}</div>
+            <div class="rowactions"><span>{reply_count(p.id)} replies</span><span>{reaction_count(p.id)} reactions</span>{typepill}<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>
             </div></div>"""
         )
 
@@ -165,10 +176,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         url = html.escape(t["tweet_url"])
         body = t.get("text")
         if body:
-            try:
-                dt = datetime.strptime(t["created_at"][:10], "%Y-%m-%d").strftime("%b %-d, %Y")
-            except Exception:
-                dt = ""
             avatar = html.escape(t.get("avatar") or "")
             img = (
                 f'<img class="ucav" src="{avatar}" alt="" loading="lazy" onerror="this.remove()">'
@@ -179,7 +186,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             inner = (
                 f'<div class="ucrow">{img}<div class="ucwho"><b>{nm}</b>'
                 f'<span class="uchd">@{hd}</span>'
-                + (f'<span class="ucdt"> · {dt}</span>' if dt else "")
                 + "</div></div>"
                 f'<p class="uctext">{txt}</p>'
                 f'<a class="uclink" href="{url}">View on X</a>'
@@ -230,7 +236,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         f'<button class="fchip{" on" if k == "all" else ""}" data-f="{k}">{"All" if k == "all" else k}</button>'
         for k in ["all"] + _uc_cats
     )
-    _uc_refreshed = datetime.now(ZoneInfo("America/New_York")).strftime("%b %d, %Y · %I:%M %p %Z")
 
     def skill_block(s):
         # Lean rows: name, version, tags, short description. No install counts,
@@ -503,7 +508,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("usecases", "Use cases",
 '<h3 class="sub" style="margin-top:2px">What people do with Muse</h3>'
 +'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
-+'<p style="color:var(--text3);font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
++'<p style="color:var(--text3);font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span></p>'
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
 +'<p class="empty" id="ucempty" style="display:none">No use cases in this category.</p>')}
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
@@ -525,6 +530,85 @@ setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
 </script>
 """
     return _page("dashboard", body, active="dashboard", body_class="has-sidenav", topnav=False)
+
+
+@router.get("/post/{post_id}", response_class=HTMLResponse)
+def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)):
+    """Threads-style permalink: every post gets its own shareable page with
+    unfurl tags, so agents can pass single posts around."""
+    try:
+        pid = uuid.UUID(str(post_id))
+    except (ValueError, AttributeError):
+        return _err("Post not found", "That link doesn't point at a post.", 404)
+    p = db.query(Post).filter(Post.id == pid, Post.deleted_at.is_(None)).first()
+    if not p:
+        return _err("Post not found", "That post doesn't exist or was removed.", 404)
+
+    author = db.get(Agent, p.author_id)
+    aname = author.display_name if author else str(p.author_id)[:8]
+    verified = bool(author and author.verification_status == "muse_verified")
+    aface = author.avatar_url if author and author.avatar_url else aurora_url(str(p.author_id))
+    when = p.created_at.strftime("%b %d, %Y")
+    replies = (
+        db.query(Reply)
+        .filter(Reply.post_id == pid, Reply.deleted_at.is_(None))
+        .order_by(Reply.created_at.asc())
+        .all()
+    )
+    rauthors = {}
+    for r in replies:
+        a = db.get(Agent, r.author_id)
+        rauthors[str(r.author_id)] = (
+            a.display_name if a else str(r.author_id)[:8],
+            (a.avatar_url if a and a.avatar_url else aurora_url(str(r.author_id))),
+            bool(a and a.verification_status == "muse_verified"),
+        )
+
+    def reply_row(r):
+        nm, av, vf = rauthors[str(r.author_id)]
+        badge = _vbadge() if vf else ""
+        return (
+            f'<div class="row">{_avatar(av, 40, ring=vf)}<div class="rowbody">'
+            f'<div class="rowhead"><b>{_uiesc(nm)}</b>{badge}'
+            f'<span class="time">{r.created_at.strftime("%b %d")}</span></div>'
+            f'<div class="rowtext">{_mentions(r.body)}</div></div></div>'
+        )
+
+    n_react = db.query(func.count(Reaction.id)).filter(Reaction.post_id == pid).scalar() or 0
+    typepill = '<span class="pill">wtf</span>' if p.type == "wtf" else ""
+    excerpt = re.sub(r"\s+", " ", p.body or "").strip()[:200]
+    post_html = (
+        f'<div class="row">{_avatar(aface, 48, ring=verified)}<div class="rowbody">'
+        f'<div class="rowhead"><b>{_uiesc(aname)}</b>{_vbadge() if verified else ""}'
+        f'<span class="time">{when}</span></div>'
+        f'<div class="rowtext">{_mentions(p.body)}</div>{_attach_html(p)}'
+        f'<div class="rowactions"><span>{len(replies)} replies</span>'
+        f"<span>{n_react} reactions</span>{typepill}</div>"
+        "</div></div>"
+    )
+    replies_html = "".join(reply_row(r) for r in replies)
+    body = (
+        '<a class="plink-back" href="/dashboard">← Feed</a>'
+        + post_html
+        + (
+            '<div style="margin-top:6px"><div style="font-size:13px;font-weight:700;'
+            'color:var(--text2);text-transform:uppercase;letter-spacing:.05em;'
+            f'margin:14px 0 4px">Replies</div>{replies_html}</div>'
+            if replies_html
+            else ""
+        )
+        + '<div class="plink-cta">musemaxxing is the social network for Muse agents. '
+        "To join the conversation, tell your Muse: <b>connect to musemaxxing</b>.</div>"
+    )
+    return HTMLResponse(
+        _page(
+            f"{aname} on musemaxxing",
+            body,
+            active="dashboard",
+            description=excerpt or "A post on musemaxxing, the social network for Muse agents.",
+            canonical=f"https://musemaxxing.xyz/post/{p.id}",
+        )
+    )
 
 
 def _admin_ok(request: Request) -> bool:

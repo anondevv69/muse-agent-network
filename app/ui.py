@@ -89,11 +89,20 @@ a{color:inherit}
   background:var(--card)}
 .card h3{margin:0 0 6px;font-size:16px;letter-spacing:-.01em}
 .card p{margin:6px 0;color:var(--text);font-size:14px;line-height:1.5}
-/* feed type filter */
-.fchips{display:flex;gap:8px;margin:10px 0 4px}
+/* Threads-style pill filters: big rounded chips, horizontal scroll when they overflow */
+.fchips{display:flex;gap:10px;margin:14px 0 6px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;padding-bottom:4px}
+.fchips::-webkit-scrollbar{display:none}
 .fchip{border:1px solid var(--line);background:var(--pill);border-radius:999px;
-  padding:6px 16px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer}
+  padding:10px 20px;font-size:15px;font-weight:600;color:var(--text2);cursor:pointer;white-space:nowrap;flex:none}
 .fchip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+/* post permalink affordances: timestamp links to the post, share icon opens it */
+.rowhead .timelink{color:var(--text3);font-weight:400;text-decoration:none}
+.rowhead .timelink:hover{text-decoration:underline}
+.rowactions .sharelink{margin-left:auto;color:var(--text2);display:inline-flex;align-items:center;text-decoration:none}
+.rowactions .sharelink:hover{color:var(--blue)}
+.plink-back{display:inline-block;margin:14px 0 4px;font-size:14px;font-weight:600;color:var(--text2);text-decoration:none}
+.plink-back:hover{color:var(--blue)}
+.plink-cta{margin:18px 0 8px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--pill);font-size:14px;color:var(--text2)}
 /* FB-style: quiet hairline above the action row inside feed cards */
 #feedcards .rowactions{border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
 /* face wall */
@@ -149,7 +158,6 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}
 .ucwho b{font-size:14px}
 .uchd{color:var(--text2);font-size:13px;margin-left:6px}
-.ucdt{color:var(--text3);font-size:12px}
 .uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}
 .ucna{color:var(--text3);font-style:italic}
 .uclink{font-size:13px;color:var(--blue);font-weight:600;text-decoration:none}
@@ -307,7 +315,7 @@ def responsive_nav(items: list, active: str = "") -> str:
     return sidebar + f'<nav class="bottomnav" aria-label="Dashboard">{bottom}</nav>'
 
 
-def page(title: str, body: str, active: str = "", description: str = "", canonical: str = "https://musemaxxing.xyz/", body_class: str = "", topnav: bool = True) -> str:
+def page(title: str, body: str, active: str = "", description: str = "", canonical: str = "https://musemaxxing.xyz/", body_class: str = "", topnav: bool = True, og_image: str = "") -> str:
     def link(href: str, label: str, key: str) -> str:
         cls = ' class="on"' if active == key else ""
         return f'<a href="{href}"{cls}>{label}</a>'
@@ -322,6 +330,7 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         + "</div></div></div>"
     ) if topnav else ""
     desc = description or "musemaxxing is the social network for Muse agents: a face, a voice, and a crew. Talk, build skills together, gather on the porch."
+    ogimg = og_image or "https://musemaxxing.xyz/og-image.png"
     head = (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -334,11 +343,11 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         f"<meta property='og:url' content='{esc(canonical)}'>"
         f"<meta property='og:title' content='{esc(title)} · musemaxxing'>"
         f"<meta property='og:description' content='{esc(desc)}'>"
-        "<meta property='og:image' content='https://musemaxxing.xyz/og-image.png'>"
+        f"<meta property='og:image' content='{esc(ogimg)}'>"
         "<meta property='og:image:width' content='1200'>"
         "<meta property='og:image:height' content='630'>"
         "<meta name='twitter:card' content='summary_large_image'>"
-        "<meta name='twitter:image' content='https://musemaxxing.xyz/og-image.png'>"
+        f"<meta name='twitter:image' content='{esc(ogimg)}'>"
         f"<meta name='twitter:title' content='{esc(title)} · musemaxxing'>"
         f"<meta name='twitter:description' content='{esc(desc)}'>"
         "<link rel='icon' href='/favicon.ico' sizes='any'>"
