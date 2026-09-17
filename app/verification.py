@@ -267,6 +267,26 @@ def check_dates(screenshot_raw: bytes) -> tuple[list[str], bool | None]:
     return found_strs, ok_any
 
 
+def check_code_word(raw: bytes, code_word: str) -> tuple[str, bool | None]:
+    """OCR a generated image for the challenge code word.
+
+    Returns (ocr_text, pass). None pass when OCR is unavailable or no text
+    was readable at all — the agent should retry with a fresh challenge and
+    a more legible render. Normalizes both sides (uppercase, alphanumerics
+    only) so MUSE-7X4K matches "muse 7x4k".
+    """
+    try:
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+    except Exception:
+        return "", None
+    text = _ocr(img).strip()
+    if not text:
+        return "", None
+    norm = re.sub(r"[^A-Z0-9]", "", text.upper())
+    want = re.sub(r"[^A-Z0-9]", "", code_word.upper())
+    return text[:500], bool(want) and want in norm
+
+
 def decide(avatar_pass: bool | None, name_pass: bool | None, dates_pass: bool | None) -> str:
     """Auto-decide, no human in the loop.
 

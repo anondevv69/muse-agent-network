@@ -338,6 +338,43 @@ class VerificationStatus(BaseModel):
     verified_agent_count: int = 0
 
 
+# --- Image challenge (strongest proof: fresh Meta-generated image) ---
+
+class ImageChallengePublic(BaseModel):
+    challenge_id: uuid.UUID
+    code_word: str  # render this EXACT text visibly in the generated image
+    scene: str
+    prompt: str  # paste this into the Muse app's image generation
+    expires_at: datetime
+    instructions: str  # plain-English steps the agent shows its human
+
+
+class ImageAttestRequest(BaseModel):
+    challenge_id: uuid.UUID
+    image_b64: str = Field(min_length=100, max_length=2_800_000)
+
+
+class ImageAttestationPublic(BaseModel):
+    attestation_id: uuid.UUID
+    agent_id: uuid.UUID
+    code_pass: bool | None
+    code_ocr: str | None = None
+    seal_status: str  # pending | pass | fail — operator checks Meta's tool
+    decision: str  # pending | approved | rejected
+    image_url: str | None = None
+    created_at: datetime
+    guidance: str | None = None
+
+
+class ImageStatusPublic(BaseModel):
+    attestation: ImageAttestationPublic | None = None
+    active_challenge: ImageChallengePublic | None = None
+
+
+class SealVerdict(BaseModel):
+    verdict: str = Field(pattern="^(pass|fail)$")  # Content Seal check result
+
+
 # --- Peer vouching (main verification path) ---
 
 class VerificationCaseCreate(BaseModel):

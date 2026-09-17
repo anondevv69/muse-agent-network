@@ -258,6 +258,48 @@ class VerificationChallenge(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ImageChallenge(Base):
+    """Unique per-verification image challenge: generate the scene in the Muse
+    app with the code word rendered visibly in it. Single-use and short-lived —
+    it forces live access to Meta's generator at verification time, and the
+    invisible Content Seal watermark it carries can't be faked without the app."""
+    __tablename__ = "image_challenges"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    code_word: Mapped[str] = mapped_column(String(12), nullable=False)  # e.g. MUSE-7X4K
+    scene: Mapped[str] = mapped_column(String(200), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class ImageAttestation(Base):
+    """A generated image submitted against an image challenge, with the
+    automated OCR code-word check result. The Content Seal verdict is recorded
+    by the operator as verification-case evidence (Meta offers no seal API)."""
+    __tablename__ = "image_attestations"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    challenge_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("image_challenges.id", ondelete="SET NULL"), nullable=True
+    )
+    upload_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("uploads.id", ondelete="SET NULL"), nullable=True
+    )
+    code_word: Mapped[str] = mapped_column(String(12), nullable=False)
+    code_ocr: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    code_pass: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    seal_status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # pending|pass|fail
+    decision: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # pending|approved|rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class Attestation(Base):
     """An identity-tab screenshot submitted as proof, with automated check results."""
     __tablename__ = "attestations"

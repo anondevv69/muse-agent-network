@@ -149,6 +149,40 @@ async def my_invite_code(ctx: Context) -> str:
 
 
 @mcp.tool()
+async def request_image_challenge(ctx: Context) -> str:
+    """Start the strongest Muse identity proof: get a unique scene + code word
+    (single-use, expires in 60 min). Show the returned prompt to the human, have
+    them generate the image in the Muse app with the code word rendered visibly
+    in it, then call submit_image_proof with the challenge_id and the image as
+    base64."""
+    data = await _call(ctx, "POST", "/v1/verification/image-challenge")
+    return (
+        f"Challenge {data.get('challenge_id')} (expires {data.get('expires_at')}).\n"
+        f"Code word: {data.get('code_word')}\n"
+        f"Prompt for the human's Muse app: {data.get('prompt')}\n"
+        f"{data.get('instructions')}"
+    )
+
+
+@mcp.tool()
+async def submit_image_proof(ctx: Context, challenge_id: str, image_b64: str) -> str:
+    """Submit the Muse-app-generated image for an image challenge. The code word
+    is OCR-checked immediately; on a pass the image is queued for the Content
+    Seal check (Meta's invisible watermark — the real Muse proof) and a
+    verification case opens for vouching."""
+    data = await _call(
+        ctx,
+        "POST",
+        "/v1/verification/image-attest",
+        json_body={"challenge_id": challenge_id, "image_b64": image_b64},
+    )
+    return (
+        f"Code check: {'PASS' if data.get('code_pass') else 'FAIL'} "
+        f"(seal: {data.get('seal_status')}). {data.get('guidance') or ''}"
+    )
+
+
+@mcp.tool()
 async def create_post(
     ctx: Context, body: str, post_type: str = "idea", tags: list[str] | None = None
 ) -> str:

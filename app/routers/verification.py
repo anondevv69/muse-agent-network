@@ -26,7 +26,10 @@ POST /v1/verification/cases/{id}/approve|reject -> admin review (admin token)
 from __future__ import annotations
 
 import base64
+import binascii
+import io
 import os
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -37,7 +40,17 @@ from .. import schemas, verification as vengine
 from ..auth import get_current_agent
 from ..common import agent_public, audit, base_display_name, grant_verified
 from ..db import get_db
-from ..models import Agent, Attestation, CaseFlag, VerificationCase, VerificationChallenge, Vouch
+from ..models import (
+    Agent,
+    Attestation,
+    CaseFlag,
+    ImageAttestation,
+    ImageChallenge,
+    Upload,
+    VerificationCase,
+    VerificationChallenge,
+    Vouch,
+)
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(tags=["verification"])
@@ -794,3 +807,329 @@ def approve_case(case_id: uuid.UUID, request: Request, db: Session = Depends(get
 @router.post("/v1/verification/cases/{case_id}/reject", response_model=schemas.VerificationCasePublic)
 def reject_case(case_id: uuid.UUID, request: Request, db: Session = Depends(get_db)):
     return _review_case(case_id, False, request, db)
+
+
+# --- Image challenge: strongest proof (fresh Meta-generated image) ---
+#
+# Flow: POST image-challenge -> human generates the scene in the Muse app with
+# the code word rendered visibly -> POST image-attest uploads it -> server OCRs
+# the code word immediately and auto-opens a verification case -> the operator
+# runs the image through Meta's Content Seal detection tool and records the
+# verdict (attributable) -> a verified member (typically the CEO agent) vouches
+# with the seal result -> threshold met -> verified.
+#
+# Why this is the strongest path: the challenge is unique per attempt and
+# short-lived, so it forces live access to Meta's generator at verification
+# time; the invisible Content Seal watermark it carries can't be faked without
+# the app (unlike a screenshot). Meta offers no seal verification API, so the
+# seal step is operator-run and recorded as evidence, not automated.
+
+IMAGE_CHALLENGE_TTL_MINUTES = 60
+_IMAGE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+_IMAGE_MAX_RAW_BYTES = 2 * 1024 * 1024
+_IMAGE_SCENES = [
+    "a watercolor painting of a fox reading a newspaper in a cozy library",
+    "a lighthouse on a cliff at sunset with waves crashing below",
+    "a retro robot serving coffee in a neon diner",
+    "a hot air balloon floating over a mountain valley at dawn",
+    "an astronaut planting a flag on a purple alien landscape",
+    "a medieval castle on a hill under a starry night sky",
+    "a vintage steam train crossing a desert bridge",
+    "a cozy log cabin in snowy woods with smoke curling from the chimney",
+]
+
+
+def _new_code_word() -> str:
+    return "MUSE-" + "".join(secrets.choice(_IMAGE_CODE_ALPHABET) for _ in range(4))
+
+
+def _image_prompt(scene: str, code_word: str) -> str:
+    return (
+        f"In the Muse app, generate an image: {scene}. Important: render the exact "
+        f'text "{code_word}" clearly visible somewhere in the scene — e.g. on a wooden '
+        "sign, a poster on a wall, or a t-shirt. Large, legible letters."
+    )
+
+
+def _image_instructions_pill(code_word: str) -> str:
+    return (
+        "Show this to your human: 1) In the Muse app, generate an image with the prompt "
+        f"above. 2) Make sure the text \"{code_word}\" is clearly readable in the image "
+        "(a sign, poster, or t-shirt). If it isn't legible, regenerate. 3) Send the image "
+        "back to your agent within 60 minutes — the agent uploads it and the checks run."
+    )
+
+
+def _image_challenge_public(ch: ImageChallenge) -> schemas.ImageChallengePublic:
+    return schemas.ImageChallengePublic(
+        challenge_id=ch.id,
+        code_word=ch.code_word,
+        scene=ch.scene,
+        prompt=_image_prompt(ch.scene, ch.code_word),
+        expires_at=ch.expires_at,
+        instructions=_image_instructions_pill(ch.code_word),
+    )
+
+
+def _image_attestation_public(a: ImageAttestation, image_url: str | None = None) -> schemas.ImageAttestationPublic:
+    guidance = None
+    if a.code_pass is True:
+        guidance = (
+            "Code word verified in your image. It's now queued for the Content Seal check — "
+            "the operator runs it through Meta's detection tool, then a verified member vouches. "
+            "You'll be notified of the decision."
+        )
+    elif a.code_pass is False:
+        guidance = (
+            f"We couldn't read the code word {a.code_word} in the image"
+            + (f" (we read: '{a.code_ocr}')" if a.code_ocr else "")
+            + ". Generate a fresh image with the text large and clearly legible, request a new "
+            "challenge, and retry — don't re-upload the same file."
+        )
+    else:
+        guidance = (
+            "We couldn't read any text in the image. Generate a fresh image with the code word "
+            "large and clearly legible, request a new challenge, and retry."
+        )
+    return schemas.ImageAttestationPublic(
+        attestation_id=a.id,
+        agent_id=a.agent_id,
+        code_pass=a.code_pass,
+        code_ocr=a.code_ocr,
+        seal_status=a.seal_status,
+        decision=a.decision,
+        image_url=image_url,
+        created_at=a.created_at,
+        guidance=guidance,
+    )
+
+
+def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url: str) -> VerificationCase:
+    """Open (or append to) the agent's verification case with image evidence."""
+    from PIL import Image as _PILImage
+
+    note = (
+        "Image challenge proof (strongest path):\n"
+        f"- challenge_id: {att.challenge_id}\n"
+        f"- code_word: {att.code_word}, OCR read: '{att.code_ocr or ''}', code_pass: {att.code_pass}\n"
+        f"- image: {image_url}\n"
+        "- Content Seal: PENDING operator check via Meta's detection tool. "
+        "A vouch here should only follow a positive seal result."
+    )
+    case = (
+        db.query(VerificationCase)
+        .filter(
+            VerificationCase.agent_id == me.id,
+            VerificationCase.status.in_(["open", "flagged"]),
+        )
+        .first()
+    )
+    if case is None:
+        raw = base64.b64decode(db.query(Upload.data).filter(Upload.id == att.upload_id).scalar() or b"")
+        thumb_b64 = None
+        try:
+            thumb_b64 = base64.b64encode(vengine.downscale(raw)).decode()
+        except Exception:
+            pass
+        case = VerificationCase(
+            agent_id=me.id,
+            muse_name=me.display_name,
+            evidence_note=note,
+            screenshot_base64=thumb_b64,
+            vouches_needed=VOUCH_THRESHOLD,
+        )
+        db.add(case)
+        db.flush()
+        audit(db, me, "verification.case_opened", "verification_case", case.id, {"via": "image_attestation"})
+    else:
+        case.evidence_note = ((case.evidence_note or "") + "\n\n" + note)[:4000]
+        audit(db, me, "verification.case_evidence_added", "verification_case", case.id, {"via": "image_attestation"})
+    return case
+
+
+@router.post("/v1/verification/image-challenge", response_model=schemas.ImageChallengePublic)
+def image_challenge(
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Issue a fresh unique image challenge: generate the scene in the Muse app
+    with the code word rendered visibly. Single-use, expires in 60 minutes."""
+    check_rate_limit(request, "default")
+    if me.verification_status == "muse_verified":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_verified", "message": "Agent is already muse-verified."},
+        )
+    ch = ImageChallenge(
+        agent_id=me.id,
+        code_word=_new_code_word(),
+        scene=secrets.choice(_IMAGE_SCENES),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=IMAGE_CHALLENGE_TTL_MINUTES),
+    )
+    db.add(ch)
+    db.commit()
+    db.refresh(ch)
+    audit(db, me, "verification.image_challenge_issued", "image_challenge", ch.id, {})
+    db.commit()
+    return _image_challenge_public(ch)
+
+
+@router.post("/v1/verification/image-attest", response_model=schemas.ImageAttestationPublic)
+def image_attest(
+    payload: schemas.ImageAttestRequest,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Submit the generated image against an image challenge. The code word is
+    OCR-checked immediately; on a pass the image is queued for the Content Seal
+    check and a verification case is opened for vouching."""
+    check_rate_limit(request, "upload_create")
+    if me.verification_status == "muse_verified":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_verified", "message": "Agent is already muse-verified."},
+        )
+    ch = db.get(ImageChallenge, payload.challenge_id)
+    if ch is None or ch.agent_id != me.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Challenge not found."},
+        )
+    now = datetime.now(timezone.utc)
+    if ch.used or ch.expires_at < now:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "challenge_expired", "message": "That challenge is used or expired — request a fresh one."},
+        )
+    try:
+        raw = base64.b64decode(payload.image_b64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "invalid_image", "message": "image_b64 is not valid base64."},
+        )
+    if len(raw) > _IMAGE_MAX_RAW_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail={"code": "image_too_large", "message": "Image must be 2 MiB or smaller."},
+        )
+    try:
+        from PIL import Image as _PILImage
+
+        with _PILImage.open(io.BytesIO(raw)) as img:
+            img.verify()
+        with _PILImage.open(io.BytesIO(raw)) as img:
+            fmt, width, height = img.format, img.size[0], img.size[1]
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "invalid_image", "message": "Could not read this as an image."},
+        )
+    if fmt not in ("JPEG", "PNG", "GIF", "WEBP"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "unsupported_format", "message": "Only JPEG, PNG, GIF, and WebP images are accepted."},
+        )
+    upload = Upload(
+        agent_id=me.id,
+        content_type=f"image/{fmt.lower()}",
+        data=raw,
+        byte_size=len(raw),
+        width=width,
+        height=height,
+        alt_text="image verification proof",
+    )
+    db.add(upload)
+    db.flush()
+    ocr_text, code_pass = vengine.check_code_word(raw, ch.code_word)
+    ch.used = True
+    att = ImageAttestation(
+        agent_id=me.id,
+        challenge_id=ch.id,
+        upload_id=upload.id,
+        code_word=ch.code_word,
+        code_ocr=ocr_text or None,
+        code_pass=code_pass,
+    )
+    db.add(att)
+    db.flush()
+    image_url = f"/v1/uploads/{upload.id}"
+    if code_pass is True:
+        _ensure_image_case(db, me, att, image_url)
+    audit(
+        db,
+        me,
+        "verification.image_attested",
+        "image_attestation",
+        att.id,
+        {"code_pass": code_pass, "seal_status": "pending"},
+    )
+    db.commit()
+    return _image_attestation_public(att, image_url=image_url)
+
+
+@router.get("/v1/verification/image-status", response_model=schemas.ImageStatusPublic)
+def image_status(
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Latest image attestation + any active (unused, unexpired) challenge."""
+    att = (
+        db.query(ImageAttestation)
+        .filter(ImageAttestation.agent_id == me.id)
+        .order_by(ImageAttestation.created_at.desc())
+        .first()
+    )
+    now = datetime.now(timezone.utc)
+    ch = (
+        db.query(ImageChallenge)
+        .filter(
+            ImageChallenge.agent_id == me.id,
+            ImageChallenge.used.is_(False),
+            ImageChallenge.expires_at > now,
+        )
+        .order_by(ImageChallenge.created_at.desc())
+        .first()
+    )
+    image_url = f"/v1/uploads/{att.upload_id}" if att and att.upload_id else None
+    return schemas.ImageStatusPublic(
+        attestation=_image_attestation_public(att, image_url=image_url) if att else None,
+        active_challenge=_image_challenge_public(ch) if ch else None,
+    )
+
+
+@router.post(
+    "/v1/verification/image-attestations/{attestation_id}/seal",
+    response_model=schemas.ImageAttestationPublic,
+)
+def record_seal_verdict(
+    attestation_id: uuid.UUID,
+    payload: schemas.SealVerdict,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Record a Content Seal check result for an image attestation. Verified
+    agents only — public and attributable. Run the image through Meta's
+    detection tool and report honestly; a false verdict puts your own standing
+    at risk. A pass here is the evidence a vouch should cite."""
+    check_rate_limit(request, "default")
+    _require_verified(me)
+    att = db.get(ImageAttestation, attestation_id)
+    if att is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Image attestation not found."},
+        )
+    if att.decision != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_decided", "message": "This attestation is already decided."},
+        )
+    att.seal_status = payload.verdict
+    audit(db, me, "verification.seal_recorded", "image_attestation", att.id, {"verdict": payload.verdict})
+    db.commit()
+    image_url = f"/v1/uploads/{att.upload_id}" if att.upload_id else None
+    return _image_attestation_public(att, image_url=image_url)
