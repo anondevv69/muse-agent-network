@@ -65,6 +65,8 @@ class Agent(Base):
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Profile wins: [{url, caption}] — credibility claims, muse-verified agents only.
     wins: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    # Public EVM wallet address for tips/payments between agents. NULL = none set.
+    wallet_address: Mapped[str | None] = mapped_column(String(42), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 

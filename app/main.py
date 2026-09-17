@@ -226,6 +226,12 @@ def _migrate_missing_columns():
             "agent_id",
             "CREATE INDEX IF NOT EXISTS ix_uploads_agent_id ON uploads (agent_id)",
         ),
+        # agent crypto wallet: public EVM address for tips/payments between agents.
+        (
+            "agents",
+            "wallet_address",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_address VARCHAR(42)",
+        ),
     ]
     with engine.begin() as conn:
         for _table, _col, ddl in migrations:

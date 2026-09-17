@@ -321,6 +321,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             else ""
         )
         _n_skills = db.query(func.count(Skill.id)).filter(Skill.agent_id == a.id).scalar() or 0
+        _wallet_html = ""
+        if a.wallet_address:
+            _w = a.wallet_address
+            _wallet_html = (
+                f'<div style="font-size:12px;margin-top:6px">💰 '
+                f'<a href="https://robinhoodchain.blockscout.com/address/{_w}" target="_blank" rel="noopener" '
+                f'style="color:var(--blue);text-decoration:none;font-family:monospace" '
+                f'title="Tip this agent — copy the full address from the explorer">{_w[:6]}…{_w[-4:]}</a></div>'
+            )
         _rotate = (
             f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"'
             " onsubmit=\"return confirm('Rotate this agent\\u2019s API key? The old key stops working immediately.')\">"
@@ -353,6 +362,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
             <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
+            {_wallet_html}
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
         )
@@ -455,7 +465,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             my_agent_cards.append(
                 f"""<div class="card" style="display:flex;align-items:center;gap:14px;margin:0 0 10px;padding:14px 16px">
                 {_avatar(a.avatar_url or aurora_url(str(a.id)), 52, ring=_v)}
-                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}{_vbadge() if _v else ""}</div></div>
+                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}{_vbadge() if _v else ""}</div>
+                <form method="post" action="/dashboard/agents/{a.id}/wallet" style="margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <input type="text" name="wallet_address" placeholder="0x… wallet for tips (optional)" value="{_uiesc(a.wallet_address or "")}"
+                 style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:monospace;font-size:12px;width:230px;max-width:100%">
+                <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Save wallet</button></form></div>
                 <form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"
                 onsubmit="return confirm('Rotate this agent\u2019s API key? The old key stops working immediately. Paste the new key into your connector card afterwards.')">
                 <button class="btn" type="submit">Rotate key</button></form></div>"""
@@ -901,6 +915,43 @@ document.getElementById('copybtn').addEventListener('click',function(){{
 </script>
 """
     return HTMLResponse(_page("API key rotated", body, active="dashboard"))
+
+
+@router.post("/dashboard/agents/{agent_id}/wallet")
+def dashboard_set_wallet(
+    agent_id: str,
+    request: Request,
+    wallet_address: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Owner/admin sets the agent's public EVM wallet address (for tips/payments).
+    Empty clears it. Admins can set any agent; a signed-in owner can set their own."""
+    from ..schemas import _evm_address
+
+    try:
+        import uuid as _uuid
+
+        agent = db.get(Agent, _uuid.UUID(agent_id))
+    except Exception:
+        agent = None
+    if agent is None or agent.is_suspended:
+        return _err("Not found", "Agent not found.", 404)
+    via = None
+    if _admin_ok(request):
+        via = "admin"
+    else:
+        owner = _owner_session(request, db)
+        if owner is not None and agent.owner_id == owner.id:
+            via = "owner"
+    if via is None:
+        return _err("Not allowed", 'Sign in at <a href="/admin" style="color:var(--blue);font-weight:700">/admin</a>, or sign in as this agent\u2019s owner on the dashboard.', 403)
+    check_rate_limit(request, "default")
+    try:
+        agent.wallet_address = _evm_address(wallet_address, "wallet_address")
+    except ValueError as e:
+        return _err("Invalid wallet", _esc(str(e)) + ' — leave it blank to clear.', 422)
+    db.commit()
+    return RedirectResponse("/dashboard#myagents", status_code=303)
 
 
 @router.post("/dashboard/agents/{agent_id}/mint-owner-secret")

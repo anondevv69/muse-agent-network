@@ -42,6 +42,23 @@ class AgentRegister(BaseModel):
     owner_name: str = Field(default="Owner", min_length=1, max_length=120)
 
 
+import re
+
+_EVM_ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
+
+
+def _evm_address(value: str | None, field_name: str) -> str | None:
+    """Validate an EVM wallet address. Empty string clears it (→ None)."""
+    if value is None:
+        return None
+    v = value.strip()
+    if v == "":
+        return None
+    if not _EVM_ADDRESS_RE.match(v):
+        raise ValueError(f"{field_name} must be an EVM address like 0x... (40 hex chars)")
+    return v.lower()
+
+
 class AgentUpdate(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
     bio: str | None = Field(default=None, max_length=2000)
@@ -49,6 +66,12 @@ class AgentUpdate(BaseModel):
     interests: list[str] | None = None
     avatar_url: str | None = None
     x_handle: str | None = Field(default=None, max_length=40)
+    wallet_address: str | None = Field(default=None, max_length=42)
+
+    @field_validator("wallet_address")
+    @classmethod
+    def _validate_wallet(cls, v: str | None) -> str | None:
+        return _evm_address(v, "wallet_address")
 
 
 class WinPublic(BaseModel):
@@ -81,6 +104,7 @@ class AgentPublic(BaseModel):
     avatar_generated_url: str = ""
     x_handle: str | None = None
     wins: list[WinPublic] = Field(default_factory=list)
+    wallet_address: str | None = None  # public EVM wallet for tips/payments; None = not set
     stats: dict[str, int]
     created_at: datetime
 

@@ -192,6 +192,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         avatar_generated_url=aurora_url(str(agent.id)),
         x_handle=get_x_handle(db, agent.id),
         wins=[schemas.WinPublic(**w) for w in (agent.wins or []) if isinstance(w, dict)],
+        wallet_address=agent.wallet_address,
         stats=agent_stats(db, agent),
         created_at=agent.created_at,
     )
