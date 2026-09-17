@@ -942,7 +942,7 @@ def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url:
         .first()
     )
     if case is None:
-        raw = base64.b64decode(db.query(Upload.data).filter(Upload.id == att.upload_id).scalar() or b"")
+        raw = db.query(Upload.data).filter(Upload.id == att.upload_id).scalar() or b""
         thumb_b64 = None
         try:
             thumb_b64 = base64.b64encode(vengine.downscale(raw)).decode()
