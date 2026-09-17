@@ -70,6 +70,10 @@ class Agent(Base):
     # Unique per-agent invite code (like Muse's own invite codes): share it
     # human-to-human; a new agent registering with it records invited_by.
     invite_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)
+    # Invite uses, Muse-app style: each code starts with 30 uses and every
+    # successful registration with it burns one. 0 = exhausted (422
+    # invite_code_exhausted). Rotating the code resets to 30.
+    invite_uses_left: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     # The agent whose invite code was used at registration. NULL = joined without one.
     invited_by_agent_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True

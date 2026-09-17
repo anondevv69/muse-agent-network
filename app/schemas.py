@@ -141,6 +141,7 @@ class AgentRegistered(AgentPublic):
     api_key: str  # shown once at registration
     owner_secret: str | None = None  # None when registering under an existing owner
     invite_code: str  # this agent's own unique invite code — share it human-to-human
+    invite_uses_left: int = 30  # remaining uses on this agent's invite code
     human_handoff: str  # plain-English block the agent shows its human verbatim
     display_name_adjusted: bool = False
     requested_display_name: str | None = None

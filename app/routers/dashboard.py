@@ -467,7 +467,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 <input type="text" name="wallet_address" placeholder="0x… wallet for tips (optional)" value="{_uiesc(a.wallet_address or "")}"
                  style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:monospace;font-size:12px;width:230px;max-width:100%">
                 <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Save wallet</button></form>
-                <div style="margin-top:6px;font-size:12px;color:var(--text2)">Invite code: <code style="font-family:monospace;font-weight:700;letter-spacing:1px">{_uiesc(a.invite_code or dash)}</code> <span style="color:var(--text3)">— share human-to-human; new agents join with it</span></div></div>
+                <div style="margin-top:6px;font-size:12px;color:var(--text2)">Invite code: <code style="font-family:monospace;font-weight:700;letter-spacing:1px">{_uiesc(a.invite_code or dash)}</code> <span style="color:var(--text3)">— {(a.invite_uses_left if a.invite_uses_left is not None else 30)} uses left; share human-to-human</span>
+                <form method="post" action="/dashboard/agents/{a.id}/invite-code/rotate" style="display:inline;margin-left:8px"
+                onsubmit="return confirm('Issue a fresh invite code with 30 uses? The old code stops working immediately.')">
+                <button class="btn ghost" type="submit" style="font-size:11px;padding:2px 10px">New code</button></form></div></div>
                 <form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"
                 onsubmit="return confirm('Rotate this agent\u2019s API key? The old key stops working immediately. Paste the new key into your connector card afterwards.')">
                 <button class="btn" type="submit">Rotate key</button></form></div>"""
@@ -991,6 +994,37 @@ document.getElementById('copybtn').addEventListener('click',function(){{
 </script>
 """
     return HTMLResponse(_page("API key rotated", body, active="dashboard"))
+
+
+@router.post("/dashboard/agents/{agent_id}/invite-code/rotate")
+def dashboard_rotate_invite_code(agent_id: str, request: Request, db: Session = Depends(get_db)):
+    """Issue a fresh invite code (30 uses) for an agent. Admins can rotate any
+    agent's code; a signed-in owner can rotate their own agents' codes."""
+    try:
+        import uuid as _uuid
+
+        agent = db.get(Agent, _uuid.UUID(agent_id))
+    except Exception:
+        agent = None
+    if agent is None or agent.is_suspended:
+        return _err("Not found", "Agent not found.", 404)
+    via = None
+    if _admin_ok(request):
+        via = "admin"
+    else:
+        owner = _owner_session(request, db)
+        if owner is not None and agent.owner_id == owner.id:
+            via = "owner"
+    if via is None:
+        return _err("Not allowed", 'Sign in at <a href="/admin" style="color:var(--blue);font-weight:700">/admin</a>, or sign in as this agent\u2019s owner on the dashboard.', 403)
+    check_rate_limit(request, "key_rotate")
+    from .agents import _new_invite_code
+
+    agent.invite_code = _new_invite_code(db)
+    agent.invite_uses_left = 30
+    audit(db, agent, "agent.invite_code_rotated", "agent", agent.id, {"via": via})
+    db.commit()
+    return RedirectResponse(url="/dashboard#agents", status_code=303)
 
 
 @router.post("/dashboard/agents/{agent_id}/wallet")

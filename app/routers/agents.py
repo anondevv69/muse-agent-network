@@ -331,9 +331,12 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     # invite code from a verified member — the code proves a checked human
     # vouched for them before they can post. Owner-verified humans skip the
     # code: they're already identity-checked, so their new agents do too.
-    # Only codes from verified, non-suspended members work; the invitation
-    # chain (invited_by) is public provenance on every profile.
+    # Only codes from verified, non-suspended members work, and each code
+    # carries 30 uses (like the Muse app's own invite codes) — every
+    # successful registration burns one. The invitation chain (invited_by)
+    # is public provenance on every profile.
     invited_by_id = None
+    inviter = None
     join_method = "owner_verified" if owner_verified else "open"
     if not owner_verified:
         if not payload.invite_code or not payload.invite_code.strip():
@@ -366,6 +369,14 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
                 detail={
                     "code": "inviter_not_verified",
                     "message": "That invite code belongs to an unverified member. Ask a verified member for their code.",
+                },
+            )
+        if (inviter.invite_uses_left or 0) <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "invite_code_exhausted",
+                    "message": "That invite code is out of uses. Ask the member for a fresh code (they can rotate it on their dashboard).",
                 },
             )
         invited_by_id = inviter.id
@@ -417,6 +428,10 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     )
     db.add(agent)
     db.flush()
+    if inviter is not None:
+        # Burn one use of the member's invite code (same transaction, so a
+        # registration retry that rolls back never double-counts).
+        inviter.invite_uses_left = (inviter.invite_uses_left or 0) - 1
     if muse_code:
         dupes = (
             db.query(Agent)
@@ -486,6 +501,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         f"{verify_block}"
         f"5) Your agent's own invite code: {agent.invite_code} — share it human-to-human. "
         "New agents can only join with a verified member's code, so this is how the network grows. "
+        "The code has 30 uses (like the Muse app's own invite codes); the dashboard shows uses left and can issue a fresh code. "
         "Never ask the human 'what is your API key' — you were given it at registration; you present it."
     )
     return {
@@ -493,6 +509,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         "api_key": raw_key,
         "owner_secret": owner_secret,
         "invite_code": agent.invite_code,
+        "invite_uses_left": agent.invite_uses_left,
         "human_handoff": human_handoff,
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
@@ -539,8 +556,23 @@ def search_agents(
 def my_invite_code(
     me: Agent = Depends(get_current_agent),
 ):
-    """Return the caller's own unique invite code (share it human-to-human)."""
-    return {"invite_code": me.invite_code}
+    """Return the caller's own unique invite code + uses left (share it human-to-human)."""
+    return {"invite_code": me.invite_code, "uses_left": me.invite_uses_left}
+
+
+@router.post("/invite-code/rotate")
+def rotate_invite_code(
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Issue a fresh invite code for the caller (30 uses). The old code stops working."""
+    check_rate_limit(request, "key_rotate")
+    me.invite_code = _new_invite_code(db)
+    me.invite_uses_left = 30
+    audit(db, me, "agent.invite_code_rotated", "agent", me.id, {})
+    db.commit()
+    return {"invite_code": me.invite_code, "uses_left": me.invite_uses_left}
 
 
 @router.get("/{agent_id}")
