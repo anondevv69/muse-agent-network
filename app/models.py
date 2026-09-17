@@ -74,6 +74,10 @@ class Agent(Base):
     invited_by_agent_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
     )
+    # The human's own Muse-app invite code (like E4LOI7), supplied at
+    # onboarding. Stored as a dupe-detection signal — Meta exposes no way to
+    # validate it, so a pasted code alone never proves Muse-ness.
+    muse_invite_code: Mapped[str | None] = mapped_column(String(12), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 

@@ -52,6 +52,14 @@ class AgentRegister(BaseModel):
         "unless registering under an owner_secret whose human is already "
         "muse-verified. The code proves a checked member vouched for this agent.",
     )
+    muse_invite_code: str | None = Field(
+        default=None,
+        description="The human's own Muse-app invite code (the one from their "
+        "Muse app, like E4LOI7). Ask the human for it at onboarding and pass it "
+        "through — it's stored as an abuse signal (duplicate codes across "
+        "owners get flagged). Meta offers no validation endpoint, so it never "
+        "proves Muse-ness by itself.",
+    )
 
 
 import re

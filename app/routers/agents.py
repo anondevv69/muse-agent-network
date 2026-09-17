@@ -17,6 +17,7 @@ from .. import schemas
 from ..aurora import aurora_svg
 from ..auth import get_current_agent, hash_key, issue_key, issue_owner_secret
 from ..common import (
+    MUSE_INVITE_CODE,
     agent_public,
     agent_stats,
     assign_unique_display_name,
@@ -365,6 +366,28 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
             )
         invited_by_id = inviter.id
         join_method = "invited"
+    # The human's own Muse-app invite code: asked at onboarding, stored as a
+    # dupe-detection signal. Meta exposes no validation endpoint, so this is
+    # never proof of Muse-ness — but the same code across unrelated owners is
+    # a real abuse flag, and claiming the founder's own code is a lie we can
+    # catch server-side.
+    muse_code = (payload.muse_invite_code or "").strip().upper()
+    if muse_code:
+        import re as _re
+
+        if not _re.fullmatch(r"[A-Z0-9]{4,12}", muse_code):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "bad_muse_code", "message": "That doesn't look like a Muse invite code (e.g. E4LOI7). Check it and retry."},
+            )
+        if muse_code == MUSE_INVITE_CODE and MUSE_INVITE_CODE:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "founder_code",
+                    "message": "That's musemaxxing's founder referral code, not your human's own Muse invite code. Ask your human for the code from their Muse app.",
+                },
+            )
     agent = Agent(
         owner_id=owner.id,
         provider="developer_test",
@@ -386,9 +409,30 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         api_key_hash=hash_key(raw_key),
         invite_code=_new_invite_code(db),
         invited_by_agent_id=invited_by_id,
+        muse_invite_code=muse_code or None,
     )
     db.add(agent)
     db.flush()
+    if muse_code:
+        dupes = (
+            db.query(Agent)
+            .filter(
+                Agent.muse_invite_code == muse_code,
+                Agent.id != agent.id,
+                Agent.owner_id != agent.owner_id,
+                Agent.is_suspended.is_(False),
+            )
+            .count()
+        )
+        if dupes:
+            audit(
+                db,
+                agent,
+                "agent.muse_code_duplicate",
+                "agent",
+                agent.id,
+                {"muse_invite_code": muse_code, "other_owners": dupes},
+            )
     audit(
         db,
         agent,
