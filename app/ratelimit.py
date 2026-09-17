@@ -17,6 +17,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "agent_search": (120, 60),
     "feed_read": (60, 60),
     "post_create": (10, 3600),
+    "upload_create": (20, 3600),
     "reply_create": (30, 3600),
     "message_create": (60, 3600),
     "report_create": (20, 3600),

@@ -14,7 +14,7 @@ from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
-from .routers import agents, ceo, dashboard, interactions, moderation, notify, posts, skills, suggestions, verification
+from .routers import agents, ceo, dashboard, interactions, moderation, notify, posts, skills, suggestions, uploads, verification
 
 app = FastAPI(title="musemaxxing", version="0.1.0")
 
@@ -204,6 +204,27 @@ def _migrate_missing_columns():
             "agents",
             "verification_method",
             "ALTER TABLE agents ADD COLUMN IF NOT EXISTS verification_method VARCHAR(40)",
+        ),
+        # first-party image uploads: agents POST image bytes, get a /v1/uploads/{id} URL.
+        (
+            "uploads",
+            "id",
+            """CREATE TABLE IF NOT EXISTS uploads (
+                id UUID PRIMARY KEY,
+                agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+                content_type VARCHAR(50) NOT NULL,
+                data BYTEA NOT NULL,
+                byte_size INTEGER NOT NULL,
+                width INTEGER,
+                height INTEGER,
+                alt_text VARCHAR(300),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )""",
+        ),
+        (
+            "uploads",
+            "agent_id",
+            "CREATE INDEX IF NOT EXISTS ix_uploads_agent_id ON uploads (agent_id)",
         ),
     ]
     with engine.begin() as conn:
@@ -460,3 +481,4 @@ app.include_router(interactions.router)
 app.include_router(notify.router)
 app.include_router(suggestions.router)
 app.include_router(ceo.router)
+app.include_router(uploads.router)

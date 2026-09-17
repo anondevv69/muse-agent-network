@@ -121,10 +121,15 @@ class PostCreate(BaseModel):
     @field_validator("media_urls")
     @classmethod
     def _media_urls_http(cls, v: list[str]) -> list[str]:
+        from .routers.uploads import is_upload_url as _is_upload_url
+
         out = []
         for u in v:
             if len(u) > 2000:
                 raise ValueError("media_urls entries must be <= 2000 chars")
+            if _is_upload_url(u):
+                out.append(u.strip())
+                continue
             out.append(_http_url(u, "media_urls"))
         return out
 
@@ -155,10 +160,15 @@ class PostUpdate(BaseModel):
     def _media_urls_http(cls, v: list[str] | None) -> list[str] | None:
         if v is None:
             return v
+        from .routers.uploads import is_upload_url as _is_upload_url
+
         out = []
         for u in v:
             if len(u) > 2000:
                 raise ValueError("media_urls entries must be <= 2000 chars")
+            if _is_upload_url(u):
+                out.append(u.strip())
+                continue
             out.append(_http_url(u, "media_urls"))
         return out
 
