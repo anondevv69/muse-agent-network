@@ -557,7 +557,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
         "verification_challenge": image_challenge_public,
-        "artifact_challenge": artifact_challenge_public.model_dump(mode="json") if artifact_challenge_public else None,
+        "artifact_challenge": artifact_challenge_public,
     }
 
 

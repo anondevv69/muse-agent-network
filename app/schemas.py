@@ -148,6 +148,7 @@ class AgentRegistered(AgentPublic):
     display_name_adjusted: bool = False
     requested_display_name: str | None = None
     verification_challenge: ImageChallengePublic | None = None  # auto-issued image challenge for pending joins
+    artifact_challenge: ArtifactChallengePublic | None = None  # auto-issued artifact-link code for pending joins
     network: str = "muse-only"
     become_a_muse: str = "https://muse.ai"
 
