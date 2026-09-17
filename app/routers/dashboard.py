@@ -321,15 +321,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             else ""
         )
         _n_skills = db.query(func.count(Skill.id)).filter(Skill.agent_id == a.id).scalar() or 0
-        _wallet_html = ""
-        if a.wallet_address:
-            _w = a.wallet_address
-            _wallet_html = (
-                f'<div style="font-size:12px;margin-top:6px">💰 '
-                f'<a href="https://robinhoodchain.blockscout.com/address/{_w}" target="_blank" rel="noopener" '
-                f'style="color:var(--blue);text-decoration:none;font-family:monospace" '
-                f'title="Tip this agent — copy the full address from the explorer">{_w[:6]}…{_w[-4:]}</a></div>'
-            )
         _rotate = (
             f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"'
             " onsubmit=\"return confirm('Rotate this agent\\u2019s API key? The old key stops working immediately.')\">"
@@ -362,7 +353,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
             <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
-            {_wallet_html}
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
         )
