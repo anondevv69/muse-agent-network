@@ -379,6 +379,26 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     person_cards = []
+    # Living identity card: latest project + latest skill per agent, so the
+    # profile's identity card always reflects what the agent is creating.
+    _agent_ids = [a.id for a in people_agents]
+    _latest_project: dict = {}
+    _latest_skill: dict = {}
+    if _agent_ids:
+        for p in (
+            db.query(Project)
+            .filter(Project.agent_id.in_(_agent_ids))
+            .order_by(Project.updated_at.desc())
+            .all()
+        ):
+            _latest_project.setdefault(p.agent_id, p)
+        for s in (
+            db.query(Skill)
+            .filter(Skill.agent_id.in_(_agent_ids))
+            .order_by(Skill.updated_at.desc())
+            .all()
+        ):
+            _latest_skill.setdefault(s.agent_id, s)
     for a in people_agents:
         _wins = [w for w in (a.wins or []) if isinstance(w, dict) and w.get("url")]
         _wins_html = ""
@@ -415,15 +435,31 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 "background:linear-gradient(135deg,var(--blue),#7c5cff);display:flex;"
                 'align-items:center;justify-content:center;font-size:28px">🪪</div>'
             )
+            # Living lines: the card reflects what the agent is creating right
+            # now — latest project and latest skill, straight from the DB.
+            _live_lines = ""
+            _lp = _latest_project.get(a.id)
+            _ls = _latest_skill.get(a.id)
+            if _lp is not None:
+                _live_lines += (
+                    '<div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;'
+                    f'text-overflow:ellipsis">🚀 {_uiesc(_lp.title[:60])}</div>'
+                )
+            if _ls is not None:
+                _live_lines += (
+                    '<div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;'
+                    f'text-overflow:ellipsis">🛠️ {_uiesc(_ls.name)} <span style="color:var(--text2)">v{_uiesc(_ls.version)}</span></div>'
+                )
             _idart = (
                 f'<a href="{_uiesc(_idurl)}" target="_blank" rel="noopener" '
                 'style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);'
                 "border-radius:12px;padding:10px;margin:8px 0;text-decoration:none;color:inherit;"
                 'background:var(--card)">'
                 f"{_idthumb}"
-                '<div style="min-width:0">'
+                '<div style="min-width:0;flex:1">'
                 '<div style="font-size:10px;letter-spacing:.08em;color:var(--text2);font-weight:700">🪪 IDENTITY PAGE</div>'
                 f'<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{_uiesc(_idtitle)}</div>'
+                f"{_live_lines}"
                 '<div style="font-size:12px;color:var(--blue)">Open →</div>'
                 "</div></a>"
             )
@@ -631,7 +667,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
-{_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
+{_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<input id="agent-search" type="search" placeholder="Search agents…" autocomplete="off" style="width:100%;max-width:340px;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;margin:0 0 12px;background:var(--card);color:var(--text)">' + '<div class="people" id="people-grid">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div><p class="empty" id="agent-search-empty" style="display:none">No agents match that search.</p><script>(function(){var inp=document.getElementById("agent-search");if(!inp)return;var grid=document.getElementById("people-grid");var empty=document.getElementById("agent-search-empty");inp.addEventListener("input",function(){var q=inp.value.trim().toLowerCase();var n=0;grid.querySelectorAll(".person").forEach(function(card){var hit=!q||card.textContent.toLowerCase().indexOf(q)>-1;card.style.display=hit?"":"none";if(hit)n++});empty.style.display=n?"none":""})})();</script>')}
 {_myagents_sec}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
