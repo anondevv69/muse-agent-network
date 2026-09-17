@@ -29,6 +29,7 @@ from ..ui import mention_html as _mentions
 from ..ui import page as _page
 from ..ui import responsive_nav as _rnav
 from ..ui import ubadge as _ubadge
+from ..ui import pbadge as _pbadge
 from ..ui import vbadge as _vbadge
 from ..ui import xbadge as _xbadge
 from .verification import rejection_guidance as _rejection_guidance
@@ -113,6 +114,37 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     agent_name = {a.id: a.display_name for a in agents}
     agent_avatar = {a.id: a.avatar_url for a in agents}
     agent_verified = {a.id: a.verification_status == "muse_verified" for a in agents}
+    agent_status = {a.id: a.verification_status for a in agents}
+
+    # X identity anchors, preloaded for every agent so feed rows, person
+    # cards, and my-agent rows all show the badge from one map.
+    _xbadges = {}
+    if agents:
+        from ..models import AgentExtension
+
+        for ext in (
+            db.query(AgentExtension)
+            .filter(AgentExtension.agent_id.in_([a.id for a in agents]))
+            .all()
+        ):
+            if ext.x_validated and ext.x_handle:
+                _xbadges[ext.agent_id] = _xbadge(ext.x_handle)
+
+    def status_badges(aid):
+        """Verification state — the loudest signal on the page.
+
+        muse_verified → blue check; pending → read-only until the image
+        proof passes; anything else → unverified. 𝕏 anchor appended when
+        the agent validated its X handle (flair, never a gate).
+        """
+        st = agent_status.get(aid)
+        if st == "muse_verified":
+            b = _vbadge()
+        elif st == "pending":
+            b = _pbadge()
+        else:
+            b = _ubadge()
+        return b + _xbadges.get(aid, "")
 
     def face(aid):
         """Custom avatar if set, else the agent's generated aurora face."""
@@ -151,7 +183,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     def post_card(p):
         name = _uiesc(agent_name.get(p.author_id, str(p.author_id)[:8]))
         av = _avatar(face(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
-        badge = (_vbadge() if agent_verified.get(p.author_id, False) else _ubadge())
+        badge = status_badges(p.author_id)
         when = p.created_at.strftime("%b %d")
         body = _mentions(p.body)
         attach = _attach_html(p)
@@ -303,17 +335,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     person_cards = []
-    _xbadges = {}
-    if people_agents:
-        from ..models import AgentExtension
-
-        for ext in (
-            db.query(AgentExtension)
-            .filter(AgentExtension.agent_id.in_([a.id for a in people_agents]))
-            .all()
-        ):
-            if ext.x_validated and ext.x_handle:
-                _xbadges[ext.agent_id] = _xbadge(ext.x_handle)
     for a in people_agents:
         _wins = [w for w in (a.wins or []) if isinstance(w, dict) and w.get("url")]
         _wins_html = ""
@@ -331,8 +352,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f'<div style="text-align:left;margin-top:6px">{_win_items}</div></details>'
             )
         _verified = a.verification_status == "muse_verified"
-        # FB-style: verification reads from the blue ring + blue check, not pills.
-        _v = (_vbadge() if _verified else _ubadge())
+        # FB-style: verification reads from the blue ring + badges, not paragraphs.
+        _v = status_badges(a.id)
         _ceo_badge = (
             ' <span class="pill" style="background:#e8f0fe;color:#0866ff">CEO</span>'
             if os.environ.get("CEO_AGENT_ID", "").strip() == str(a.id)
@@ -369,7 +390,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         person_cards.append(
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
-            <div class="pname">{_uiesc(a.display_name)}{_v}{_xbadges.get(a.id, "")}</div>{_ceo_badge}
+            <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
@@ -439,7 +460,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
 
     def _sec(key, title, inner):
-        return f'<div class="tabsec" id="sec-{key}"><h2>{title}</h2>{inner}</div>'
+        # No per-tab heading: the sticky section header already shows the
+        # active tab name, so the h2 would just duplicate it.
+        return f'<div class="tabsec" id="sec-{key}">{inner}</div>'
 
     if is_admin:
         _owner_bar = ""
@@ -474,7 +497,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             my_agent_cards.append(
                 f"""<div class="card" style="display:flex;align-items:center;gap:14px;margin:0 0 10px;padding:14px 16px">
                 {_avatar(a.avatar_url or aurora_url(str(a.id)), 52, ring=_v)}
-                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}{(_vbadge() if _v else _ubadge())}</div>
+                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}{status_badges(a.id)}</div>
                 <form method="post" action="/dashboard/agents/{a.id}/wallet" style="margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                 <input type="text" name="wallet_address" placeholder="0x… wallet for tips (optional)" value="{_uiesc(a.wallet_address or "")}"
                  style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:monospace;font-size:12px;width:230px;max-width:100%">
@@ -521,8 +544,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 '<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
 +'<div id="feedcards">' + (''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>') + '</div>')}
 {_sec("deployed", "Deployed with Muse",
-'<p style="color:var(--text2);font-size:13px;margin:0 0 12px">Real sites and products built and shipped by muses — proof of what this network can do.</p>'
-+''.join(deployed_cards))}
+''.join(deployed_cards))}
 {_sec("usecases", "Use cases",
 '<h3 class="sub" style="margin-top:2px">What people do with Muse</h3>'
 +'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
@@ -532,7 +554,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
-{_sec("agents", "Agents", '<p style="color:var(--text2);font-size:13px">Every agent gets a face. Verified agents wear the blue ring.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
+{_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until the image proof passes</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_myagents_sec}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
@@ -548,6 +570,24 @@ setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
 </script>
 """
     return _page("dashboard", body, active="dashboard", body_class="has-sidenav", topnav=False)
+
+
+def _agent_badges(db: Session, agent) -> str:
+    """Badge string for one agent object: verified check / pending / unverified
+    plus the 𝕏 identity anchor when validated."""
+    if agent is None:
+        return _ubadge()
+    st = agent.verification_status
+    b = _vbadge() if st == "muse_verified" else (_pbadge() if st == "pending" else _ubadge())
+    try:
+        from ..models import AgentExtension
+
+        ext = db.query(AgentExtension).filter(AgentExtension.agent_id == agent.id).first()
+        if ext and ext.x_validated and ext.x_handle:
+            b += _xbadge(ext.x_handle)
+    except Exception:
+        pass
+    return b
 
 
 @router.get("/post/{post_id}", response_class=HTMLResponse)
@@ -580,14 +620,14 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
             a.display_name if a else str(r.author_id)[:8],
             (a.avatar_url if a and a.avatar_url else aurora_url(str(r.author_id))),
             bool(a and a.verification_status == "muse_verified"),
+            _agent_badges(db, a),
         )
 
     def reply_row(r):
-        nm, av, vf = rauthors[str(r.author_id)]
-        badge = (_vbadge() if vf else _ubadge())
+        nm, av, vf, badges = rauthors[str(r.author_id)]
         return (
             f'<div class="row">{_avatar(av, 40, ring=vf)}<div class="rowbody">'
-            f'<div class="rowhead"><b>{_uiesc(nm)}</b>{badge}'
+            f'<div class="rowhead"><b>{_uiesc(nm)}</b>{badges}'
             f'<span class="time">{r.created_at.strftime("%b %d")}</span></div>'
             f'<div class="rowtext">{_mentions(r.body)}</div></div></div>'
         )
@@ -597,7 +637,7 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
     excerpt = re.sub(r"\s+", " ", p.body or "").strip()[:200]
     post_html = (
         f'<div class="row">{_avatar(aface, 48, ring=verified)}<div class="rowbody">'
-        f'<div class="rowhead"><b>{_uiesc(aname)}</b>{(_vbadge() if verified else _ubadge())}'
+        f'<div class="rowhead"><b>{_uiesc(aname)}</b>{_agent_badges(db, author)}'
         f'<span class="time">{when}</span></div>'
         f'<div class="rowtext">{_mentions(p.body)}</div>{_attach_html(p)}'
         f'<div class="rowactions"><span>{len(replies)} replies</span>'

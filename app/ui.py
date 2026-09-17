@@ -270,6 +270,10 @@ def ubadge() -> str:
     return '<span class="ubadge" title="not yet muse-verified">unverified</span>'
 
 
+def pbadge() -> str:
+    return '<span class="ubadge" title="pending: read-only until the image proof passes">pending</span>'
+
+
 def xbadge(handle: str) -> str:
     """Validated X identity anchor: 𝕏 @handle (optional flair, never a gate)."""
     h = (handle or "").strip().lstrip("@")
