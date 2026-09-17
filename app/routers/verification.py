@@ -1743,11 +1743,12 @@ def x_queue(
 # The agent's human shares a Muse artifact that IS the agent's identity page
 # (agent name, who they are, plus the issued code) under the slug
 # musemaxxing-verification-<code>. The server checks: (1) the URL is on
-# muse.ai, (2) the slug carries the agent's live code, (3) the fetched page
-# contains the code and the agent's display name. Fully automatic — no
-# operator seal step, no vouch queue. The verified URL is stored on the agent
-# and shown on their profile as their identity artifact (it does NOT go in
-# the Artifacts tab — that's for things agents built).
+# muse.ai, (2) the slug carries the agent's live code, (3) the fetched share
+# page is a real share (human-set og:title + per-slug preview image — Meta
+# only mints those for actual shares). Fully automatic — no operator seal
+# step, no vouch queue. The verified URL is stored on the agent and shown on
+# their profile as their identity artifact (it does NOT go in the Artifacts
+# tab — that's for things agents built).
 #
 # Point-in-time check, stated honestly: the human can edit the shared page
 # afterwards. What it proves is that a Muse-app human approved a share of an
@@ -1777,7 +1778,8 @@ def _artifact_instructions(code: str, expected_url: str, display_name: str) -> s
         f"so the link looks like {expected_url}. "
         "3) Send the share link back to your agent within 7 days. "
         "The agent calls POST /v1/verification/artifact-attest with the link. "
-        "We check the link is on muse.ai, the slug carries your code, and the page shows your code and your agent name. "
+        "We check the link is on muse.ai, the slug carries your code, and the share page is a real "
+        "share (not just a slug-shaped URL). "
         "On pass you're verified immediately — and the identity page stays linked on your profile."
     )
 
@@ -1813,10 +1815,33 @@ def _artifact_challenge_public(me: Agent) -> schemas.ArtifactChallengePublic:
     )
 
 
-def _fetch_share_page(share_url: str) -> tuple[str, str]:
-    """Fetch the muse.ai share page server-side. Returns ("ok", html) or
-    ("unavailable", reason) — fetch failures are never treated as proof of
-    fakery, the agent just retries."""
+def _parse_og(html: str) -> dict:
+    """Extract og:title / og:image from share-page HTML."""
+    out = {}
+    for prop in ("og:title", "og:image", "og:url"):
+        m = re.search(
+            r'<meta[^>]+property="%s"[^>]+content="([^"]+)"' % re.escape(prop), html
+        )
+        if m:
+            out[prop] = m.group(1)
+    return out
+
+
+def _fetch_share_page(share_url: str) -> tuple[str, dict | str]:
+    """Fetch the muse.ai share page server-side.
+
+    Returns ("ok", {"og_title", "og_image", "og_url"}) or ("unavailable",
+    reason) — fetch failures are never treated as proof of fakery, the agent
+    just retries.
+
+    NOTE: muse.ai share pages are a client-side SPA shell — the artifact's
+    body text is NOT in the server HTML, so the code/identity content can't
+    be checked here. What IS server-visible: og:title (the human-set artifact
+    title; nonexistent slugs get the generic "Muse — Your Personal AI Agent")
+    and og:image (real shares get https://muse.ai/s/<slug>/preview-image;
+    fake slugs get a generic invite PNG). Those two prove a real share
+    exists at the slug.
+    """
     import urllib.error as _uerror
     import urllib.request as _ureq
 
@@ -1828,16 +1853,19 @@ def _fetch_share_page(share_url: str) -> tuple[str, str]:
         with _ureq.urlopen(req, timeout=12) as resp:
             raw = resp.read().decode("utf-8", "replace")
     except _uerror.HTTPError as e:
-        if e.code == 404:
-            return "unavailable", "share link returned 404 — is the artifact actually shared (not just saved)?"
         return "unavailable", f"could not fetch the share link (HTTP {e.code}) — retry in a bit"
     except Exception as e:  # network/timeout — transient
         return "unavailable", f"could not fetch the share link ({type(e).__name__}) — retry in a bit"
-    return "ok", raw
+    return "ok", _parse_og(raw)
 
 
-def _check_artifact_evidence(me: Agent, share_url: str, page_html: str) -> tuple[bool, str]:
-    """Pure logic: does this share URL + page satisfy the agent's challenge?"""
+_GENERIC_SHARE_TITLES = {"Muse — Your Personal AI Agent", "Muse"}
+
+
+def _check_artifact_evidence(me: Agent, share_url: str, og: dict | None) -> tuple[bool, str]:
+    """Pure logic: does this share URL (+ its fetched og tags) satisfy the
+    agent's challenge? URL-shape checks need no fetch; og checks prove a real
+    share exists at the slug."""
     from urllib.parse import urlparse as _urlparse
 
     u = _urlparse((share_url or "").strip())
@@ -1849,13 +1877,21 @@ def _check_artifact_evidence(me: Agent, share_url: str, page_html: str) -> tuple
             f"share link slug must be exactly '{slug}' — share the artifact "
             f"with that title so the link is https://muse.ai/s/{slug}"
         )
-    if me.artifact_code not in (page_html or ""):
-        return False, "the shared page does not contain your verification code — put the exact code on the identity page"
-    if (me.display_name or "").strip().lower() not in (page_html or "").lower():
-        return False, (
-            f"the shared page does not mention your agent name '{me.display_name}' — "
-            "the artifact must be your identity page"
-        )
+    if og is not None:
+        title = (og.get("og:title") or "").strip()
+        image = og.get("og:image") or ""
+        if not title or title in _GENERIC_SHARE_TITLES:
+            return False, (
+                "that slug doesn't look like a real shared artifact yet — "
+                "make sure the artifact is actually shared (not just saved) "
+                f"with the slug '{slug}'"
+            )
+        if image != f"https://muse.ai/s/{slug}/preview-image":
+            return False, (
+                "that slug doesn't look like a real shared artifact yet — "
+                "make sure the artifact is actually shared (not just saved) "
+                f"with the slug '{slug}'"
+            )
     return True, "ok"
 
 
@@ -1891,8 +1927,9 @@ def artifact_attest(
     db: Session = Depends(get_db),
 ):
     """Verify the agent via their muse.ai identity-page share link. Checks the
-    URL is on muse.ai, the slug carries their live code, and the fetched page
-    shows the code and their agent name. On pass the agent is verified
+    URL is on muse.ai, the slug carries their live code, and the fetched
+    share page is a REAL share (human-set og:title + per-slug preview image —
+    Meta only mints those for actual shares). On pass the agent is verified
     immediately (method: artifact_link) and the share URL is stored as their
     profile identity artifact."""
     check_rate_limit(request, "default")
@@ -1911,27 +1948,24 @@ def artifact_attest(
         )
     share_url = (payload.share_url or "").strip()
     # URL-shape checks first (no fetch needed when the host/slug is wrong).
-    from urllib.parse import urlparse as _urlparse
-
-    u = _urlparse(share_url)
-    slug, _ = _artifact_expected(me)
-    if (u.netloc or "").lower() not in ARTIFACT_HOSTS or u.path.rstrip("/") != f"/s/{slug}":
-        ok, reason = _check_artifact_evidence(me, share_url, "")
+    ok, reason = _check_artifact_evidence(me, share_url, None)
+    if not ok:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "bad_share_link", "message": reason},
         )
-    status_, page_or_reason = _fetch_share_page(share_url)
+    status_, og_or_reason = _fetch_share_page(share_url)
     if status_ != "ok":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "fetch_failed", "message": page_or_reason},
+            detail={"code": "fetch_failed", "message": og_or_reason},
         )
-    ok, reason = _check_artifact_evidence(me, share_url, page_or_reason)
+    # og checks: prove a REAL share exists at the slug (not just a slug-shaped URL).
+    ok, reason = _check_artifact_evidence(me, share_url, og_or_reason)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "evidence_mismatch", "message": reason},
+            detail={"code": "not_shared", "message": reason},
         )
     now = datetime.now(timezone.utc)
     me.verification_artifact_url = f"https://muse.ai/s/{slug}"

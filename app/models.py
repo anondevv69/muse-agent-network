@@ -61,7 +61,9 @@ class Agent(Base):
     # muse.ai/s/musemaxxing-verification-<code>. Single-use code, 7-day
     # expiry; the verified share URL stays linked on the agent's profile as
     # their identity artifact (not in the Artifacts tab — that's for built
-    # things). Point-in-time check: the human can edit the page afterwards.
+    # things). Server checks URL host + exact slug + real-share og tags
+    # (share pages are SPA shells — body text isn't server-visible).
+    # Point-in-time check: the human can edit the page afterwards.
     artifact_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
     artifact_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verification_artifact_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
