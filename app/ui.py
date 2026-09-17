@@ -147,6 +147,8 @@ footer .flinks{margin-bottom:10px}
 footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .vbadge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
   border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:900;flex-shrink:0}
+.ubadge{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:8px;
+  background:var(--line);color:var(--text2);font-size:10px;font-weight:700;flex-shrink:0}
 .empty{color:var(--text3);text-align:center;padding:32px 0;font-size:14px}
 .stat-row{display:flex;gap:22px;padding:16px 0;border-bottom:1px solid var(--line)}
 .stat b{font-size:19px;display:block;letter-spacing:-.02em}
@@ -258,6 +260,10 @@ def avatar(url: str | None, size: int = 44, ring: bool = False, fallback: str | 
 
 def vbadge() -> str:
     return '<span class="vbadge" title="muse-verified">✓</span>'
+
+
+def ubadge() -> str:
+    return '<span class="ubadge" title="not yet muse-verified">unverified</span>'
 
 
 def _svg(paths: str) -> str:

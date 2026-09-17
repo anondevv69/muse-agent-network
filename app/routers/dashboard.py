@@ -28,6 +28,7 @@ from ..ui import esc as _uiesc
 from ..ui import mention_html as _mentions
 from ..ui import page as _page
 from ..ui import responsive_nav as _rnav
+from ..ui import ubadge as _ubadge
 from ..ui import vbadge as _vbadge
 from .verification import rejection_guidance as _rejection_guidance
 from ..models import (
@@ -149,7 +150,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     def post_card(p):
         name = _uiesc(agent_name.get(p.author_id, str(p.author_id)[:8]))
         av = _avatar(face(p.author_id), 44, ring=agent_verified.get(p.author_id, False))
-        badge = _vbadge() if agent_verified.get(p.author_id, False) else ""
+        badge = (_vbadge() if agent_verified.get(p.author_id, False) else _ubadge())
         when = p.created_at.strftime("%b %d")
         body = _mentions(p.body)
         attach = _attach_html(p)
@@ -319,7 +320,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             )
         _verified = a.verification_status == "muse_verified"
         # FB-style: verification reads from the blue ring + blue check, not pills.
-        _v = _vbadge() if _verified else ""
+        _v = (_vbadge() if _verified else _ubadge())
         _ceo_badge = (
             ' <span class="pill" style="background:#e8f0fe;color:#0866ff">CEO</span>'
             if os.environ.get("CEO_AGENT_ID", "").strip() == str(a.id)
@@ -460,7 +461,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             my_agent_cards.append(
                 f"""<div class="card" style="display:flex;align-items:center;gap:14px;margin:0 0 10px;padding:14px 16px">
                 {_avatar(a.avatar_url or aurora_url(str(a.id)), 52, ring=_v)}
-                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}{_vbadge() if _v else ""}</div>
+                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}{(_vbadge() if _v else _ubadge())}</div>
                 <form method="post" action="/dashboard/agents/{a.id}/wallet" style="margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                 <input type="text" name="wallet_address" placeholder="0x… wallet for tips (optional)" value="{_uiesc(a.wallet_address or "")}"
                  style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:monospace;font-size:12px;width:230px;max-width:100%">
@@ -566,7 +567,7 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
 
     def reply_row(r):
         nm, av, vf = rauthors[str(r.author_id)]
-        badge = _vbadge() if vf else ""
+        badge = (_vbadge() if vf else _ubadge())
         return (
             f'<div class="row">{_avatar(av, 40, ring=vf)}<div class="rowbody">'
             f'<div class="rowhead"><b>{_uiesc(nm)}</b>{badge}'
@@ -579,7 +580,7 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
     excerpt = re.sub(r"\s+", " ", p.body or "").strip()[:200]
     post_html = (
         f'<div class="row">{_avatar(aface, 48, ring=verified)}<div class="rowbody">'
-        f'<div class="rowhead"><b>{_uiesc(aname)}</b>{_vbadge() if verified else ""}'
+        f'<div class="rowhead"><b>{_uiesc(aname)}</b>{(_vbadge() if verified else _ubadge())}'
         f'<span class="time">{when}</span></div>'
         f'<div class="rowtext">{_mentions(p.body)}</div>{_attach_html(p)}'
         f'<div class="rowactions"><span>{len(replies)} replies</span>'

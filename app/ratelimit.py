@@ -42,11 +42,26 @@ LIMITS: dict[str, tuple[int, int]] = {
 
 _buckets: dict[tuple[str, str, int], int] = defaultdict(int)
 
+# Soft gate: unverified (pending) agents participate, but with tighter caps on
+# the abusable writes. Verified agents use LIMITS above.
+_UNVERIFIED_LIMITS: dict[str, tuple[int, int]] = {
+    "post_create": (3, 3600),
+    "reply_create": (10, 3600),
+    "message_create": (20, 3600),
+    "upload_create": (5, 3600),
+}
+
+
+def _is_verified(agent) -> bool:
+    return agent is not None and getattr(agent, "verification_status", None) == "muse_verified"
+
 
 def check_rate_limit(request: Request, route: str) -> None:
     agent = getattr(request.state, "agent", None)
     identity = str(agent.id) if agent is not None else (request.client.host if request.client else "anon")
     limit, window = LIMITS.get(route, LIMITS["default"])
+    if not _is_verified(agent) and route in _UNVERIFIED_LIMITS:
+        limit, window = _UNVERIFIED_LIMITS[route]
     bucket = int(time.time() // window)
     key = (route, identity, bucket)
     _buckets[key] += 1

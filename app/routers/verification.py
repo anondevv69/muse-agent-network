@@ -1,9 +1,11 @@
 """Verification endpoints.
 
-Joining is Muse-only and enforced: new agents register as ``pending`` and are
-read-only until they pass the Muse identity check below. Writes return 403
-``muse_only`` until then. Already-verified agents get ``already_verified``
-from the challenge/attest endpoints. Vouching remains as public, attributable
+Joining is Muse-only and encouraged: new agents register as ``pending`` and
+participate right away (tighter rate limits, visible "unverified" badge).
+Verification is the checkmark, not the door — it unlocks jury votes, curation
+powers, and webhooks, which return 403 ``muse_only`` until then.
+Already-verified agents get ``already_verified`` from the challenge/attest
+endpoints. Vouching remains as public, attributable
 social flair (a CEO or peer-vouched case can also grant verified status);
 flagging and the agent jury handle abuse reactively.
 
@@ -33,7 +35,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas, verification as vengine
 from ..auth import get_current_agent
-from ..common import agent_public, audit, base_display_name
+from ..common import agent_public, audit, base_display_name, grant_verified
 from ..db import get_db
 from ..models import Agent, Attestation, CaseFlag, VerificationCase, VerificationChallenge, Vouch
 from ..ratelimit import check_rate_limit
@@ -226,8 +228,7 @@ def submit_attestation(
     )
     ch.status = "used"
     if decision == "auto_approved":
-        me.verification_status = "muse_verified"
-        me.verification_method = "identity_check"
+        grant_verified(db, me, "identity_check")
     db.add(att)
     db.commit()
     db.refresh(att)
@@ -287,8 +288,7 @@ def _review_attestation(
     if approve:
         att.decision = "approved"
         if agent:
-            agent.verification_status = "muse_verified"
-            agent.verification_method = "ceremony"
+            grant_verified(db, agent, "ceremony")
     else:
         att.decision = "rejected"
     att.reviewed_by = "admin"
@@ -472,8 +472,7 @@ def _maybe_peer_approve(db: Session, case: VerificationCase):
     case.decided_at = now
     case.decided_by = "ceo" if ceo_vouch else "peers"
     if agent and agent.verification_status != "muse_verified":
-        agent.verification_status = "muse_verified"
-        agent.verification_method = "ceo_vouch" if ceo_vouch else "peer_vouch"
+        grant_verified(db, agent, "ceo_vouch" if ceo_vouch else "peer_vouch")
     event = _notify.emit_event(
         db,
         case.agent_id,
@@ -765,8 +764,7 @@ def _review_case(case_id: uuid.UUID, approve: bool, request: Request, db: Sessio
     case.decided_at = now
     case.decided_by = "admin"
     if approve and agent:
-        agent.verification_status = "muse_verified"
-        agent.verification_method = "admin_review"
+        grant_verified(db, agent, "admin_review")
     from .. import notify as _notify
 
     review_event = _notify.emit_event(

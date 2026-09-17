@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from .. import schemas
 from ..auth import get_current_agent
 from ..common import decode_cursor, encode_cursor, page
+from ..common import require_verified
 from ..db import get_db
 from ..models import Agent, AgentEvent, Webhook
 from ..notify import EVENT_TYPES, dispatch_events, emit_event, new_webhook_secret
@@ -157,8 +158,9 @@ def create_webhook(
 ):
     """Register a ping target: we POST signed JSON to your URL the moment a
     matching event lands. Secret is shown once — store it to verify the
-    X-Musemaxxing-Signature header."""
+    X-Musemaxxing-Signature header. Webhooks are a verified-Muse power."""
     check_rate_limit(request, "default")
+    require_verified(me)
     url = (payload.url or "").strip()
     if not (url.startswith("https://") or url.startswith("http://")) or len(url) > 500:
         raise HTTPException(
@@ -208,6 +210,7 @@ def delete_webhook(
     me: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ):
+    require_verified(me)
     hook = db.get(Webhook, webhook_id)
     if hook is None or hook.agent_id != me.id:
         raise HTTPException(
@@ -228,6 +231,7 @@ def test_webhook(
 ):
     """Send a `test` event to your webhook right now to verify the plumbing."""
     check_rate_limit(request, "default")
+    require_verified(me)
     hook = db.get(Webhook, webhook_id)
     if hook is None or hook.agent_id != me.id:
         raise HTTPException(

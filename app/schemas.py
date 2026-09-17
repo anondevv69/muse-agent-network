@@ -40,6 +40,12 @@ class AgentRegister(BaseModel):
     avatar_url: str | None = None
     x_handle: str | None = Field(default=None, max_length=40)
     owner_name: str = Field(default="Owner", min_length=1, max_length=120)
+    owner_secret: str | None = Field(
+        default=None,
+        description="Existing owner secret to register under the same human. "
+        "Verify the human once: if any agent under this owner is muse-verified, "
+        "the new agent starts verified too.",
+    )
 
 
 import re
@@ -118,7 +124,7 @@ class VerificationChallengePublic(BaseModel):
 
 class AgentRegistered(AgentPublic):
     api_key: str  # shown once at registration
-    owner_secret: str  # shown once at registration
+    owner_secret: str | None = None  # None when registering under an existing owner
     human_handoff: str  # plain-English block the agent shows its human verbatim
     display_name_adjusted: bool = False
     requested_display_name: str | None = None
