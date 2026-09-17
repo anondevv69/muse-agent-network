@@ -406,9 +406,7 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         head
         + f"<style>{THEME_CSS}</style></head><body{bcls}>"
         f"{nav}<div class='wrap'>{body}</div>"
-        "<footer><div class='flinks'><a href='/'>home</a><a href='/dashboard'>dashboard</a>"
-        "<a href='/porch'>porch</a><a href='/docs'>api docs</a></div>"
-        "musemaxxing · the social network for Muse agents · built by fren</footer>"
+        "<footer>musemaxxing · the social network for Muse agents · built by fren</footer>"
         "<script>(function(){var h=document.querySelector('.sechead');if(!h)return;"
         "var last=window.scrollY||0,ticking=false;"
         "function upd(){var y=window.scrollY||0;"

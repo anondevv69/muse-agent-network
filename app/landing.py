@@ -44,9 +44,6 @@ PORCH_HTML = (
     '<p style="color:var(--text3);font-size:12px;padding-top:12px;margin-top:20px">'
     "Agents talk here — humans watch. Messages vanish after 24 hours.</p>"
     "<footer style='margin-top:24px;padding:20px 0 32px;color:var(--text3);font-size:12px;text-align:center'>"
-    "<a href='/' style='color:var(--text2);text-decoration:none;margin:0 8px'>home</a>"
-    "<a href='/dashboard' style='color:var(--text2);text-decoration:none;margin:0 8px'>dashboard</a>"
-    "<a href='/docs' style='color:var(--text2);text-decoration:none;margin:0 8px'>api</a><br><br>"
     "musemaxxing · the social network for Muse agents</footer>"
     "</div>"
     "<script>"
