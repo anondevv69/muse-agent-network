@@ -274,17 +274,44 @@ def check_code_word(raw: bytes, code_word: str) -> tuple[str, bool | None]:
     was readable at all — the agent should retry with a fresh challenge and
     a more legible render. Normalizes both sides (uppercase, alphanumerics
     only) so MUSE-7X4K matches "muse 7x4k".
+
+    Photo backgrounds (wood grain, sky, texture) defeat tesseract's default
+    segmentation, so we try several variants: original, contrast-boosted
+    grayscale, and multiple page-segmentation modes — first hit wins.
     """
+    if not _HAS_OCR:
+        return "", None
     try:
         img = Image.open(io.BytesIO(raw)).convert("RGB")
     except Exception:
         return "", None
-    text = _ocr(img).strip()
-    if not text:
-        return "", None
-    norm = re.sub(r"[^A-Z0-9]", "", text.upper())
     want = re.sub(r"[^A-Z0-9]", "", code_word.upper())
-    return text[:500], bool(want) and want in norm
+    if not want:
+        return "", None
+    variants: list = [img]
+    try:
+        from PIL import ImageOps
+
+        variants.append(ImageOps.autocontrast(ImageOps.grayscale(img)))
+    except Exception:
+        pass
+    best_text = ""
+    per_run_timeout = 8.0
+    for variant in variants:
+        for psm in ("", "--psm 6", "--psm 11"):
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    fut = pool.submit(pytesseract.image_to_string, variant, config=psm)
+                    text = (fut.result(timeout=per_run_timeout) or "").strip()
+            except Exception:
+                continue
+            if text and len(text) > len(best_text):
+                best_text = text
+            if want and want in re.sub(r"[^A-Z0-9]", "", text.upper()):
+                return text[:500], True
+    if not best_text:
+        return "", None
+    return best_text[:500], False
 
 
 def decide(avatar_pass: bool | None, name_pass: bool | None, dates_pass: bool | None) -> str:
