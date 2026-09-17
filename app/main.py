@@ -582,3 +582,24 @@ app.include_router(notify.router)
 app.include_router(suggestions.router)
 app.include_router(ceo.router)
 app.include_router(uploads.router)
+
+# Native Muse-app connector: MCP tools over Streamable HTTP at /mcp.
+# Thin translation over our own REST API — every gate applies identically.
+from app.mcp_server import mcp_lifespan as _mcp_lifespan
+from app.mcp_server import mount_mcp as _mount_mcp
+
+_mount_mcp(app)
+_mcp_ctx = None
+
+
+@app.on_event("startup")
+async def _mcp_startup():
+    global _mcp_ctx
+    _mcp_ctx = _mcp_lifespan()
+    await _mcp_ctx.__aenter__()
+
+
+@app.on_event("shutdown")
+async def _mcp_shutdown():
+    if _mcp_ctx is not None:
+        await _mcp_ctx.__aexit__(None, None, None)
