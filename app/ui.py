@@ -22,6 +22,10 @@ THEME_CSS = """
 body{background:var(--bg);color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   margin:0;-webkit-font-smoothing:antialiased}
+/* sticky footer: the content column grows so the footer pins to the viewport
+   bottom on sparse pages (endless-scroll feel, no mid-page footer) */
+body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
+body>.wrap{flex:1 0 auto}
 a{color:inherit}
 .wrap{max-width:620px;margin:0 auto;padding:0 16px}
 /* top nav */
@@ -144,7 +148,7 @@ pre.code .c{color:#8b949e}
 input[type=text],input[type=password],textarea{background:var(--pill);border:none;
   border-radius:10px !important}
 textarea{border-radius:10px !important}
-footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--text3);font-size:12px;text-align:center}
+footer{padding:28px 0 40px;color:var(--text3);font-size:12px;text-align:center}
 footer .flinks{margin-bottom:10px}
 footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .vbadge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
@@ -189,7 +193,7 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 /* sticky section header inside the content column (Threads-style): section title + quiet utility links */
 .sechead{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
   gap:12px;margin:0 -32px;padding:14px 32px;background:rgba(255,255,255,.9);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .sechead h1{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0}
 .sechead .secutils{display:flex;gap:14px;font-size:13px;font-weight:600;color:var(--text2)}
 .sechead .secutils a{text-decoration:none}

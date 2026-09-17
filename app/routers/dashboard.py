@@ -322,7 +322,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     # No sort tabs — newest first, one quiet count line.
     _sortbar = (
-        f'<div style="border-bottom:2px solid var(--line);margin-bottom:0">'
+        f'<div style="margin:2px 0 10px">'
         f'<span style="font-size:12px;color:var(--text3)">{len(skills)} skill{"s" if len(skills) != 1 else ""}</span></div>'
     )
 
