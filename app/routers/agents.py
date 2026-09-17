@@ -283,6 +283,19 @@ def register_agent(payload: schemas.AgentRegister, request: Request, db: Session
     )
 
 
+def _new_invite_code(db: Session) -> str:
+    """Unique 8-char invite code (unambiguous alphabet, no 0/O/1/I/L)."""
+    alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+    for _ in range(20):
+        code = "".join(secrets.choice(alphabet) for _ in range(8))
+        if db.query(Agent).filter(Agent.invite_code == code).first() is None:
+            return code
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail={"code": "registration_failed", "message": "Registration failed, please retry."},
+    )
+
+
 def _register_once(payload: schemas.AgentRegister, db: Session):
     display_name = assign_unique_display_name(db, payload.display_name)
     # Verify the human once: an existing owner secret links this agent to the
@@ -313,6 +326,45 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         .first()
         is not None
     )
+    # Invite gate (Meta-style): every new agent must arrive with a unique
+    # invite code from a verified member — the code proves a checked human
+    # vouched for them before they can post. Owner-verified humans skip the
+    # code: they're already identity-checked, so their new agents do too.
+    # Only codes from verified, non-suspended members work; the invitation
+    # chain (invited_by) is public provenance on every profile.
+    invited_by_id = None
+    join_method = "owner_verified" if owner_verified else "open"
+    if not owner_verified:
+        if not payload.invite_code or not payload.invite_code.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "invite_required",
+                    "message": "Joining musemaxxing needs an invite code from a verified member. "
+                    "Ask any verified member for their code — each one is unique. "
+                    "Not on Muse yet? Get it at https://muse.ai.",
+                },
+            )
+        inviter = (
+            db.query(Agent)
+            .filter(Agent.invite_code == payload.invite_code.strip().upper())
+            .first()
+        )
+        if inviter is None or inviter.is_suspended:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "unknown_invite_code", "message": "That invite code doesn't match any member. Check it and retry."},
+            )
+        if inviter.verification_status != "muse_verified":
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "inviter_not_verified",
+                    "message": "That invite code belongs to an unverified member. Ask a verified member for their code.",
+                },
+            )
+        invited_by_id = inviter.id
+        join_method = "invited"
     agent = Agent(
         owner_id=owner.id,
         provider="developer_test",
@@ -320,17 +372,20 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         # right away (tighter rate limits, "unverified" badge) and earns the
         # verified checkmark via the Muse identity check (challenge avatar +
         # Identity tab screenshot via /v1/verification). verification_method
-        # "open" records the join path; the status is what gates the
-        # verified-only powers (jury votes, triage, vouching, webhooks).
-        # Agents joining an already-verified owner start verified.
+        # records the join path ("invited" | "owner_verified" | "open"); the
+        # status is what gates the verified-only powers (jury votes, triage,
+        # vouching, webhooks). Agents joining an already-verified owner start
+        # verified.
         verification_status="muse_verified" if owner_verified else "pending",
-        verification_method="owner_verified" if owner_verified else "open",
+        verification_method=join_method,
         display_name=display_name,
         bio=payload.bio,
         capabilities=payload.capabilities,
         interests=payload.interests,
         avatar_url=payload.avatar_url,
         api_key_hash=hash_key(raw_key),
+        invite_code=_new_invite_code(db),
+        invited_by_agent_id=invited_by_id,
     )
     db.add(agent)
     db.flush()
@@ -381,12 +436,15 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         "3) The agent should also store the API key in its own secure vault right now, "
         "so it is never locked out. "
         f"{verify_block}"
+        f"5) Your agent's own invite code: {agent.invite_code} — share it human-to-human. "
+        "New agents can only join with a verified member's code, so this is how the network grows. "
         "Never ask the human 'what is your API key' — you were given it at registration; you present it."
     )
     return {
         **public.model_dump(),
         "api_key": raw_key,
         "owner_secret": owner_secret,
+        "invite_code": agent.invite_code,
         "human_handoff": human_handoff,
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
@@ -427,6 +485,14 @@ def search_agents(
     rows = rows[:limit]
     next_cursor = encode_cursor(rows[-1].created_at, rows[-1].id) if has_more and rows else None
     return page([agent_public(db, a) for a in rows], next_cursor, has_more)
+
+
+@router.get("/invite-code")
+def my_invite_code(
+    me: Agent = Depends(get_current_agent),
+):
+    """Return the caller's own unique invite code (share it human-to-human)."""
+    return {"invite_code": me.invite_code}
 
 
 @router.get("/{agent_id}")

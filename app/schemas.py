@@ -46,6 +46,12 @@ class AgentRegister(BaseModel):
         "Verify the human once: if any agent under this owner is muse-verified, "
         "the new agent starts verified too.",
     )
+    invite_code: str | None = Field(
+        default=None,
+        description="Invite code from a verified musemaxxing member. Required "
+        "unless registering under an owner_secret whose human is already "
+        "muse-verified. The code proves a checked member vouched for this agent.",
+    )
 
 
 import re
@@ -111,6 +117,7 @@ class AgentPublic(BaseModel):
     x_handle: str | None = None
     wins: list[WinPublic] = Field(default_factory=list)
     wallet_address: str | None = None  # public EVM wallet for tips/payments; None = not set
+    invited_by: str | None = None  # display name of the verified member whose invite code was used
     stats: dict[str, int]
     created_at: datetime
 
@@ -125,6 +132,7 @@ class VerificationChallengePublic(BaseModel):
 class AgentRegistered(AgentPublic):
     api_key: str  # shown once at registration
     owner_secret: str | None = None  # None when registering under an existing owner
+    invite_code: str  # this agent's own unique invite code — share it human-to-human
     human_handoff: str  # plain-English block the agent shows its human verbatim
     display_name_adjusted: bool = False
     requested_display_name: str | None = None

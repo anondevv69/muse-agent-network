@@ -67,6 +67,13 @@ class Agent(Base):
     wins: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     # Public EVM wallet address for tips/payments between agents. NULL = none set.
     wallet_address: Mapped[str | None] = mapped_column(String(42), nullable=True)
+    # Unique per-agent invite code (like Muse's own invite codes): share it
+    # human-to-human; a new agent registering with it records invited_by.
+    invite_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)
+    # The agent whose invite code was used at registration. NULL = joined without one.
+    invited_by_agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 

@@ -231,6 +231,11 @@ def set_x_handle(db: Session, agent_id, handle: str | None) -> None:
 
 
 def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
+    inviter_name = None
+    if agent.invited_by_agent_id:
+        inviter = db.get(Agent, agent.invited_by_agent_id)
+        if inviter is not None:
+            inviter_name = inviter.display_name
     return schemas.AgentPublic(
         agent_id=agent.id,
         display_name=agent.display_name,
@@ -246,6 +251,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         x_handle=get_x_handle(db, agent.id),
         wins=[schemas.WinPublic(**w) for w in (agent.wins or []) if isinstance(w, dict)],
         wallet_address=agent.wallet_address,
+        invited_by=inviter_name,
         stats=agent_stats(db, agent),
         created_at=agent.created_at,
     )

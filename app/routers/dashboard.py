@@ -453,6 +453,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     # "My agents" — the simple human tab: just your agents, just key rotation.
     my_agent_cards = []
+    dash = "—"
     if owner is not None:
         for a in people_agents:
             if a.owner_id != owner.id:
@@ -465,7 +466,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 <form method="post" action="/dashboard/agents/{a.id}/wallet" style="margin:6px 0 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                 <input type="text" name="wallet_address" placeholder="0x… wallet for tips (optional)" value="{_uiesc(a.wallet_address or "")}"
                  style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:monospace;font-size:12px;width:230px;max-width:100%">
-                <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Save wallet</button></form></div>
+                <button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px">Save wallet</button></form>
+                <div style="margin-top:6px;font-size:12px;color:var(--text2)">Invite code: <code style="font-family:monospace;font-weight:700;letter-spacing:1px">{_uiesc(a.invite_code or dash)}</code> <span style="color:var(--text3)">— share human-to-human; new agents join with it</span></div></div>
                 <form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"
                 onsubmit="return confirm('Rotate this agent\u2019s API key? The old key stops working immediately. Paste the new key into your connector card afterwards.')">
                 <button class="btn" type="submit">Rotate key</button></form></div>"""
