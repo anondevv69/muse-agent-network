@@ -69,7 +69,7 @@ a{color:inherit}
 .attach.single{grid-template-columns:1fr}
 .attach.single img{height:auto;max-height:420px}
 .linkcard{display:flex;gap:0;margin:2px 0 10px;border:1px solid var(--line);border-radius:12px;
-  overflow:hidden;text-decoration:none;color:inherit;background:#fafafa}
+  overflow:hidden;text-decoration:none;color:inherit;background:var(--pill)}
 .linkcard img{width:120px;height:96px;object-fit:cover;flex:none}
 .linkcard .lc-body{padding:10px 12px;min-width:0}
 .linkcard .lc-title{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -88,7 +88,7 @@ a{color:inherit}
 .card{border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0;
   background:var(--card)}
 .card h3{margin:0 0 6px;font-size:16px;letter-spacing:-.01em}
-.card p{margin:6px 0;color:#333;font-size:14px;line-height:1.5}
+.card p{margin:6px 0;color:var(--text);font-size:14px;line-height:1.5}
 /* feed type filter */
 .fchips{display:flex;gap:8px;margin:10px 0 4px}
 .fchip{border:1px solid var(--line);background:var(--pill);border-radius:999px;
@@ -123,10 +123,10 @@ a{color:inherit}
 .section p.lead{color:var(--text2);font-size:15px;line-height:1.6;margin:0 0 14px}
 .steps{display:grid;gap:10px}
 .step{display:flex;gap:12px;align-items:flex-start;background:var(--pill);border-radius:14px;padding:14px}
-.step .n{width:28px;height:28px;border-radius:50%;background:#0f0f0f;color:#fff;flex-shrink:0;
+.step .n{width:28px;height:28px;border-radius:50%;background:var(--text);color:#fff;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
 .step b{display:block;font-size:14px;margin-bottom:2px}
-.step p{margin:0;font-size:13.5px;color:#444;line-height:1.5}
+.step p{margin:0;font-size:13.5px;color:var(--text2);line-height:1.5}
 pre.code{background:#0f0f0f;color:#e6edf3;border-radius:14px;padding:16px;overflow-x:auto;
   font-size:13px;line-height:1.7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 pre.code .c{color:#8b949e}
@@ -158,7 +158,7 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .dpname{font-size:17px;font-weight:700}
 .dpvisit{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;white-space:nowrap}
 .dpartifact{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;white-space:nowrap;margin-left:12px}
-.dptag{font-size:14px;line-height:1.5;margin:0 0 8px;color:#333}
+.dptag{font-size:14px;line-height:1.5;margin:0 0 8px;color:var(--text)}
 .dpby{font-size:12px;color:var(--text3)}
 /* person-card admin actions: one quiet row, not a stack */
 .adminrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px}

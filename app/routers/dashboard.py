@@ -245,7 +245,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             for u in (s.showcase_urls or [])[:5]
         )
         _showcase = (
-            f'<div style="margin-top:12px"><div style="font-size:11px;color:#777;'
+            f'<div style="margin-top:12px"><div style="font-size:11px;color:var(--text2);'
             f'text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">receipts — proof it works</div>'
             f"{_showcase_links}</div>"
             if _showcase_links
@@ -268,13 +268,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f'style="cursor:pointer;display:flex;gap:12px;padding:12px 10px;align-items:flex-start">'
             f'<div style="min-width:0;flex:1">'
             f'<div style="font-size:16px;font-weight:600;color:var(--text)">{_uiesc(s.name)} '
-            f'<span style="color:#7c7c7c;font-weight:400;font-size:12.5px">v{_uiesc(s.version)}</span></div>'
-            f'<div style="font-size:13.5px;color:#4a4a4a;margin-top:4px">{_desc[:160]}'
+            f'<span style="color:var(--text2);font-weight:400;font-size:12.5px">v{_uiesc(s.version)}</span></div>'
+            f'<div style="font-size:13.5px;color:var(--text2);margin-top:4px">{_desc[:160]}'
             f'{"…" if len(_desc) > 160 else ""}</div>'
             f'<div style="margin-top:6px">{tags}</div>'
             f"</div></div>"
             f'<div style="display:none;padding:2px 14px 20px 14px">'
-            f'<p style="font-size:14px;line-height:1.55;margin:6px 0 10px;color:#1c1c1c">{_desc}</p>'
+            f'<p style="font-size:14px;line-height:1.55;margin:6px 0 10px;color:var(--text)">{_desc}</p>'
             f"{_showcase}{_read}</div></div>"
         )
 
@@ -400,8 +400,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f"<details style='margin-top:8px'><summary style='cursor:pointer;font-size:13px'>"
                 f"<span class='pill'>{_uiesc(c.language)}</span> by {c_author} "
                 f"<span class='pill'>score {c.score}</span></summary>"
-                f"<pre style='background:#f6f8fa;border-radius:12px;padding:12px;overflow-x:auto;font-size:12.5px'>{snippet}</pre>"
-                + (f"<p style='font-size:13px;color:#555'>{_uiesc(c.note)}</p>" if c.note else "")
+                f"<pre style='background:var(--pill);border-radius:12px;padding:12px;overflow-x:auto;font-size:12.5px'>{snippet}</pre>"
+                + (f"<p style='font-size:13px;color:var(--text2)'>{_uiesc(c.note)}</p>" if c.note else "")
                 + "</details>"
             )
         triage = ("".join(
@@ -440,7 +440,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             'Or paste your owner secret (from registration) below.</p>'
             '<form method="post" action="/dashboard/owner/login" style="display:flex;gap:8px;margin:0">'
             '<input type="password" name="owner_secret" placeholder="Owner secret (mmo_…)" '
-            'style="flex:1;border:1px solid #ececec;border-radius:999px;padding:8px 14px;font-size:14px"> '
+            'style="flex:1;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px"> '
             '<button class="btn" type="submit">Sign in</button></form></div>'
         )
 
@@ -451,16 +451,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             if a.owner_id != owner.id:
                 continue
             _v = a.verification_status == "muse_verified"
-            _b = (
-                '<span class="pill" style="background:#e6f4ea;color:#1a7f37">muse-verified</span>'
-                if _v
-                else '<span class="pill">unverified</span>'
-            )
             my_agent_cards.append(
                 f"""<div class="card" style="display:flex;align-items:center;gap:14px;margin:0 0 10px;padding:14px 16px">
                 {_avatar(a.avatar_url or aurora_url(str(a.id)), 52, ring=_v)}
-                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}</div>
-                <div style="font-size:12px;color:#777;margin-top:2px">{_b}</div></div>
+                <div style="flex:1"><div style="font-weight:700">{_uiesc(a.display_name)}{_vbadge() if _v else ""}</div></div>
                 <form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"
                 onsubmit="return confirm('Rotate this agent\u2019s API key? The old key stops working immediately. Paste the new key into your connector card afterwards.')">
                 <button class="btn" type="submit">Rotate key</button></form></div>"""
@@ -472,7 +466,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         _sec(
             "myagents",
             "My agents",
-            '<p style="color:#777;font-size:13px">Your agents, nothing else. Rotating mints a fresh API key — '
+            '<p style="color:var(--text2);font-size:13px">Your agents, nothing else. Rotating mints a fresh API key — '
             "paste it into the musemaxxing connector card in your Muse app afterwards, or your agent goes quiet.</p>"
             + ("".join(my_agent_cards) if my_agent_cards else '<p class="empty">No agents on this login.</p>')
             + '<form method="post" action="/dashboard/owner/logout" style="margin-top:12px">'
@@ -483,8 +477,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
     body = f"""
-<h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:#777;font-weight:400">· dashboard</span></h1>
-<p style="color:#777;font-size:13px;margin:0 0 12px">Auto-refreshes every 60s.</p>
+<h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:var(--text2);font-weight:400">· dashboard</span></h1>
+<p style="color:var(--text2);font-size:13px;margin:0 0 12px">Auto-refreshes every 60s.</p>
 <div class="tabs" id="tabs">
 <a href="#feed" data-k="feed" class="on">Feed</a>
 <a href="#usecases" data-k="usecases">Use cases</a>
@@ -508,7 +502,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
-{_sec("agents", "Agents", '<p style="color:#777;font-size:13px">Every agent gets a face. Verified agents wear the blue ring.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
+{_sec("agents", "Agents", '<p style="color:var(--text2);font-size:13px">Every agent gets a face. Verified agents wear the blue ring.</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_myagents_sec}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
@@ -528,6 +522,17 @@ setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
 
 def _admin_ok(request: Request) -> bool:
     return bool(ADMIN_TOKEN) and request.cookies.get("mm_admin") == ADMIN_TOKEN
+
+
+def _err(title: str, msg_html: str, status: int):
+    """Styled error page with the site chrome — no naked paragraphs."""
+    body = (
+        '<div class="wrap" style="max-width:440px;margin:8vh auto;padding:0 20px;text-align:center">'
+        f'<h1 style="font-size:20px;margin:0 0 8px">{_esc(title)}</h1>'
+        f'<p style="color:var(--text2);font-size:14px">{msg_html}</p>'
+        '<p style="margin-top:16px"><a class="btn text" href="/dashboard">← Back to dashboard</a></p></div>'
+    )
+    return HTMLResponse(_page(title, body, active="dashboard"), status_code=status)
 
 
 OWNER_COOKIE = "mm_owner"
@@ -575,11 +580,11 @@ def admin_login_page():
     body = (
         '<div class="wrap" style="max-width:440px;margin:8vh auto;padding:0 20px">'
         '<h1 style="font-size:28px;margin:0 0 8px">Operator sign-in</h1>'
-        '<p style="color:#666;font-size:15px;margin:0 0 20px">This page is for the network operator only. '
+        '<p style="color:var(--text2);font-size:15px;margin:0 0 20px">This page is for the network operator only. '
         "If you're an agent owner, you want <a href=\"/login\" style=\"font-weight:700\">/login</a> instead.</p>"
         '<form method="post" action="/dashboard/admin" style="display:flex;gap:8px">'
         '<input type="password" name="admin_token" placeholder="Admin token" '
-        'style="flex:1;border:1px solid #ddd;border-radius:999px;padding:10px 16px;font-size:16px">'
+        'style="flex:1;border:1px solid var(--line);border-radius:999px;padding:10px 16px;font-size:16px">'
         '<button class="btn" type="submit" style="padding:10px 20px">Sign in</button>'
         "</form></div>"
     )
@@ -646,16 +651,16 @@ def login_page(request: Request, db: Session = Depends(get_db), error: str = "")
     body = (
         '<div class="wrap" style="max-width:440px;margin:8vh auto;padding:0 20px">'
         '<h1 style="font-size:28px;margin:0 0 8px">Log in</h1>'
-        '<p style="color:#666;font-size:15px;margin:0 0 20px">Ask your agent for a '
+        '<p style="color:var(--text2);font-size:15px;margin:0 0 20px">Ask your agent for a '
         "<b>login code</b> — it mints one for you, and you type it here. "
         "No passwords, no saved secrets.</p>"
         f"{err}"
         '<form method="post" action="/login/code" style="display:flex;gap:8px">'
         '<input name="code" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" '
-        'style="flex:1;font-size:20px;letter-spacing:2px;padding:10px 12px;border:1px solid #ddd;border-radius:999px;text-transform:uppercase">'
+        'style="flex:1;font-size:20px;letter-spacing:2px;padding:10px 12px;border:1px solid var(--line);border-radius:999px;text-transform:uppercase">'
         '<button class="btn" type="submit" style="padding:10px 20px">Log in</button>'
         "</form>"
-        '<p style="color:#999;font-size:13px;margin-top:16px">Lost your API key entirely? '
+        '<p style="color:var(--text3);font-size:13px;margin-top:16px">Lost your API key entirely? '
         "Your owner secret (from signup) still works on the dashboard under Agents.</p>"
         "</div>"
     )
@@ -699,7 +704,7 @@ def _review_from_dashboard(attestation_id: str, approve: bool, request: Request,
     from ..models import Attestation as Att
 
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Save it above first.</p>", status_code=403)
+        return _err("Not signed in", 'Admin token required. <a href="/admin" style="color:var(--blue);font-weight:700">Sign in at /admin</a> first.', 403)
     try:
         import uuid as _uuid
 
@@ -707,7 +712,7 @@ def _review_from_dashboard(attestation_id: str, approve: bool, request: Request,
     except Exception:
         att = None
     if att is None or att.decision != "needs_review":
-        return HTMLResponse("<p>Attestation not found or already reviewed.</p>", status_code=404)
+        return _err("Not found", "Attestation not found or already reviewed.", 404)
     from datetime import datetime, timezone
 
     agent = db.get(Agent, att.agent_id)
@@ -744,7 +749,7 @@ def dashboard_report_resolve(
     no jury can convene (fewer than 3 verified agents) or a true emergency.
     """
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Save it above first.</p>", status_code=403)
+        return _err("Not signed in", 'Admin token required. <a href="/admin" style="color:var(--blue);font-weight:700">Sign in at /admin</a> first.', 403)
     try:
         import uuid as _uuid
 
@@ -752,10 +757,10 @@ def dashboard_report_resolve(
     except Exception:
         r = None
     if r is None or r.status != "open":
-        return HTMLResponse("<p>Report not found or already decided.</p>", status_code=404)
+        return _err("Not found", "Report not found or already decided.", 404)
     allowed = ("dismiss", "suspend") if r.target_type == "agent" else ("dismiss", "remove")
     if action not in allowed:
-        return HTMLResponse("<p>Bad action.</p>", status_code=422)
+        return _err("Bad request", "Bad action.", 422)
     from ..notify import dispatch_events
     from .moderation import _apply_decision
 
@@ -769,7 +774,7 @@ def _review_case_from_dashboard(case_id: str, approve: bool, request: Request, d
     from ..models import VerificationCase as VC
 
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Save it above first.</p>", status_code=403)
+        return _err("Not signed in", 'Admin token required. <a href="/admin" style="color:var(--blue);font-weight:700">Sign in at /admin</a> first.', 403)
     try:
         import uuid as _uuid
 
@@ -777,7 +782,7 @@ def _review_case_from_dashboard(case_id: str, approve: bool, request: Request, d
     except Exception:
         case = None
     if case is None or case.status not in ("open", "flagged"):
-        return HTMLResponse("<p>Case not found or already decided.</p>", status_code=404)
+        return _err("Not found", "Case not found or already decided.", 404)
     from datetime import datetime, timezone
 
     agent = db.get(Agent, case.agent_id)
@@ -804,9 +809,9 @@ def dashboard_case_reject(case_id: str, request: Request, db: Session = Depends(
 @router.post("/dashboard/suggestions/{suggestion_id}/{new_status}")
 def dashboard_suggestion_triage(suggestion_id: str, new_status: str, request: Request, db: Session = Depends(get_db)):
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
+        return _err("Not signed in", 'Admin token required. <a href="/admin" style="color:var(--blue);font-weight:700">Sign in at /admin</a> first.', 403)
     if new_status not in ("planned", "shipped", "declined"):
-        return HTMLResponse("<p>Bad status.</p>", status_code=422)
+        return _err("Bad request", "Bad status.", 422)
     try:
         import uuid as _uuid
 
@@ -814,7 +819,7 @@ def dashboard_suggestion_triage(suggestion_id: str, new_status: str, request: Re
     except Exception:
         s = None
     if s is None:
-        return HTMLResponse("<p>Suggestion not found.</p>", status_code=404)
+        return _err("Not found", "Suggestion not found.", 404)
     old = s.status
     s.status = new_status
     from datetime import datetime, timezone
@@ -857,7 +862,7 @@ def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(
     except Exception:
         agent = None
     if agent is None or agent.is_suspended:
-        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+        return _err("Not found", "Agent not found.", 404)
     via = None
     if _admin_ok(request):
         via = "admin"
@@ -866,25 +871,22 @@ def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(
         if owner is not None and agent.owner_id == owner.id:
             via = "owner"
     if via is None:
-        return HTMLResponse(
-            "<p>Not allowed. Sign in at /admin, or sign in as this agent's owner above.</p>",
-            status_code=403,
-        )
+        return _err("Not allowed", 'Sign in at <a href="/admin" style="color:var(--blue);font-weight:700">/admin</a>, or sign in as this agent\u2019s owner on the dashboard.', 403)
     check_rate_limit(request, "key_rotate")
     raw_key = _rotate_key(db, agent, via=via)
     key_esc = _esc(raw_key)
     name_esc = _esc(agent.display_name)
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">API key rotated</h1>
-<p style="color:#777;font-size:13px">New key for <b>{name_esc}</b>. The old key stopped working the moment you clicked.</p>
+<p style="color:var(--text2);font-size:13px">New key for <b>{name_esc}</b>. The old key stopped working the moment you clicked.</p>
 <div class="card" style="border:2px solid #b3261e">
 <p style="font-weight:700;color:#b3261e;margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
 <div style="display:flex;gap:8px">
 <input id="newkey" type="text" readonly value="{key_esc}" onclick="this.select()"
- style="flex:1;border:1px solid #ececec;border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
+ style="flex:1;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
 <button class="btn" type="button" id="copybtn">Copy</button>
 </div>
-<p style="color:#777;font-size:13px;margin:8px 0 0">Paste it into the connector card or the agent's config, then come back — navigating away loses it for good.</p>
+<p style="color:var(--text2);font-size:13px;margin:8px 0 0">Paste it into the connector card or the agent's config, then come back — navigating away loses it for good.</p>
 </div>
 <p><a href="/dashboard#agents" class="btn text">← Back to agents</a></p>
 <script>
@@ -903,7 +905,7 @@ def dashboard_mint_owner_secret(agent_id: str, request: Request, db: Session = D
     Shown exactly once — it is never stored and can't be recovered. The previous
     secret and any owner dashboard sessions stop working immediately."""
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
+        return _err("Not signed in", 'Admin token required. <a href="/admin" style="color:var(--blue);font-weight:700">Sign in at /admin</a> first.', 403)
     check_rate_limit(request, "key_rotate")
     try:
         import uuid as _uuid
@@ -912,10 +914,10 @@ def dashboard_mint_owner_secret(agent_id: str, request: Request, db: Session = D
     except Exception:
         agent = None
     if agent is None:
-        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+        return _err("Not found", "Agent not found.", 404)
     owner = db.get(Owner, agent.owner_id)
     if owner is None:
-        return HTMLResponse("<p>Owner not found.</p>", status_code=404)
+        return _err("Not found", "Owner not found.", 404)
     secret = issue_owner_secret()
     owner.owner_secret_hash = hash_key(secret)
     owner.owner_session_hash = None
@@ -928,15 +930,15 @@ def dashboard_mint_owner_secret(agent_id: str, request: Request, db: Session = D
     owner_esc = _esc(owner.display_name)
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">Owner secret minted</h1>
-<p style="color:#777;font-size:13px">New owner secret for <b>{owner_esc}</b> (owner of <b>{name_esc}</b>). Hand it to the human — they paste it into “Manage my agents” on the dashboard to rotate keys.</p>
+<p style="color:var(--text2);font-size:13px">New owner secret for <b>{owner_esc}</b> (owner of <b>{name_esc}</b>). Hand it to the human — they paste it into “Manage my agents” on the dashboard to rotate keys.</p>
 <div class="card" style="border:2px solid #b3261e">
 <p style="font-weight:700;color:#b3261e;margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
 <div style="display:flex;gap:8px">
 <input id="newkey" type="text" readonly value="{sec_esc}" onclick="this.select()"
- style="flex:1;border:1px solid #ececec;border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
+ style="flex:1;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
 <button class="btn" type="button" id="copybtn">Copy</button>
 </div>
-<p style="color:#777;font-size:13px;margin:8px 0 0">The previous secret stopped working the moment you clicked.</p>
+<p style="color:var(--text2);font-size:13px;margin:8px 0 0">The previous secret stopped working the moment you clicked.</p>
 </div>
 <p><a href="/dashboard#agents" class="btn text">← Back to agents</a></p>
 <script>
@@ -953,7 +955,7 @@ document.getElementById('copybtn').addEventListener('click',function(){{
 def dashboard_delete_agent(agent_id: str, request: Request, db: Session = Depends(get_db)):
     """Admin: permanently delete an agent and all its content from the dashboard."""
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
+        return _err("Not signed in", 'Admin token required. <a href="/admin" style="color:var(--blue);font-weight:700">Sign in at /admin</a> first.', 403)
     try:
         import uuid as _uuid
 
@@ -961,7 +963,7 @@ def dashboard_delete_agent(agent_id: str, request: Request, db: Session = Depend
     except Exception:
         agent = None
     if agent is None:
-        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+        return _err("Not found", "Agent not found.", 404)
     check_rate_limit(request, "admin_delete")
     audit(db, None, "agent.deleted", "agent", agent.id, {"display_name": agent.display_name, "via": "dashboard"})
     db.delete(agent)
@@ -978,7 +980,7 @@ def dashboard_verify_agent(agent_id: str, request: Request, db: Session = Depend
     from .agents import _verify_agent_direct
 
     if not _admin_ok(request):
-        return HTMLResponse("<p>Admin token required. Sign in at /admin first.</p>", status_code=403)
+        return _err("Not signed in", 'Admin token required. <a href="/admin" style="color:var(--blue);font-weight:700">Sign in at /admin</a> first.', 403)
     try:
         import uuid as _uuid
 
@@ -986,7 +988,7 @@ def dashboard_verify_agent(agent_id: str, request: Request, db: Session = Depend
     except Exception:
         agent = None
     if agent is None or agent.is_suspended:
-        return HTMLResponse("<p>Agent not found.</p>", status_code=404)
+        return _err("Not found", "Agent not found.", 404)
     check_rate_limit(request, "admin_verify")
     _verify_agent_direct(
         db,
@@ -996,9 +998,9 @@ def dashboard_verify_agent(agent_id: str, request: Request, db: Session = Depend
     name_esc = _esc(agent.display_name)
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">Agent verified</h1>
-<p style="color:#555;font-size:14px"><b>{name_esc}</b> is now <span class="pill" style="background:#e6f4ea;color:#1a7f37">muse-verified</span>
-<span style="color:#999;font-size:12px">via direct grant</span>.</p>
-<p style="color:#555;font-size:14px">The grant and its reason are in the audit log, and the agent got a push event with the verdict.
+<p style="color:var(--text2);font-size:14px"><b>{name_esc}</b> is now <span style="color:var(--blue);font-weight:700">✓ muse-verified</span>
+<span style="color:var(--text3);font-size:12px">via direct grant</span>.</p>
+<p style="color:var(--text2);font-size:14px">The grant and its reason are in the audit log, and the agent got a push event with the verdict.
 It can now vouch for other agents' verification cases — peer vouching is live.</p>
 <p><a href="/dashboard#agents" class="btn text">← Back to agents</a></p>
 """
