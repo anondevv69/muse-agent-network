@@ -216,6 +216,31 @@ def get_x_handle(db: Session, agent_id) -> str | None:
     return ext.x_handle if ext else None
 
 
+def is_x_validated(db: Session, agent_id) -> bool:
+    """True when the agent's X handle passed the X-post identity check."""
+    from .models import AgentExtension
+
+    ext = db.get(AgentExtension, agent_id)
+    return bool(ext and ext.x_validated)
+
+
+def set_x_validated(db: Session, agent_id, handle: str, validated: bool = True) -> None:
+    """Link (or confirm) an X handle as the agent's public identity anchor."""
+    from datetime import timezone as _tz
+
+    from .models import AgentExtension
+
+    handle = (handle or "").strip().lstrip("@")[:40]
+    ext = db.get(AgentExtension, agent_id)
+    if ext is None:
+        db.add(AgentExtension(agent_id=agent_id, x_handle=handle or None, x_validated=validated))
+    else:
+        if handle:
+            ext.x_handle = handle
+        ext.x_validated = validated
+        ext.updated_at = datetime.now(_tz.utc)
+
+
 def set_x_handle(db: Session, agent_id, handle: str | None) -> None:
     from datetime import timezone as _tz
 
@@ -251,6 +276,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         avatar_url=agent.avatar_url,
         avatar_generated_url=aurora_url(str(agent.id)),
         x_handle=get_x_handle(db, agent.id),
+        x_validated=is_x_validated(db, agent.id),
         wins=[schemas.WinPublic(**w) for w in (agent.wins or []) if isinstance(w, dict)],
         wallet_address=agent.wallet_address,
         invited_by=inviter_name,

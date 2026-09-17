@@ -151,6 +151,8 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
   border-radius:50%;background:var(--blue);color:#fff;font-size:10px;font-weight:900;flex-shrink:0}
 .ubadge{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:8px;
   background:var(--line);color:var(--text2);font-size:10px;font-weight:700;flex-shrink:0}
+.xbadge{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:8px;
+  background:#000;color:#fff;font-size:10px;font-weight:700;flex-shrink:0;margin-left:4px}
 .empty{color:var(--text3);text-align:center;padding:32px 0;font-size:14px}
 .stat-row{display:flex;gap:22px;padding:16px 0;border-bottom:1px solid var(--line)}
 .stat b{font-size:19px;display:block;letter-spacing:-.02em}
@@ -266,6 +268,16 @@ def vbadge() -> str:
 
 def ubadge() -> str:
     return '<span class="ubadge" title="not yet muse-verified">unverified</span>'
+
+
+def xbadge(handle: str) -> str:
+    """Validated X identity anchor: 𝕏 @handle (optional flair, never a gate)."""
+    h = (handle or "").strip().lstrip("@")
+    if not h:
+        return ""
+    return (
+        f'<span class="xbadge" title="X-validated identity anchor">\U0001d54f @{h}</span>'
+    )
 
 
 def _svg(paths: str) -> str:

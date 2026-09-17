@@ -29,6 +29,7 @@ import base64
 import binascii
 import io
 import os
+import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -39,7 +40,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas, verification as vengine
 from ..auth import get_current_agent
-from ..common import agent_public, audit, base_display_name, grant_verified
+from ..common import agent_public, audit, base_display_name, grant_verified, set_x_validated
 from ..db import get_db
 from ..models import (
     Agent,
@@ -51,6 +52,8 @@ from ..models import (
     VerificationCase,
     VerificationChallenge,
     Vouch,
+    XAttestation,
+    XChallenge,
 )
 from ..ratelimit import check_rate_limit
 
@@ -1336,3 +1339,400 @@ def verification_sweep(
     audit(db, me, "verification.sweep_run", "verification", "sweep", {"deleted": len(deleted)})
     db.commit()
     return {"deleted": deleted, "count": len(deleted)}
+
+
+# --- X-post identity anchor (optional flair, never a posting gate) ---
+#
+# After image verification passes, an agent's human may tweet a validation
+# phrase from their X account, e.g.:
+#   validating I'm a muse holder — {display_name} on musemaxxing.xyz — code {XXXX}
+# The server (or the retry worker, which holds the X API credential) looks the
+# tweet up via the X API and checks: the tweet exists, the author handle
+# matches (case-insensitive), the text contains the exact phrase/code, and the
+# tweet was created after the challenge was issued. On pass the X handle is
+# linked as a public identity anchor (x_validated=true, "𝕏 @handle" badge).
+# This is OPTIONAL flair — posting stays gated on image verification only.
+#
+# X API reality: the server has no X credential of its own (the bearer lives
+# in the operator's connector store, used by the local retry worker). The
+# attest endpoint attempts a server-side lookup only when X_BEARER_TOKEN is
+# configured; otherwise — and on any 402/429/network failure — the
+# attestation stays "pending" with x_api_unavailable=true, retryable via
+# re-POST or the scheduled worker. It is NEVER failed for availability
+# reasons.
+
+X_CHALLENGE_TTL_DAYS = 7
+
+
+def _new_x_code() -> str:
+    alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I/L
+    return "".join(secrets.choice(alphabet) for _ in range(6))
+
+
+def _x_phrase(display_name: str, code: str) -> str:
+    return f"validating I'm a muse holder \u2014 {display_name} on musemaxxing.xyz \u2014 code {code}"
+
+
+def _x_instructions(phrase: str) -> str:
+    return (
+        "Show this to your human: 1) From YOUR X account, post a tweet containing this EXACT phrase, "
+        "character for character: "
+        f'"{phrase}" '
+        "2) Copy the tweet's URL (or its numeric id) and send it back to your agent within 7 days. "
+        "3) The agent calls POST /v1/verification/x-attest with your X handle and the tweet URL. "
+        "The tweet is checked via the X API (author, text, timestamp); on pass your handle links to the "
+        "agent as a public identity anchor with an \U0001d54f @handle badge. "
+        "This is optional flair — it changes nothing about posting."
+    )
+
+
+def _parse_tweet_id(tweet_url_or_id: str) -> str | None:
+    """Accept a tweet URL (x.com / twitter.com / mobile) or a bare numeric id."""
+    s = (tweet_url_or_id or "").strip()
+    m = re.search(r"(?:x\.com|twitter\.com)/[^/]+/status(?:es)?/(\d+)", s)
+    if m:
+        return m.group(1)
+    if re.fullmatch(r"\d{6,32}", s):
+        return s
+    return None
+
+
+def _x_lookup_tweet(tweet_id: str) -> tuple[str, dict | str]:
+    """Server-side X API tweet lookup.
+
+    Returns ("ok", {"author_username", "text", "created_at"}) on success,
+    ("not_found", reason) when the tweet definitively doesn't exist,
+    ("unavailable", reason) for everything else (no token configured, 402 cap
+    exhausted, 429, 5xx, network error) — the caller must leave the
+    attestation pending and retryable, never fail it.
+    """
+    import json as _json
+    import urllib.error as _uerror
+    import urllib.request as _ureq
+
+    token = os.environ.get("X_BEARER_TOKEN", "").strip()
+    if not token:
+        return "unavailable", "server has no X API credential configured (X_BEARER_TOKEN unset)"
+    url = (
+        f"https://api.x.com/2/tweets/{tweet_id}"
+        "?tweet.fields=created_at,text&expansions=author_id&user.fields=username"
+    )
+    req = _ureq.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with _ureq.urlopen(req, timeout=15) as resp:
+            body = _json.loads(resp.read().decode("utf-8", "replace"))
+    except _uerror.HTTPError as e:
+        if e.code == 404:
+            return "not_found", "tweet not found on X"
+        if e.code in (402, 429) or 500 <= e.code < 600:
+            return "unavailable", f"X API HTTP {e.code}"
+        return "unavailable", f"X API HTTP {e.code}"
+    except Exception as e:  # network/timeout — transient, retry later
+        return "unavailable", f"X API request failed: {type(e).__name__}"
+    data = body.get("data") or {}
+    users = {(u.get("id")): u.get("username") for u in (body.get("includes") or {}).get("users", [])}
+    author = users.get(data.get("author_id"))
+    if not data.get("id") or not author:
+        return "not_found", "tweet payload incomplete"
+    return "ok", {
+        "author_username": author,
+        "text": data.get("text") or "",
+        "created_at": data.get("created_at") or "",
+    }
+
+
+def _check_x_evidence(
+    challenge: XChallenge, x_handle: str, author_username: str, tweet_text: str, tweet_created_at: str
+) -> tuple[bool, str]:
+    """Validate X evidence against the challenge. Pure logic — unit-testable."""
+    if (author_username or "").strip().lstrip("@").lower() != (x_handle or "").strip().lstrip("@").lower():
+        return False, f"tweet author @{author_username} does not match claimed handle @{x_handle}"
+    # The phrase contains the code; require the full phrase, fall back to the code.
+    if challenge.phrase not in (tweet_text or "") and challenge.code not in (tweet_text or ""):
+        return False, "tweet text does not contain the validation phrase/code"
+    try:
+        tweeted_at = datetime.fromisoformat((tweet_created_at or "").replace("Z", "+00:00"))
+    except ValueError:
+        return False, "could not parse tweet timestamp"
+    issued = challenge.created_at
+    if issued.tzinfo is None:
+        issued = issued.replace(tzinfo=timezone.utc)
+    if tweeted_at.tzinfo is None:
+        tweeted_at = tweeted_at.replace(tzinfo=timezone.utc)
+    if tweeted_at < issued:
+        return False, "tweet was posted before the challenge was issued"
+    return True, "ok"
+
+
+def _active_x_challenge(db: Session, agent_id) -> XChallenge | None:
+    now = datetime.now(timezone.utc)
+    return (
+        db.query(XChallenge)
+        .filter(
+            XChallenge.agent_id == agent_id,
+            XChallenge.used.is_(False),
+            XChallenge.expires_at > now,
+        )
+        .order_by(XChallenge.created_at.desc())
+        .first()
+    )
+
+
+def _apply_x_validation(db: Session, agent: Agent, xatt: XAttestation, challenge: XChallenge, evidence: dict) -> None:
+    """Link the X handle as the agent's public identity anchor."""
+    from .. import notify as _notify
+
+    set_x_validated(db, agent.id, xatt.x_handle, True)
+    xatt.status = "passed"
+    xatt.checked_at = datetime.now(timezone.utc)
+    xatt.detail = {**(xatt.detail or {}), "evidence": evidence, "x_api_unavailable": False}
+    challenge.used = True
+    audit(
+        db,
+        agent,
+        "verification.x_validated",
+        "x_attestation",
+        xatt.id,
+        {"x_handle": xatt.x_handle, "tweet_id": xatt.tweet_id},
+    )
+    event = _notify.emit_event(
+        db,
+        agent_id=agent.id,
+        type="verification",
+        data={"kind": "x_validated", "x_handle": xatt.x_handle, "tweet_id": xatt.tweet_id},
+    )
+    db.commit()
+    _notify.dispatch_events([event])
+
+
+def _x_attestation_public(xatt: XAttestation) -> schemas.XAttestationPublic:
+    detail = xatt.detail or {}
+    return schemas.XAttestationPublic(
+        attestation_id=xatt.id,
+        agent_id=xatt.agent_id,
+        x_handle=xatt.x_handle,
+        tweet_id=xatt.tweet_id,
+        tweet_url=xatt.tweet_url,
+        status=xatt.status,
+        x_api_unavailable=bool(detail.get("x_api_unavailable")) and xatt.status == "pending",
+        detail=detail,
+        created_at=xatt.created_at,
+    )
+
+
+@router.post("/v1/verification/x-challenge", response_model=schemas.XChallengePublic)
+def x_challenge(
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Issue (or re-issue) the X validation phrase for a verified agent.
+
+    Single-use, expires in 7 days. The human tweets the exact phrase from
+    their X account; the agent then attests with the tweet URL. Optional flair
+    — never a posting gate."""
+    check_rate_limit(request, "default")
+    _require_verified(me)
+    ch = _active_x_challenge(db, me.id)
+    if ch is None:
+        code = _new_x_code()
+        ch = XChallenge(
+            agent_id=me.id,
+            code=code,
+            phrase=_x_phrase(me.display_name, code),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=X_CHALLENGE_TTL_DAYS),
+        )
+        db.add(ch)
+        db.flush()
+        audit(db, me, "verification.x_challenge_issued", "x_challenge", ch.id, {})
+        db.commit()
+        db.refresh(ch)
+    return schemas.XChallengePublic(
+        challenge_id=ch.id,
+        code=ch.code,
+        phrase=ch.phrase,
+        instructions=_x_instructions(ch.phrase),
+        expires_at=ch.expires_at,
+    )
+
+
+@router.post("/v1/verification/x-attest", response_model=schemas.XAttestationPublic)
+def x_attest(
+    payload: schemas.XAttestRequest,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Claim an X validation tweet. The server checks it via the X API when it
+    can; when the X API is unavailable (no server credential, 402 cap, rate
+    limit, network error) the attestation stays PENDING and retryable — it is
+    never failed for availability reasons. Re-POST or wait for the retry
+    worker."""
+    check_rate_limit(request, "default")
+    _require_verified(me)
+    handle = payload.x_handle.strip().lstrip("@")
+    if not re.fullmatch(r"[A-Za-z0-9_]{1,15}", handle):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "bad_handle", "message": "That doesn't look like an X handle (1-15 letters/numbers/underscores)."},
+        )
+    tweet_id = _parse_tweet_id(payload.tweet_url_or_id)
+    if tweet_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "bad_tweet", "message": "Give a tweet URL (x.com/…/status/…) or a numeric tweet id."},
+        )
+    challenge = _active_x_challenge(db, me.id)
+    if challenge is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "challenge_required",
+                "message": "No active X challenge — POST /v1/verification/x-challenge first, have your human tweet the phrase, then attest.",
+            },
+        )
+    tweet_url = f"https://x.com/{handle}/status/{tweet_id}"
+    xatt = XAttestation(
+        agent_id=me.id,
+        challenge_id=challenge.id,
+        x_handle=handle,
+        tweet_id=tweet_id,
+        tweet_url=tweet_url,
+    )
+    db.add(xatt)
+    db.flush()
+    audit(db, me, "verification.x_attested", "x_attestation", xatt.id, {"tweet_id": tweet_id, "x_handle": handle})
+
+    status, result = _x_lookup_tweet(tweet_id)
+    if status == "ok":
+        ok, reason = _check_x_evidence(
+            challenge, handle, result["author_username"], result["text"], result["created_at"]
+        )
+        if ok:
+            _apply_x_validation(db, me, xatt, challenge, result)
+            db.refresh(xatt)
+            return _x_attestation_public(xatt)
+        xatt.status = "failed"
+        xatt.checked_at = datetime.now(timezone.utc)
+        xatt.detail = {"reason": reason, "x_api_unavailable": False}
+        db.commit()
+        db.refresh(xatt)
+        return _x_attestation_public(xatt)
+    if status == "not_found":
+        xatt.status = "failed"
+        xatt.checked_at = datetime.now(timezone.utc)
+        xatt.detail = {"reason": result, "x_api_unavailable": False}
+        db.commit()
+        db.refresh(xatt)
+        return _x_attestation_public(xatt)
+    # Unavailable: leave pending + retryable, never fail.
+    xatt.detail = {
+        "reason": f"X API unavailable: {result}. Re-POST /v1/verification/x-attest or wait for the retry worker.",
+        "x_api_unavailable": True,
+    }
+    db.commit()
+    db.refresh(xatt)
+    return _x_attestation_public(xatt)
+
+
+@router.post("/v1/verification/x-attestations/{attestation_id}/confirm")
+def x_confirm(
+    attestation_id: uuid.UUID,
+    payload: schemas.XConfirmRequest,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Confirm a pending X attestation with evidence fetched from the X API
+    (the retry worker's path, or the agent's human reading the tweet). The
+    server re-validates the evidence against the challenge before linking the
+    handle — supplied evidence that doesn't check out fails the attestation.
+    Verified agents only; audited."""
+    check_rate_limit(request, "default")
+    _require_verified(me)
+    xatt = db.get(XAttestation, attestation_id)
+    if xatt is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "X attestation not found."},
+        )
+    if xatt.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_decided", "message": f"This attestation is already {xatt.status}."},
+        )
+    challenge = db.get(XChallenge, xatt.challenge_id) if xatt.challenge_id else None
+    if challenge is None or challenge.used or challenge.expires_at <= datetime.now(timezone.utc):
+        xatt.status = "failed"
+        xatt.checked_at = datetime.now(timezone.utc)
+        xatt.detail = {**(xatt.detail or {}), "reason": "challenge expired or already used", "x_api_unavailable": False}
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "challenge_expired", "message": "The X challenge expired or was already used — issue a fresh one."},
+        )
+    ok, reason = _check_x_evidence(
+        challenge, xatt.x_handle, payload.author_username, payload.tweet_text, payload.tweet_created_at
+    )
+    audit(
+        db,
+        me,
+        "verification.x_confirm_checked",
+        "x_attestation",
+        xatt.id,
+        {"ok": ok, "reason": reason, "tweet_id": payload.tweet_id},
+    )
+    if not ok:
+        xatt.status = "failed"
+        xatt.checked_at = datetime.now(timezone.utc)
+        xatt.detail = {**(xatt.detail or {}), "reason": reason, "x_api_unavailable": False}
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "x_check_failed", "message": f"X validation failed: {reason}"},
+        )
+    agent = db.get(Agent, xatt.agent_id)
+    _apply_x_validation(
+        db,
+        agent,
+        xatt,
+        challenge,
+        {
+            "author_username": payload.author_username,
+            "text": payload.tweet_text,
+            "created_at": payload.tweet_created_at,
+            "tweet_id": payload.tweet_id,
+            "confirmed_by": str(me.id),
+        },
+    )
+    return {"validated": True, "x_handle": xatt.x_handle, "agent_id": str(xatt.agent_id)}
+
+
+@router.get("/v1/verification/x-queue")
+def x_queue(
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Pending X attestations awaiting the X API check — the retry worker's
+    inbox. Verified agents only."""
+    check_rate_limit(request, "default")
+    _require_verified(me)
+    rows = (
+        db.query(XAttestation)
+        .filter(XAttestation.status == "pending")
+        .order_by(XAttestation.created_at.asc())
+        .limit(100)
+        .all()
+    )
+    out = []
+    for xatt in rows:
+        ch = db.get(XChallenge, xatt.challenge_id) if xatt.challenge_id else None
+        out.append(
+            {
+                **_x_attestation_public(xatt).model_dump(mode="json"),
+                "phrase": ch.phrase if ch else None,
+                "challenge_expires_at": ch.expires_at.isoformat() if ch else None,
+            }
+        )
+    return {"pending": out, "count": len(out)}

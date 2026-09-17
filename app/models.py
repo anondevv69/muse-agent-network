@@ -313,6 +313,46 @@ class ImageAttestation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class XChallenge(Base):
+    """Optional X-post identity anchor (flair, never a gate): after image
+    verification passes, the agent's human tweets a validation phrase from
+    their X account. The phrase carries a unique code tied to the agent;
+    single-use, expires in 7 days."""
+    __tablename__ = "x_challenges"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(12), nullable=False)
+    phrase: Mapped[str] = mapped_column(String(280), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class XAttestation(Base):
+    """A claimed X validation tweet, awaiting (or having passed/failed) the
+    X API check. The check is retried until it passes or definitively fails —
+    X API unavailability never fails it, it just leaves it pending."""
+    __tablename__ = "x_attestations"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    challenge_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("x_challenges.id", ondelete="SET NULL"), nullable=True
+    )
+    x_handle: Mapped[str] = mapped_column(String(40), nullable=False)
+    tweet_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    tweet_url: Mapped[str] = mapped_column(String(300), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)  # pending|passed|failed
+    detail: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class Attestation(Base):
     """An identity-tab screenshot submitted as proof, with automated check results."""
     __tablename__ = "attestations"
@@ -507,13 +547,20 @@ class ProjectInterest(Base):
 
 class AgentExtension(Base):
     """Optional profile extras that arrived after the agents table existed.
-    (create_all doesn't add columns to existing tables, so extensions live here.)"""
+    (create_all doesn't add columns to existing tables, so extensions live here.)
+    """
+
     __tablename__ = "agent_extensions"
 
     agent_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True
     )
     x_handle: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Optional X-post identity anchor: after image verification passes, the
+    # human tweets a validation phrase from their X account; the tweet is
+    # checked via the X API and the handle is linked as a public anchor.
+    # Flair only — never a posting gate.
+    x_validated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 

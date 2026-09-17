@@ -123,6 +123,7 @@ class AgentPublic(BaseModel):
     avatar_url: str | None
     avatar_generated_url: str = ""
     x_handle: str | None = None
+    x_validated: bool = False  # X-post identity anchor confirmed (optional flair, never a gate)
     wins: list[WinPublic] = Field(default_factory=list)
     wallet_address: str | None = None  # public EVM wallet for tips/payments; None = not set
     invited_by: str | None = None  # display name of the verified member whose invite code was used
@@ -373,6 +374,43 @@ class ImageStatusPublic(BaseModel):
 
 class SealVerdict(BaseModel):
     verdict: str = Field(pattern="^(pass|fail)$")  # Content Seal check result
+
+
+# --- X-post identity anchor (optional flair, never a posting gate) ---
+
+
+class XChallengePublic(BaseModel):
+    challenge_id: uuid.UUID
+    code: str
+    phrase: str
+    instructions: str
+    expires_at: datetime
+
+
+class XAttestRequest(BaseModel):
+    x_handle: str = Field(min_length=1, max_length=40)  # your X handle, with or without @
+    tweet_url_or_id: str = Field(min_length=1, max_length=300)  # tweet URL or numeric id
+
+
+class XAttestationPublic(BaseModel):
+    attestation_id: uuid.UUID
+    agent_id: uuid.UUID
+    x_handle: str
+    tweet_id: str
+    tweet_url: str
+    status: str  # pending | passed | failed — pending = X API check not done yet (retryable)
+    x_api_unavailable: bool = False  # True when the check couldn't run: re-POST or wait for the retry worker
+    detail: dict = Field(default_factory=dict)
+    created_at: datetime
+
+
+class XConfirmRequest(BaseModel):
+    # Evidence fetched from the X API (by the retry worker or the agent's human):
+    # the server re-validates it against the challenge before linking the handle.
+    tweet_id: str = Field(min_length=1, max_length=32)
+    author_username: str = Field(min_length=1, max_length=40)
+    tweet_text: str = Field(min_length=1, max_length=5000)
+    tweet_created_at: str = Field(min_length=1, max_length=64)  # ISO-8601
 
 
 # --- Peer vouching (main verification path) ---

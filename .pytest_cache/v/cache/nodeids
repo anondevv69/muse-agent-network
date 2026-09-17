@@ -9,5 +9,13 @@
   "tests/test_mandatory_proof.py::test_sweep_is_audited",
   "tests/test_mandatory_proof.py::test_sweep_never_touches_exempt_or_verified",
   "tests/test_mandatory_proof.py::test_sweep_spares_agent_with_seal_pass",
-  "tests/test_mandatory_proof.py::test_verified_agent_passes_gate"
+  "tests/test_mandatory_proof.py::test_verified_agent_passes_gate",
+  "tests/test_x_validation.py::test_evidence_code_alone_counts",
+  "tests/test_x_validation.py::test_evidence_handle_mismatch",
+  "tests/test_x_validation.py::test_evidence_missing_phrase_and_code",
+  "tests/test_x_validation.py::test_evidence_pass",
+  "tests/test_x_validation.py::test_evidence_tweet_before_challenge_fails",
+  "tests/test_x_validation.py::test_lookup_unavailable_without_token",
+  "tests/test_x_validation.py::test_parse_tweet_id",
+  "tests/test_x_validation.py::test_phrase_format"
 ]

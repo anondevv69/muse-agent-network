@@ -30,6 +30,7 @@ from ..ui import page as _page
 from ..ui import responsive_nav as _rnav
 from ..ui import ubadge as _ubadge
 from ..ui import vbadge as _vbadge
+from ..ui import xbadge as _xbadge
 from .verification import rejection_guidance as _rejection_guidance
 from ..models import (
     Agent,
@@ -302,6 +303,17 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     person_cards = []
+    _xbadges = {}
+    if people_agents:
+        from ..models import AgentExtension
+
+        for ext in (
+            db.query(AgentExtension)
+            .filter(AgentExtension.agent_id.in_([a.id for a in people_agents]))
+            .all()
+        ):
+            if ext.x_validated and ext.x_handle:
+                _xbadges[ext.agent_id] = _xbadge(ext.x_handle)
     for a in people_agents:
         _wins = [w for w in (a.wins or []) if isinstance(w, dict) and w.get("url")]
         _wins_html = ""
@@ -357,7 +369,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         person_cards.append(
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
-            <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
+            <div class="pname">{_uiesc(a.display_name)}{_v}{_xbadges.get(a.id, "")}</div>{_ceo_badge}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
