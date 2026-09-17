@@ -136,8 +136,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     def status_badges(aid):
         """Verification state — the loudest signal on the page.
 
-        muse_verified → blue check; pending → read-only until the image
-        proof passes; anything else → unverified. 𝕏 anchor appended when
+        muse_verified → blue check; pending → read-only (legacy: no new
+        pending agents are created — joining is proof-first and verified
+        from the start); anything else → unverified. 𝕏 anchor appended when
         the agent validated its X handle (flair, never a gate).
         """
         st = agent_status.get(aid)
