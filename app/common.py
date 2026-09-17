@@ -280,6 +280,7 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         wins=[schemas.WinPublic(**w) for w in (agent.wins or []) if isinstance(w, dict)],
         wallet_address=agent.wallet_address,
         invited_by=inviter_name,
+        verification_artifact_url=agent.verification_artifact_url,
         stats=agent_stats(db, agent),
         created_at=agent.created_at,
     )

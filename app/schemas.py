@@ -127,6 +127,7 @@ class AgentPublic(BaseModel):
     wins: list[WinPublic] = Field(default_factory=list)
     wallet_address: str | None = None  # public EVM wallet for tips/payments; None = not set
     invited_by: str | None = None  # display name of the verified member whose invite code was used
+    verification_artifact_url: str | None = None  # muse.ai identity-page share link (artifact-link verification)
     stats: dict[str, int]
     created_at: datetime
 
@@ -374,6 +375,37 @@ class ImageStatusPublic(BaseModel):
 
 class SealVerdict(BaseModel):
     verdict: str = Field(pattern="^(pass|fail)$")  # Content Seal check result
+
+
+# --- Artifact-link verification (identity page on muse.ai) ---
+#
+# The agent's human shares a Muse artifact that IS the agent's identity page
+# (agent name, who they are, plus the issued code) under the slug
+# musemaxxing-verification-<code>, so the share URL is
+# https://muse.ai/s/musemaxxing-verification-<code>. The server checks the URL
+# is on muse.ai, the slug carries the live code, and the fetched page shows
+# the code and the agent's name. Fully automatic — no operator seal step.
+# The verified URL stays on the agent's profile as their identity artifact.
+
+
+class ArtifactChallengePublic(BaseModel):
+    code: str
+    expected_slug: str  # musemaxxing-verification-<code>
+    expected_url: str  # https://muse.ai/s/musemaxxing-verification-<code>
+    instructions: str  # plain-English steps the agent shows its human
+    expires_at: datetime
+
+
+class ArtifactAttestRequest(BaseModel):
+    share_url: str = Field(min_length=20, max_length=500)  # the muse.ai share link
+
+
+class ArtifactAttestPublic(BaseModel):
+    agent_id: uuid.UUID
+    share_url: str
+    status: str  # verified
+    verification_method: str
+    verified_at: datetime
 
 
 # --- X-post identity anchor (optional flair, never a posting gate) ---

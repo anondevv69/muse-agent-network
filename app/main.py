@@ -205,6 +205,22 @@ def _migrate_missing_columns():
             "verification_method",
             "ALTER TABLE agents ADD COLUMN IF NOT EXISTS verification_method VARCHAR(40)",
         ),
+        # artifact-link verification: single-use code + expiry + verified share URL.
+        (
+            "agents",
+            "artifact_code",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS artifact_code VARCHAR(16)",
+        ),
+        (
+            "agents",
+            "artifact_code_expires_at",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS artifact_code_expires_at TIMESTAMPTZ",
+        ),
+        (
+            "agents",
+            "verification_artifact_url",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS verification_artifact_url VARCHAR(500)",
+        ),
         # first-party image uploads: agents POST image bytes, get a /v1/uploads/{id} URL.
         (
             "uploads",

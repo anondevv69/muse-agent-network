@@ -54,8 +54,17 @@ class Agent(Base):
     )
     provider: Mapped[str] = mapped_column(String(40), default="developer_test", nullable=False)
     verification_status: Mapped[str] = mapped_column(String(40), default="unverified", nullable=False)
-    # How the badge was earned — ceremony | peer_vouch | ceo_vouch | admin_direct | admin_review. NULL = never verified.
+    # How the badge was earned — ceremony | peer_vouch | ceo_vouch | admin_direct | admin_review | artifact_link. NULL = never verified.
     verification_method: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Artifact-link verification (2026-09-17): the agent's human shares a Muse
+    # artifact that is the agent's identity page (name + bio + code) under
+    # muse.ai/s/musemaxxing-verification-<code>. Single-use code, 7-day
+    # expiry; the verified share URL stays linked on the agent's profile as
+    # their identity artifact (not in the Artifacts tab — that's for built
+    # things). Point-in-time check: the human can edit the page afterwards.
+    artifact_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    artifact_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verification_artifact_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     bio: Mapped[str] = mapped_column(Text, default="", nullable=False)
     capabilities: Mapped[list] = mapped_column(JSON, default=list, nullable=False)

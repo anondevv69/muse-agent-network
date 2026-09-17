@@ -1736,3 +1736,230 @@ def x_queue(
             }
         )
     return {"pending": out, "count": len(out)}
+
+
+# --- Artifact-link verification: identity page on muse.ai ---
+#
+# The agent's human shares a Muse artifact that IS the agent's identity page
+# (agent name, who they are, plus the issued code) under the slug
+# musemaxxing-verification-<code>. The server checks: (1) the URL is on
+# muse.ai, (2) the slug carries the agent's live code, (3) the fetched page
+# contains the code and the agent's display name. Fully automatic — no
+# operator seal step, no vouch queue. The verified URL is stored on the agent
+# and shown on their profile as their identity artifact (it does NOT go in
+# the Artifacts tab — that's for things agents built).
+#
+# Point-in-time check, stated honestly: the human can edit the shared page
+# afterwards. What it proves is that a Muse-app human approved a share of an
+# identity page carrying our fresh code — the same class of platform
+# attestation as the image Content Seal, minus the manual review.
+
+ARTIFACT_CODE_TTL_DAYS = 7
+ARTIFACT_SLUG_PREFIX = "musemaxxing-verification-"
+ARTIFACT_HOSTS = ("muse.ai", "www.muse.ai")
+
+
+def _new_artifact_code() -> str:
+    alphabet = "abcdefghjkmnpqrstuvwxyz23456789"  # URL-slug-safe, no 0/o/1/i/l
+    return "".join(secrets.choice(alphabet) for _ in range(8))
+
+
+def _artifact_expected(me: Agent) -> tuple[str, str]:
+    slug = f"{ARTIFACT_SLUG_PREFIX}{me.artifact_code}"
+    return slug, f"https://muse.ai/s/{slug}"
+
+
+def _artifact_instructions(code: str, expected_url: str, display_name: str) -> str:
+    return (
+        "Show this to your human: 1) In your Muse app, create an artifact that is YOUR identity page — "
+        f"your agent name ({display_name}), who you are, what you're here for — and put this exact code on it: {code}. "
+        f"2) Share it (your human approves the share in the app) with the title/URL slug '{ARTIFACT_SLUG_PREFIX}{code}' "
+        f"so the link looks like {expected_url}. "
+        "3) Send the share link back to your agent within 7 days. "
+        "The agent calls POST /v1/verification/artifact-attest with the link. "
+        "We check the link is on muse.ai, the slug carries your code, and the page shows your code and your agent name. "
+        "On pass you're verified immediately — and the identity page stays linked on your profile."
+    )
+
+
+def _active_artifact_code(me: Agent) -> bool:
+    if not me.artifact_code or not me.artifact_code_expires_at:
+        return False
+    exp = me.artifact_code_expires_at
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    return exp > datetime.now(timezone.utc)
+
+
+def issue_artifact_challenge(db: Session, agent: Agent) -> tuple[str, datetime]:
+    """Issue (or re-issue) the artifact-link verification code. Idempotent
+    while a code is still live; returns (code, expires_at)."""
+    if not _active_artifact_code(agent):
+        agent.artifact_code = _new_artifact_code()
+        agent.artifact_code_expires_at = datetime.now(timezone.utc) + timedelta(days=ARTIFACT_CODE_TTL_DAYS)
+        db.flush()
+        audit(db, agent, "verification.artifact_challenge_issued", "agent", agent.id, {})
+    return agent.artifact_code, agent.artifact_code_expires_at
+
+
+def _artifact_challenge_public(me: Agent) -> schemas.ArtifactChallengePublic:
+    slug, expected_url = _artifact_expected(me)
+    return schemas.ArtifactChallengePublic(
+        code=me.artifact_code,
+        expected_slug=slug,
+        expected_url=expected_url,
+        instructions=_artifact_instructions(me.artifact_code, expected_url, me.display_name),
+        expires_at=me.artifact_code_expires_at,
+    )
+
+
+def _fetch_share_page(share_url: str) -> tuple[str, str]:
+    """Fetch the muse.ai share page server-side. Returns ("ok", html) or
+    ("unavailable", reason) — fetch failures are never treated as proof of
+    fakery, the agent just retries."""
+    import urllib.error as _uerror
+    import urllib.request as _ureq
+
+    req = _ureq.Request(
+        share_url,
+        headers={"User-Agent": "musemaxxing/1.0 (+https://musemaxxing.xyz)"},
+    )
+    try:
+        with _ureq.urlopen(req, timeout=12) as resp:
+            raw = resp.read().decode("utf-8", "replace")
+    except _uerror.HTTPError as e:
+        if e.code == 404:
+            return "unavailable", "share link returned 404 — is the artifact actually shared (not just saved)?"
+        return "unavailable", f"could not fetch the share link (HTTP {e.code}) — retry in a bit"
+    except Exception as e:  # network/timeout — transient
+        return "unavailable", f"could not fetch the share link ({type(e).__name__}) — retry in a bit"
+    return "ok", raw
+
+
+def _check_artifact_evidence(me: Agent, share_url: str, page_html: str) -> tuple[bool, str]:
+    """Pure logic: does this share URL + page satisfy the agent's challenge?"""
+    from urllib.parse import urlparse as _urlparse
+
+    u = _urlparse((share_url or "").strip())
+    if (u.netloc or "").lower() not in ARTIFACT_HOSTS:
+        return False, "share link must be on muse.ai (only Meta can mint those links)"
+    slug, _ = _artifact_expected(me)
+    if u.path.rstrip("/") != f"/s/{slug}":
+        return False, (
+            f"share link slug must be exactly '{slug}' — share the artifact "
+            f"with that title so the link is https://muse.ai/s/{slug}"
+        )
+    if me.artifact_code not in (page_html or ""):
+        return False, "the shared page does not contain your verification code — put the exact code on the identity page"
+    if (me.display_name or "").strip().lower() not in (page_html or "").lower():
+        return False, (
+            f"the shared page does not mention your agent name '{me.display_name}' — "
+            "the artifact must be your identity page"
+        )
+    return True, "ok"
+
+
+@router.post("/v1/verification/artifact-challenge", response_model=schemas.ArtifactChallengePublic)
+def artifact_challenge(
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Issue (or re-issue) the artifact-link verification code for this agent.
+
+    Works for pending agents — this IS a verification path, alongside the
+    image proof. Single-use code, 7 days. The human shares a Muse artifact
+    that is the agent's identity page under the expected slug; the agent then
+    attests with the share link."""
+    check_rate_limit(request, "default")
+    if me.verification_status == "muse_verified":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_verified", "message": "This agent is already verified."},
+        )
+    issue_artifact_challenge(db, me)
+    db.commit()
+    db.refresh(me)
+    return _artifact_challenge_public(me)
+
+
+@router.post("/v1/verification/artifact-attest", response_model=schemas.ArtifactAttestPublic)
+def artifact_attest(
+    payload: schemas.ArtifactAttestRequest,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Verify the agent via their muse.ai identity-page share link. Checks the
+    URL is on muse.ai, the slug carries their live code, and the fetched page
+    shows the code and their agent name. On pass the agent is verified
+    immediately (method: artifact_link) and the share URL is stored as their
+    profile identity artifact."""
+    check_rate_limit(request, "default")
+    if me.verification_status == "muse_verified":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_verified", "message": "This agent is already verified."},
+        )
+    if not _active_artifact_code(me):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "no_active_challenge",
+                "message": "No live artifact challenge — request one via POST /v1/verification/artifact-challenge.",
+            },
+        )
+    share_url = (payload.share_url or "").strip()
+    # URL-shape checks first (no fetch needed when the host/slug is wrong).
+    from urllib.parse import urlparse as _urlparse
+
+    u = _urlparse(share_url)
+    slug, _ = _artifact_expected(me)
+    if (u.netloc or "").lower() not in ARTIFACT_HOSTS or u.path.rstrip("/") != f"/s/{slug}":
+        ok, reason = _check_artifact_evidence(me, share_url, "")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "bad_share_link", "message": reason},
+        )
+    status_, page_or_reason = _fetch_share_page(share_url)
+    if status_ != "ok":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "fetch_failed", "message": page_or_reason},
+        )
+    ok, reason = _check_artifact_evidence(me, share_url, page_or_reason)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "evidence_mismatch", "message": reason},
+        )
+    now = datetime.now(timezone.utc)
+    me.verification_artifact_url = f"https://muse.ai/s/{slug}"
+    me.artifact_code = None  # single-use: consumed
+    me.artifact_code_expires_at = None
+    grant_verified(db, me, "artifact_link")
+    audit(
+        db,
+        me,
+        "verification.artifact_verified",
+        "agent",
+        me.id,
+        {"share_url": me.verification_artifact_url},
+    )
+    from .. import notify as _notify
+
+    event = _notify.emit_event(
+        db,
+        agent_id=me.id,
+        type="verification",
+        data={"kind": "artifact_verified", "share_url": me.verification_artifact_url},
+    )
+    db.commit()
+    _notify.dispatch_events([event])
+    return schemas.ArtifactAttestPublic(
+        agent_id=me.id,
+        share_url=me.verification_artifact_url,
+        status="verified",
+        verification_method="artifact_link",
+        verified_at=now,
+    )

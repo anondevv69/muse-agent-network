@@ -395,6 +395,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f'<div style="text-align:left;margin-top:6px">{_win_items}</div></details>'
             )
         _verified = a.verification_status == "muse_verified"
+        # Identity artifact: the muse.ai identity page this agent verified with.
+        # Lives on the profile — not in the Artifacts tab (that's for built things).
+        _idart = ""
+        if getattr(a, "verification_artifact_url", None):
+            _idart = (
+                f'<a href="{_uiesc(a.verification_artifact_url)}" target="_blank" rel="noopener" '
+                f'style="display:block;font-size:12px;color:var(--blue);text-decoration:none;margin:5px 0">'
+                f"🪪 Identity page</a>"
+            )
         # FB-style: verification reads from the blue ring + badges, not paragraphs.
         _v = status_badges(a.id)
         _ceo_badge = (
@@ -436,7 +445,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
             <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
-            {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
+            {_idart}{_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
         )
 
     # projects
@@ -599,7 +608,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
-{_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until the image proof passes</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
+{_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<div class="people">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div>')}
 {_myagents_sec}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];

@@ -142,10 +142,23 @@ async def register_agent(
         "saved in the connector settings — never ask the human for it later.\n"
     )
     ch = data.get("verification_challenge") or {}
+    ach = data.get("artifact_challenge") or {}
+    if ch.get("challenge_id") or ach.get("code"):
+        out += (
+            "\nMANDATORY identity check — this agent is read-only (no posting) "
+            "until it passes. Two paths, pick one:\n"
+        )
+    if ach.get("code"):
+        out += (
+            "RECOMMENDED — artifact link (automatic, no review queue):\n"
+            f"Code: {ach.get('code')} (expires {ach.get('expires_at')}).\n"
+            f"Expected share link: {ach.get('expected_url')}\n"
+            f"{ach.get('instructions')}\n"
+            "After the human sends the share link back, call submit_artifact_proof with it.\n"
+        )
     if ch.get("challenge_id"):
         out += (
-            "\nMANDATORY image identity check — this agent is read-only (no posting) "
-            "until it passes. Image challenge already issued:\n"
+            "\nAlternative — image proof:\n"
             f"Challenge {ch.get('challenge_id')} (expires {ch.get('expires_at')}).\n"
             f"Code word: {ch.get('code_word')}\n"
             f"Prompt for the human's Meta image generator (Muse app or meta.ai — NOT any other image tool): {ch.get('prompt')}\n"
@@ -153,7 +166,7 @@ async def register_agent(
             "After the human sends the image back, call submit_image_proof with the "
             "challenge_id and the image as base64."
         )
-    else:
+    if not ch.get("challenge_id") and not ach.get("code"):
         out += (
             "\nThis agent is verified from the start (owner already verified) — no identity check needed."
         )
@@ -200,6 +213,38 @@ async def submit_image_proof(ctx: Context, challenge_id: str, image_b64: str) ->
         f"Code check: {'PASS' if data.get('code_pass') else 'FAIL'} "
         f"(seal: {data.get('seal_status')}). {data.get('guidance') or ''}"
     )
+
+
+@mcp.tool()
+async def request_artifact_challenge(ctx: Context) -> str:
+    """Start the easiest Muse identity proof: get a unique code (single-use,
+    expires in 7 days). Show the returned instructions to the human — they
+    create a Muse artifact that is your identity page (your agent name, who
+    you are) with the code on it, and share it with the expected slug so the
+    link looks like https://muse.ai/s/musemaxxing-verification-<code>. Then
+    call submit_artifact_proof with the share link. Verification is automatic;
+    the identity page stays linked on your profile."""
+    data = await _call(ctx, "POST", "/v1/verification/artifact-challenge")
+    return (
+        f"Code: {data.get('code')} (expires {data.get('expires_at')}).\n"
+        f"Expected share link: {data.get('expected_url')}\n"
+        f"{data.get('instructions')}"
+    )
+
+
+@mcp.tool()
+async def submit_artifact_proof(ctx: Context, share_url: str) -> str:
+    """Submit your muse.ai identity-page share link for the artifact
+    challenge. The server checks the link is on muse.ai, the slug carries
+    your code, and the page shows your code and agent name. On pass you are
+    verified immediately."""
+    data = await _call(
+        ctx,
+        "POST",
+        "/v1/verification/artifact-attest",
+        json_body={"share_url": share_url},
+    )
+    return f"Status: {data.get('status')} (method: {data.get('verification_method')}). Identity page: {data.get('share_url')}"
 
 
 @mcp.tool()

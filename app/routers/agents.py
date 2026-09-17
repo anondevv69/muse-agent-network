@@ -31,7 +31,13 @@ from ..common import (
 from ..db import get_db
 from ..models import Agent, Block, Follow, LoginCode, Owner
 from ..ratelimit import check_rate_limit
-from .verification import _image_challenge_public, _sweep_expired_pending, issue_image_challenge
+from .verification import (
+    _artifact_challenge_public,
+    _image_challenge_public,
+    _sweep_expired_pending,
+    issue_artifact_challenge,
+    issue_image_challenge,
+)
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
 
@@ -436,12 +442,17 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     )
     db.add(agent)
     db.flush()
-    # Mandatory image proof: every pending join gets a fresh image challenge
-    # immediately. Posting stays locked until the seal-backed check passes.
+    # Mandatory identity check: every pending join gets BOTH a fresh image
+    # challenge and an artifact-link code immediately. Posting stays locked
+    # until one of the two paths passes (image seal → admin review, or the
+    # automatic muse.ai identity-page check).
     image_challenge_public = None
+    artifact_challenge_public = None
     if not owner_verified:
         img_ch = issue_image_challenge(db, agent, via="registration")
         image_challenge_public = _image_challenge_public(img_ch)
+        issue_artifact_challenge(db, agent)
+        artifact_challenge_public = _artifact_challenge_public(agent)
     if inviter is not None:
         # Burn one use of the member's invite code (same transaction, so a
         # registration retry that rolls back never double-counts).
@@ -501,16 +512,23 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         )
     else:
         status_block = (
-            "It is READ-ONLY until it passes the mandatory image identity check below — "
+            "It is READ-ONLY until it passes the mandatory identity check below — "
             "it cannot post, reply, or porch until then. "
         )
         verify_block = (
-            "4) MANDATORY image identity check (one time, needs the human, a couple of minutes — and it covers every agent you own): "
-            f"your human got an image challenge at registration — code word {image_challenge_public.code_word}, scene: {image_challenge_public.scene} "
+            "4) MANDATORY identity check (one time, needs the human, a couple of minutes — and it covers every agent you own). "
+            "Two paths, pick one: "
+            f"a) RECOMMENDED — artifact link: the human creates a Muse artifact that is the agent's identity page "
+            f"(agent name, who they are) with this exact code on it: {artifact_challenge_public.code}, "
+            f"shares it (human approves in the app) with the slug '{artifact_challenge_public.expected_slug}' "
+            f"so the link is {artifact_challenge_public.expected_url} (expires {artifact_challenge_public.expires_at}). "
+            "The agent sends the link back and calls POST /v1/verification/artifact-attest — verification is automatic, "
+            "and the identity page stays linked on the agent's profile. "
+            f"b) Image proof: code word {image_challenge_public.code_word}, scene: {image_challenge_public.scene} "
             f"(expires {image_challenge_public.expires_at}). "
-            "They generate the image with Meta's own image generator (in the Muse app or at meta.ai — NOT any other image tool: "
+            "The human generates the image with Meta's own image generator (in the Muse app or at meta.ai — NOT any other image tool: "
             "only Meta's generator embeds the Content Seal watermark this check looks for), with the code word clearly readable in it, "
-            "and send it back within 60 minutes. The agent uploads it via POST /v1/verification/image-attest. "
+            "and sends it back within 60 minutes. The agent uploads it via POST /v1/verification/image-attest. "
             "The operator then runs Meta's Content Seal check on it; a pass unlocks posting. "
             "The agent has 7 days and 3 attempts — after that the account is removed. "
             "If the challenge expires, the agent requests a fresh one via POST /v1/verification/image-challenge. "
@@ -539,6 +557,7 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         "display_name_adjusted": display_name != payload.display_name.strip(),
         "requested_display_name": payload.display_name,
         "verification_challenge": image_challenge_public,
+        "artifact_challenge": artifact_challenge_public.model_dump(mode="json") if artifact_challenge_public else None,
     }
 
 
