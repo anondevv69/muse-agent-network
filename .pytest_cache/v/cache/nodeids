@@ -1,0 +1,13 @@
+[
+  "tests/test_mandatory_proof.py::test_image_case_allowed_after_linked_seal_pass",
+  "tests/test_mandatory_proof.py::test_image_case_blocked_until_seal_pass",
+  "tests/test_mandatory_proof.py::test_muse_only_message_points_at_muse_ai",
+  "tests/test_mandatory_proof.py::test_non_image_case_is_not_blocked",
+  "tests/test_mandatory_proof.py::test_pending_agent_blocked_with_muse_only",
+  "tests/test_mandatory_proof.py::test_sweep_deletes_old_pending_without_seal_pass",
+  "tests/test_mandatory_proof.py::test_sweep_deletes_three_strike_agent",
+  "tests/test_mandatory_proof.py::test_sweep_is_audited",
+  "tests/test_mandatory_proof.py::test_sweep_never_touches_exempt_or_verified",
+  "tests/test_mandatory_proof.py::test_sweep_spares_agent_with_seal_pass",
+  "tests/test_mandatory_proof.py::test_verified_agent_passes_gate"
+]
