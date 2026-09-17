@@ -1901,23 +1901,54 @@ def _check_artifact_evidence_for(code: str, share_url: str, og: dict | None) -> 
     return True, "ok"
 
 
-def _validate_artifact_share(code: str, share_url: str) -> tuple[str, str]:
+def _validate_artifact_share(code: str, share_url: str) -> tuple[str, str, dict | None]:
     """Full server-side validation of an artifact share link against a code.
 
-    Returns ("ok", canonical_url) or (error_code, reason) where error_code is
-    one of bad_share_link | fetch_failed | not_shared. Pure + fetch; no DB.
+    Returns ("ok", canonical_url, og) or (error_code, reason, None) where
+    error_code is one of bad_share_link | fetch_failed | not_shared.
+    Pure + fetch; no DB.
     """
     ok, reason = _check_artifact_evidence_for(code, share_url, None)
     if not ok:
-        return "bad_share_link", reason
+        return "bad_share_link", reason, None
     status_, og_or_reason = _fetch_share_page(share_url)
     if status_ != "ok":
-        return "fetch_failed", og_or_reason
-    ok, reason = _check_artifact_evidence_for(code, share_url, og_or_reason)
+        return "fetch_failed", og_or_reason, None
+    og = og_or_reason
+    ok, reason = _check_artifact_evidence_for(code, share_url, og)
     if not ok:
-        return "not_shared", reason
+        return "not_shared", reason, None
     _, canonical = _expected_slug_for(code)
-    return "ok", canonical
+    return "ok", canonical, og
+
+
+def _validate_identity_share(share_url: str) -> tuple[str, str, dict | None]:
+    """Validate a muse.ai share as an agent's identity page (update path).
+
+    No claim code needed — the agent is already verified. Checks the host is
+    muse.ai, the path is a real /s/<slug> share, and the fetched og tags prove
+    a genuine share exists (non-generic title + per-slug preview image).
+    Returns ("ok", canonical_url, og) or (error_code, reason, None).
+    """
+    from urllib.parse import urlparse as _urlparse
+
+    u = _urlparse((share_url or "").strip())
+    if (u.netloc or "").lower() not in ARTIFACT_HOSTS:
+        return "bad_share_link", "identity page must be a muse.ai share link (only Meta can mint those)", None
+    slug = u.path.strip("/").split("/")[-1] if u.path.strip("/") else ""
+    if not u.path.startswith("/s/") or not slug:
+        return "bad_share_link", "identity page must be a muse.ai share link like https://muse.ai/s/<slug>", None
+    status_, og_or_reason = _fetch_share_page(share_url)
+    if status_ != "ok":
+        return "fetch_failed", og_or_reason, None
+    og = og_or_reason
+    title = (og.get("og:title") or "").strip()
+    image = og.get("og:image") or ""
+    if not title or title in _GENERIC_SHARE_TITLES:
+        return "not_shared", "that slug doesn't look like a real shared artifact yet — make sure it's actually shared (not just saved)", None
+    if image != f"https://muse.ai/s/{slug}/preview-image":
+        return "not_shared", "that slug doesn't look like a real shared artifact yet — make sure it's actually shared (not just saved)", None
+    return "ok", f"https://muse.ai/s/{slug}", og
 
 
 def _claim_instructions(code: str, expected_url: str) -> str:
@@ -2030,7 +2061,7 @@ def artifact_attest(
             },
         )
     share_url = (payload.share_url or "").strip()
-    result, info = _validate_artifact_share(me.artifact_code, share_url)
+    result, info, og = _validate_artifact_share(me.artifact_code, share_url)
     if result != "ok":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -2039,6 +2070,8 @@ def artifact_attest(
     slug, _ = _expected_slug_for(me.artifact_code)
     now = datetime.now(timezone.utc)
     me.verification_artifact_url = f"https://muse.ai/s/{slug}"
+    me.identity_og_title = (og or {}).get("og:title") or None
+    me.identity_og_image = (og or {}).get("og:image") or None
     me.artifact_code = None  # single-use: consumed
     me.artifact_code_expires_at = None
     grant_verified(db, me, "artifact_link")

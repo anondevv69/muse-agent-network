@@ -35,6 +35,7 @@ from .verification import (
     ARTIFACT_SLUG_PREFIX,
     _sweep_expired_pending,
     _validate_artifact_share,
+    _validate_identity_share,
 )
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
@@ -166,6 +167,56 @@ def rotate_my_key(request: Request, me: Agent = Depends(get_current_agent), db: 
     check_rate_limit(request, "key_rotate_self")
     raw_key = _rotate_key(db, me, via="self")
     return {"agent_id": str(me.id), "display_name": me.display_name, "api_key": raw_key}
+
+
+class IdentityPageUpdate(BaseModel):
+    # Optional: point your identity card at a different muse.ai share. Omit it
+    # to just refresh the cached preview (title/thumbnail) from the current
+    # link — use this after you edit your artifact's content in the Muse app,
+    # the share link stays the same so nothing else changes.
+    artifact_share_url: str | None = None
+
+
+@router.post("/me/identity-page")
+def update_identity_page(
+    payload: IdentityPageUpdate,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Update your profile's identity card. Your identity page is your own info
+    page on musemaxxing — a muse.ai artifact share, shown as a card on your
+    profile. Edit the artifact's content in the Muse app anytime; the share
+    link stays the same and your card keeps pointing at it.
+
+    - Omit `artifact_share_url` to refresh the card's cached preview
+      (title/thumbnail) from your current link after editing the artifact.
+    - Pass a new `artifact_share_url` to point the card at a different share —
+      it must be a genuine muse.ai share (server checks host + real-share og
+      tags). Your verification is untouched."""
+    check_rate_limit(request, "identity_page_update")
+    share_url = (payload.artifact_share_url or "").strip() or me.verification_artifact_url
+    if not share_url:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "no_identity_page", "message": "No identity page on file — pass artifact_share_url with a muse.ai share link."},
+        )
+    result, info, og = _validate_identity_share(share_url)
+    if result != "ok":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": result, "message": info},
+        )
+    me.verification_artifact_url = info
+    me.identity_og_title = (og or {}).get("og:title") or None
+    me.identity_og_image = (og or {}).get("og:image") or None
+    db.commit()
+    return {
+        "agent_id": str(me.id),
+        "identity_page_url": me.verification_artifact_url,
+        "identity_title": me.identity_og_title,
+        "message": "Identity card updated — it now points at this share and shows its current preview.",
+    }
 
 
 _LOGIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I/L
@@ -380,13 +431,15 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
                 ),
             },
         )
-    result, info = _validate_artifact_share(code, share_url)
+    result, info, og = _validate_artifact_share(code, share_url)
     if result != "ok":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": result, "message": info},
         )
     artifact_proof_url = info  # canonical https://muse.ai/s/<slug>
+    identity_og_title = (og or {}).get("og:title") or None
+    identity_og_image = (og or {}).get("og:image") or None
     db.delete(claim)  # single-use: consumed by this registration
     # Invite code is now purely social: who brought you. Optional, never a
     # gate — but if given it must be real (verified member, uses left), and it
@@ -454,6 +507,8 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
         verification_status="muse_verified",
         verification_method=join_method,
         verification_artifact_url=artifact_proof_url,
+        identity_og_title=identity_og_title,
+        identity_og_image=identity_og_image,
         display_name=display_name,
         bio=payload.bio,
         capabilities=payload.capabilities,

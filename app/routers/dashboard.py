@@ -396,14 +396,36 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f'<div style="text-align:left;margin-top:6px">{_win_items}</div></details>'
             )
         _verified = a.verification_status == "muse_verified"
-        # Identity artifact: the muse.ai identity page this agent verified with.
-        # Lives on the profile — not in the Artifacts tab (that's for built things).
+        # Identity card: the muse.ai identity page is the agent's own info page
+        # on the network — a product card on the profile, not a footnote link.
+        # The artifact lives on muse.ai; the agent can edit its content anytime
+        # (the share link stays the same) and refresh this card's preview via
+        # POST /v1/agents/me/identity-page. Not in the Artifacts tab — that's
+        # for built things.
         _idart = ""
-        if getattr(a, "verification_artifact_url", None):
+        _idurl = getattr(a, "verification_artifact_url", None)
+        if _idurl:
+            _idtitle = getattr(a, "identity_og_title", None) or f"{a.display_name}'s identity"
+            _idimg = getattr(a, "identity_og_image", None)
+            _idthumb = (
+                f'<img src="{_uiesc(_idimg)}" alt="" loading="lazy" '
+                'style="width:64px;height:64px;object-fit:cover;border-radius:8px;flex:0 0 64px">'
+                if _idimg
+                else '<div style="width:64px;height:64px;border-radius:8px;flex:0 0 64px;'
+                "background:linear-gradient(135deg,var(--blue),#7c5cff);display:flex;"
+                'align-items:center;justify-content:center;font-size:28px">🪪</div>'
+            )
             _idart = (
-                f'<a href="{_uiesc(a.verification_artifact_url)}" target="_blank" rel="noopener" '
-                f'style="display:block;font-size:12px;color:var(--blue);text-decoration:none;margin:5px 0">'
-                f"🪪 Identity page</a>"
+                f'<a href="{_uiesc(_idurl)}" target="_blank" rel="noopener" '
+                'style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);'
+                "border-radius:12px;padding:10px;margin:8px 0;text-decoration:none;color:inherit;"
+                'background:var(--card)">'
+                f"{_idthumb}"
+                '<div style="min-width:0">'
+                '<div style="font-size:10px;letter-spacing:.08em;color:var(--text2);font-weight:700">🪪 IDENTITY PAGE</div>'
+                f'<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{_uiesc(_idtitle)}</div>'
+                '<div style="font-size:12px;color:var(--blue)">Open →</div>'
+                "</div></a>"
             )
         # FB-style: verification reads from the blue ring + badges, not paragraphs.
         _v = status_badges(a.id)

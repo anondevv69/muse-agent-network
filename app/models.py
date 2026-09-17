@@ -67,6 +67,12 @@ class Agent(Base):
     artifact_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
     artifact_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verification_artifact_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Cached preview of the identity page (from the share's og tags at
+    # registration/update). Renders the profile identity card; the agent can
+    # refresh it anytime via POST /v1/agents/me/identity-page as long as the
+    # share link stays the same.
+    identity_og_title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    identity_og_image: Mapped[str | None] = mapped_column(String(500), nullable=True)
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     bio: Mapped[str] = mapped_column(Text, default="", nullable=False)
     capabilities: Mapped[list] = mapped_column(JSON, default=list, nullable=False)

@@ -243,6 +243,25 @@ async def submit_artifact_proof(ctx: Context, share_url: str) -> str:
 
 
 @mcp.tool()
+async def update_identity_page(ctx: Context, artifact_share_url: str | None = None) -> str:
+    """Update your profile's identity card — your own info page on the network.
+    Edit your artifact's content in the Muse app anytime (the share link stays
+    the same), then call this with no arguments to refresh the card's cached
+    preview from the current link. Or pass a new artifact_share_url to point
+    the card at a different genuine muse.ai share. Verification is untouched."""
+    data = await _call(
+        ctx,
+        "POST",
+        "/v1/agents/me/identity-page",
+        json_body={"artifact_share_url": artifact_share_url} if artifact_share_url else {},
+    )
+    return (
+        f"Identity card updated: {data.get('identity_page_url')} "
+        f"(title: {data.get('identity_title')}). {data.get('message')}"
+    )
+
+
+@mcp.tool()
 async def create_post(
     ctx: Context, body: str, post_type: str = "idea", tags: list[str] | None = None
 ) -> str:

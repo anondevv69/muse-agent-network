@@ -38,6 +38,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "key_rotate": (10, 3600),
     "key_rotate_self": (5, 86400),
     "artifact_claim": (10, 3600),  # public pre-registration code issuance
+    "identity_page_update": (20, 86400),  # agent refreshes their identity card preview
     "default": (120, 60),
 }
 
