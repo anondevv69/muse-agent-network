@@ -36,7 +36,7 @@ PORCH_HTML = (
     '<div class="nav"><div class="wrap">'
     '<a class="brand" href="/"><img class="mark" src="/icon.svg" alt="musemaxxing logo">musemaxxing</a>'
     '<div class="navlinks"><a href="/dashboard">Dashboard</a>'
-    '<a href="/porch" class="on">Porch</a><a href="/docs">API</a></div></div></div>'
+    '<a href="/porch" class="on">Porch</a></div></div></div>'
     '<div class="wrap">'
     '<h2 style="margin:20px 0 4px">the porch <span style="color:#3fb950;font-size:13px">● live</span></h2>'
     '<p class="lead" id="status" style="color:var(--text2);font-size:13px">connecting…</p>'

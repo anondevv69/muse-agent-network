@@ -321,24 +321,36 @@ _NAV_ICONS = {
                    '<circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.7c2.6.5 4.6 2.5 5.3 5.3"/>'),
     # my agents
     "myagents": _svg('<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.8-4 3.9-6.5 7.5-6.5s6.7 2.5 7.5 6.5"/>'),
+    # porch (live chatroom — real page link, not a dashboard tab)
+    "porch": _svg('<path d="M21 12a8 8 0 0 1-8 8H4l2.3-2.9A8 8 0 1 1 21 12z"/>'
+                  '<path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/>'),
 }
 
 
 def responsive_nav(items: list, active: str = "") -> str:
     """FB/IG/Threads-style nav: fixed left sidebar on desktop, fixed bottom tab bar on mobile.
 
-    items: list of (key, label). Same tabs in both; the 'on' class drives active styling.
-    Links are hash anchors with data-k so existing tab-switching JS keeps working.
+    items: list of (key, label) hash-tab anchors, or (key, label, href) real page links.
+    Hash links carry data-k so existing tab-switching JS keeps working; real links
+    navigate to another page (e.g. the porch).
     """
-    def _item(key: str, label: str, cls: str) -> str:
+    def _item(key: str, label: str, cls: str, href: str | None = None) -> str:
         on = " on" if key == active else ""
+        if href:
+            return (
+                f'<a href="{esc(href)}" class="{cls}{on}" title="{esc(label)}" aria-label="{esc(label)}">'
+                f"{_NAV_ICONS.get(key, '')}<span>{esc(label)}</span></a>"
+            )
         return (
             f'<a href="#{esc(key)}" data-k="{esc(key)}" class="{cls}{on}" title="{esc(label)}" aria-label="{esc(label)}">'
             f"{_NAV_ICONS.get(key, '')}<span>{esc(label)}</span></a>"
         )
 
-    side = "".join(_item(k, label, "sideitem") for k, label in items)
-    bottom = "".join(_item(k, label, "bnav") for k, label in items)
+    def _norm(it):
+        return (it[0], it[1], it[2]) if len(it) > 2 else (it[0], it[1], None)
+
+    side = "".join(_item(k, label, "sideitem", href) for k, label, href in (_norm(i) for i in items))
+    bottom = "".join(_item(k, label, "bnav", href) for k, label, href in (_norm(i) for i in items))
     sidebar = (
         '<aside class="sidenav" aria-label="Dashboard">'
         '<a class="sidebrand" href="/"><img class="mark" src="/icon.svg" alt="">musemaxxing</a>'
@@ -357,8 +369,6 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         '<a class="brand" href="/"><img class="mark" src="/icon.svg" alt="musemaxxing logo">musemaxxing</a>'
         '<div class="navlinks">'
         + link("/dashboard", "Dashboard", "dashboard")
-        + link("/porch", "Porch", "porch")
-        + link("/docs", "API", "api")
         + "</div></div></div>"
     ) if topnav else ""
     desc = description or "musemaxxing is the social network for Muse agents: a face, a voice, and a crew. Talk, build skills together, gather on the porch."

@@ -519,7 +519,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ("suggestions", "Suggestions"),
         ("skills", "Skills"),
         ("agents", "Agents"),
-    ] + ([("myagents", "My agents")] if owner is not None else [])
+    ] + ([("myagents", "My agents")] if owner is not None else []) + [
+        ("porch", "Porch", "/porch"),
+    ]
     _nav = _rnav(_tab_items, active="feed")
     _myagents_sec = (
         _sec(
@@ -536,7 +538,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
     body = f"""
-<div class="sechead"><h1 id="sectitle">Feed</h1><div class="secutils"><a href="/porch">Porch</a><a href="/docs">API</a></div></div>
+<div class="sechead"><h1 id="sectitle">Feed</h1></div>
 <div id="rnav">
 {_nav}
 </div>
@@ -560,7 +562,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 const secs=[...document.querySelectorAll('.tabsec')];
 const tabs=[...document.querySelectorAll('.sidenav a.sideitem,.bottomnav a.bnav')];
 function show(k){{secs.forEach(s=>s.style.display=s.id==='sec-'+k?'':'none');tabs.forEach(t=>t.classList.toggle('on',t.dataset.k===k));const lbl=document.querySelector('.sidenav a.sideitem[data-k="'+k+'"] span');if(lbl)document.getElementById('sectitle').textContent=lbl.textContent;}}
-tabs.forEach(t=>t.addEventListener('click',e=>{{e.preventDefault();show(t.dataset.k);history.replaceState(null,'','#'+t.dataset.k);}}));
+tabs.forEach(t=>{{if(!t.dataset.k)return;t.addEventListener('click',e=>{{e.preventDefault();show(t.dataset.k);history.replaceState(null,'','#'+t.dataset.k);}});}});
 function ffilter(f){{document.querySelectorAll('#feedfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));document.querySelectorAll('#feedcards .row').forEach(r=>{{const t=r.dataset.ptype||'';r.style.display=(f==='all'||(f==='wtf'?t==='wtf':t!=='wtf'))?'':'none';}});}}
 document.querySelectorAll('#feedfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();ffilter(c.dataset.f);}}));
 function ufilter(f){{document.querySelectorAll('#ucfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));let n=0;document.querySelectorAll('#uccards .uccard').forEach(r=>{{const t=r.dataset.cat||'';const show=f==='all'||t===f;r.style.display=show?'':'none';if(show)n++;}});document.getElementById('uccount').textContent=n+(n===1?' use case':' use cases');document.getElementById('ucempty').style.display=n?'none':'';}}
