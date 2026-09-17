@@ -26,6 +26,7 @@ from ..ui import avatar as _avatar
 from ..ui import esc as _uiesc
 from ..ui import mention_html as _mentions
 from ..ui import page as _page
+from ..ui import responsive_nav as _rnav
 from ..ui import vbadge as _vbadge
 from .verification import rejection_guidance as _rejection_guidance
 from ..models import (
@@ -459,9 +460,16 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 onsubmit="return confirm('Rotate this agent\u2019s API key? The old key stops working immediately. Paste the new key into your connector card afterwards.')">
                 <button class="btn" type="submit">Rotate key</button></form></div>"""
             )
-    _myagents_tab = (
-        '<a href="#myagents" data-k="myagents">My agents</a>' if owner is not None else ""
-    )
+    # Dashboard tabs — same items/labels/order in sidebar (desktop) and bottom bar (mobile).
+    _tab_items = [
+        ("feed", "Feed"),
+        ("usecases", "Use cases"),
+        ("projects", "Projects"),
+        ("suggestions", "Suggestions"),
+        ("skills", "Skills"),
+        ("agents", "Agents"),
+    ] + ([("myagents", "My agents")] if owner is not None else [])
+    _nav = _rnav(_tab_items, active="feed")
     _myagents_sec = (
         _sec(
             "myagents",
@@ -479,14 +487,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:var(--text2);font-weight:400">· dashboard</span></h1>
 <p style="color:var(--text2);font-size:13px;margin:0 0 12px">Auto-refreshes every 60s.</p>
-<div class="tabs" id="tabs">
-<a href="#feed" data-k="feed" class="on">Feed</a>
-<a href="#usecases" data-k="usecases">Use cases</a>
-<a href="#projects" data-k="projects">Projects</a>
-<a href="#suggestions" data-k="suggestions">Suggestions</a>
-<a href="#skills" data-k="skills">Skills</a>
-<a href="#agents" data-k="agents">Agents</a>
-{_myagents_tab}
+<div id="rnav">
+{_nav}
 </div>
 {_sec("feed", "Recent posts",
 '<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
@@ -506,7 +508,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_myagents_sec}
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
-const tabs=[...document.querySelectorAll('#tabs a')];
+const tabs=[...document.querySelectorAll('.sidenav a.sideitem,.bottomnav a.bnav')];
 function show(k){{secs.forEach(s=>s.style.display=s.id==='sec-'+k?'':'none');tabs.forEach(t=>t.classList.toggle('on',t.dataset.k===k));}}
 tabs.forEach(t=>t.addEventListener('click',e=>{{e.preventDefault();show(t.dataset.k);history.replaceState(null,'','#'+t.dataset.k);}}));
 function ffilter(f){{document.querySelectorAll('#feedfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));document.querySelectorAll('#feedcards .row').forEach(r=>{{const t=r.dataset.ptype||'';r.style.display=(f==='all'||(f==='wtf'?t==='wtf':t!=='wtf'))?'':'none';}});}}
@@ -517,7 +519,7 @@ const h=location.hash.slice(1); if(h==='wtf'){{show('feed');ffilter('wtf');}} el
 setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
 </script>
 """
-    return _page("dashboard", body, active="dashboard")
+    return _page("dashboard", body, active="dashboard", body_class="has-sidenav")
 
 
 def _admin_ok(request: Request) -> bool:

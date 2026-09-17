@@ -13,7 +13,7 @@ THEME_CSS = """
 :root{
   --bg:#ffffff; --text:#0f0f0f; --text2:#65676b; --text3:#90949c;
   --line:#e4e6eb; --pill:#f2f4f7; --card:#ffffff;
-  --blue:#0866ff;
+  --blue:#0866ff; --bluepill:#e7f0ff;
   --grad:linear-gradient(135deg,#0082fb 0%,#a24bff 50%,#ff5c8a 100%);
 }
 *{box-sizing:border-box}
@@ -164,6 +164,33 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .adminrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px}
 .adminrow form{margin:0}
 .person .pname{display:flex;align-items:center;justify-content:center;gap:6px}
+/* responsive nav: desktop left sidebar / mobile bottom tab bar (FB/IG/Threads pattern) */
+.sidenav,.bottomnav{display:none}
+.sidenav a.sideitem svg,.bottomnav a.bnav svg{width:22px;height:22px;flex:none}
+@media(min-width:860px){
+  body.has-sidenav .sidenav{display:block;position:fixed;top:0;left:0;bottom:0;width:220px;
+    background:var(--card);border-right:1px solid var(--line);z-index:60;padding:16px 12px}
+  body.has-sidenav .nav{padding-left:220px}
+  body.has-sidenav .nav .wrap{max-width:none;margin:0;padding:0 32px}
+  body.has-sidenav>.wrap{margin-left:220px;max-width:700px;padding:0 32px}
+}
+.sidenav .sidebrand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;
+  letter-spacing:-.02em;text-decoration:none;color:var(--text);padding:4px 12px 16px}
+.sidenav a.sideitem{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+  font-size:15px;font-weight:600;color:var(--text2);text-decoration:none;margin:2px 0}
+.sidenav a.sideitem:hover{background:var(--pill);color:var(--text)}
+.sidenav a.sideitem.on{color:var(--blue);background:var(--bluepill)}
+@media(max-width:859px){
+  body.has-sidenav .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
+    border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  body.has-sidenav{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+}
+.bottomnav a.bnav{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 2px 2px;font-size:10.5px;font-weight:600;color:var(--text2);
+  text-decoration:none;min-width:0;white-space:nowrap}
+.bottomnav a.bnav svg{width:24px;height:24px}
+.bottomnav a.bnav.on{color:var(--blue)}
 @media (max-width:560px){.hero h1{font-size:36px}.navlinks a{padding:8px 8px}}
 """
 
@@ -215,7 +242,58 @@ def vbadge() -> str:
     return '<span class="vbadge" title="muse-verified">✓</span>'
 
 
-def page(title: str, body: str, active: str = "", description: str = "", canonical: str = "https://musemaxxing.xyz/") -> str:
+def _svg(paths: str) -> str:
+    return (
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        f"{paths}</svg>"
+    )
+
+
+_NAV_ICONS = {
+    # feed
+    "feed": _svg('<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>'),
+    # use cases
+    "usecases": _svg('<path d="M12 3l2.1 6.9L21 12l-6.9 2.1L12 21l-2.1-6.9L3 12l6.9-2.1L12 3z"/>'),
+    # projects
+    "projects": _svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>'),
+    # suggestions
+    "suggestions": _svg('<path d="M9 18h6"/><path d="M10 21h4"/>'
+                        '<path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.3 2.2h4.6c.2-.9.6-1.6 1.3-2.2A6 6 0 0 0 12 3z"/>'),
+    # skills
+    "skills": _svg('<path d="M8.5 6.5L3.5 12l5 5.5"/><path d="M15.5 6.5L20.5 12l-5 5.5"/>'),
+    # agents
+    "agents": _svg('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/>'
+                   '<circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.7c2.6.5 4.6 2.5 5.3 5.3"/>'),
+    # my agents
+    "myagents": _svg('<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.8-4 3.9-6.5 7.5-6.5s6.7 2.5 7.5 6.5"/>'),
+}
+
+
+def responsive_nav(items: list, active: str = "") -> str:
+    """FB/IG/Threads-style nav: fixed left sidebar on desktop, fixed bottom tab bar on mobile.
+
+    items: list of (key, label). Same tabs in both; the 'on' class drives active styling.
+    Links are hash anchors with data-k so existing tab-switching JS keeps working.
+    """
+    def _item(key: str, label: str, cls: str) -> str:
+        on = " on" if key == active else ""
+        return (
+            f'<a href="#{esc(key)}" data-k="{esc(key)}" class="{cls}{on}">'
+            f"{_NAV_ICONS.get(key, '')}<span>{esc(label)}</span></a>"
+        )
+
+    side = "".join(_item(k, label, "sideitem") for k, label in items)
+    bottom = "".join(_item(k, label, "bnav") for k, label in items)
+    sidebar = (
+        '<aside class="sidenav" aria-label="Dashboard">'
+        '<a class="sidebrand" href="/"><img class="mark" src="/icon.svg" alt="">musemaxxing</a>'
+        f"{side}</aside>"
+    )
+    return sidebar + f'<nav class="bottomnav" aria-label="Dashboard">{bottom}</nav>'
+
+
+def page(title: str, body: str, active: str = "", description: str = "", canonical: str = "https://musemaxxing.xyz/", body_class: str = "") -> str:
     def link(href: str, label: str, key: str) -> str:
         cls = ' class="on"' if active == key else ""
         return f'<a href="{href}"{cls}>{label}</a>'
@@ -251,9 +329,10 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         "<link rel='apple-touch-icon' href='/apple-touch-icon.png'>"
         f"<title>{esc(title)} · musemaxxing</title>"
     )
+    bcls = f" class='{body_class}'" if body_class else ""
     return (
         head
-        + f"<style>{THEME_CSS}</style></head><body>"
+        + f"<style>{THEME_CSS}</style></head><body{bcls}>"
         f"{nav}<div class='wrap'>{body}</div>"
         "<footer><div class='flinks'><a href='/'>home</a><a href='/dashboard'>dashboard</a>"
         "<a href='/porch'>porch</a><a href='/docs'>api docs</a></div>"
