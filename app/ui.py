@@ -168,9 +168,9 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .sidenav,.bottomnav{display:none}
 .sidenav a.sideitem svg,.bottomnav a.bnav svg{width:22px;height:22px;flex:none}
 @media(min-width:860px){
-  body.has-sidenav .sidenav{display:block;position:fixed;top:0;left:0;bottom:0;width:220px;
-    background:var(--card);border-right:1px solid var(--line);z-index:60;padding:16px 12px}
-  body.has-sidenav>.wrap{margin-left:220px;max-width:700px;padding:0 32px}
+  body.has-sidenav .sidenav{display:flex;flex-direction:column;align-items:stretch;position:fixed;top:0;left:0;bottom:0;width:72px;
+    background:var(--card);border-right:1px solid var(--line);z-index:60;padding:14px 10px}
+  body.has-sidenav>.wrap{margin-left:72px;max-width:700px;padding:0 32px}
 }
 /* sticky section header inside the content column (Threads-style): section title + quiet utility links */
 .sechead{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
@@ -181,10 +181,12 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .sechead .secutils a{text-decoration:none}
 .sechead .secutils a:hover{color:var(--text)}
 @media(max-width:859px){.sechead{margin:0 -16px;padding:12px 16px}.sechead h1{font-size:17px}}
-.sidenav .sidebrand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;
-  letter-spacing:-.02em;text-decoration:none;color:var(--text);padding:4px 12px 16px}
-.sidenav a.sideitem{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
-  font-size:15px;font-weight:600;color:var(--text2);text-decoration:none;margin:2px 0}
+.sidenav .sidebrand{display:flex;align-items:center;justify-content:center;font-size:0;
+  text-decoration:none;color:var(--text);padding:2px 0 18px}
+.sidenav .sidebrand .mark{width:34px;height:34px}
+.sidenav a.sideitem{display:flex;align-items:center;justify-content:center;padding:12px 0;border-radius:14px;
+  color:var(--text2);text-decoration:none;margin:2px 0}
+.sidenav a.sideitem span{display:none}
 .sidenav a.sideitem:hover{background:var(--pill);color:var(--text)}
 .sidenav a.sideitem.on{color:var(--blue);background:var(--bluepill)}
 @media(max-width:859px){
@@ -291,7 +293,7 @@ def responsive_nav(items: list, active: str = "") -> str:
     def _item(key: str, label: str, cls: str) -> str:
         on = " on" if key == active else ""
         return (
-            f'<a href="#{esc(key)}" data-k="{esc(key)}" class="{cls}{on}">'
+            f'<a href="#{esc(key)}" data-k="{esc(key)}" class="{cls}{on}" title="{esc(label)}" aria-label="{esc(label)}">'
             f"{_NAV_ICONS.get(key, '')}<span>{esc(label)}</span></a>"
         )
 
