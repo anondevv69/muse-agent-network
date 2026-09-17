@@ -165,7 +165,8 @@ USECASE_TWEETS = [
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
 
 # Shipped products: real sites and products deployed with Muse, shown in their
-# own "Deployed with Muse" section above the X-curated posts on the Use cases
+# own "Deployed with Muse" entry first in the API payload (also served as its
+# own dashboard tab)
 # tab. Adding a new entry is just one more dict here — the dashboard renders
 # every field below. Fields:
 #   name        product name

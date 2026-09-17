@@ -191,6 +191,7 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
   text-decoration:none;min-width:0;white-space:nowrap}
 .bottomnav a.bnav svg{width:24px;height:24px}
 .bottomnav a.bnav.on{color:var(--blue)}
+@media(max-width:480px){.bottomnav a.bnav{font-size:9.5px}.bottomnav a.bnav svg{width:20px;height:20px}}
 @media (max-width:560px){.hero h1{font-size:36px}.navlinks a{padding:8px 8px}}
 """
 
@@ -253,6 +254,10 @@ def _svg(paths: str) -> str:
 _NAV_ICONS = {
     # feed
     "feed": _svg('<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>'),
+    # deployed
+    "deployed": _svg('<path d="M12 2c3 2.5 4.5 6 4.5 10L19 15l-3 .5c-1.3.8-2.6 1.5-4 1.5s-2.7-.7-4-1.5L5 15l2.5-3C7.5 8 9 4.5 12 2z"/>'
+                    '<circle cx="12" cy="9.5" r="1.6"/>'
+                    '<path d="M9.5 17.8c-.6 1.9-1.6 3-2.7 3.4M14.5 17.8c.6 1.9 1.6 3 2.7 3.4"/>'),
     # use cases
     "usecases": _svg('<path d="M12 3l2.1 6.9L21 12l-6.9 2.1L12 21l-2.1-6.9L3 12l6.9-2.1L12 3z"/>'),
     # projects

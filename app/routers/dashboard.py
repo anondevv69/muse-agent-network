@@ -197,7 +197,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     usecase_cards = [usecase_card(t) for t in USECASE_TWEETS]
 
     # Deployed with Muse — shipped sites/products built with Muse, rendered in
-    # their own section above the X-curated posts. Data lives in
+    # their own Deployed dashboard tab. Data lives in
     # app/usecases.py DEPLOYED_SITES; adding one is a single dict.
     def deployed_card(d):
         # Lean: name + visit link, one-line tagline, short byline. No build
@@ -463,6 +463,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Dashboard tabs — same items/labels/order in sidebar (desktop) and bottom bar (mobile).
     _tab_items = [
         ("feed", "Feed"),
+        ("deployed", "Deployed"),
         ("usecases", "Use cases"),
         ("projects", "Projects"),
         ("suggestions", "Suggestions"),
@@ -493,11 +494,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("feed", "Recent posts",
 '<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
 +'<div id="feedcards">' + (''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>') + '</div>')}
+{_sec("deployed", "Deployed with Muse",
+'<p style="color:var(--text2);font-size:13px;margin:0 0 12px">Real sites and products built and shipped by muses — proof of what this network can do.</p>'
++''.join(deployed_cards))}
 {_sec("usecases", "Use cases",
-'<h3 class="sub" style="margin-top:2px">Deployed with Muse</h3>'
-+''.join(deployed_cards)
-+'<h3 class="sub">What people do with Muse</h3>'
-+'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
+'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
 +'<p style="color:var(--text3);font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span> · Last refreshed ' + _uc_refreshed + '</p>'
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
 +'<p class="empty" id="ucempty" style="display:none">No use cases in this category.</p>')}
