@@ -1,8 +1,9 @@
 """Shared design system: Threads/Instagram-like, Meta-AI-themed.
 
-Light, clean, familiar — the way Meta's family of apps feels.
-Monochrome chrome like Threads: black CTAs, hairlines over cards,
-blue rationed to links/@mentions/verified; gradient lives in the logo only.
+Dark-first, the way Meta's family of apps feels at night: #121212 base,
+elevated #242526/#282828 surfaces, #363636 hairlines, blue rationed to
+links/@mentions/verified; gradient lives in the logo only.
+Monochrome chrome like Threads: blue CTAs, hairlines over cards.
 """
 from __future__ import annotations
 
@@ -12,9 +13,9 @@ GRADIENT = "linear-gradient(135deg,#0082fb 0%,#a24bff 50%,#ff5c8a 100%)"
 
 THEME_CSS = """
 :root{
-  --bg:#ffffff; --text:#000000; --text2:#999999; --text3:#737373;
-  --line:#e0e0e0; --pill:#f0f0f0; --card:#ffffff;
-  --blue:#0095f6; --bluepill:#e7f0ff;
+  --bg:#121212; --text:#ffffff; --text2:#b3b3b3; --text3:#8e8e8e;
+  --line:#363636; --pill:#282828; --card:#242526;
+  --blue:#0095f6; --bluepill:rgba(0,149,246,.14); --bluetext:#6cb8ff;
   --red:#ff3040;
   --grad:linear-gradient(135deg,#0082fb 0%,#a24bff 50%,#ff5c8a 100%);
 }
@@ -29,7 +30,7 @@ body>.wrap{flex:1 0 auto}
 a{color:inherit}
 .wrap{max-width:620px;margin:0 auto;padding:0 16px}
 /* top nav */
-.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.88);
+.nav{position:sticky;top:0;z-index:50;background:rgba(18,18,18,.88);
   backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:18px;
@@ -82,7 +83,7 @@ a{color:inherit}
   -webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
 .linkcard .lc-host{font-size:12px;color:var(--text3);margin-top:4px}
 /* button hierarchy: solid blue primary, blue-outline secondary, text-only tertiary */
-.btn{display:inline-block;background:#000000;color:#fff;border:none;border-radius:10px;
+.btn{display:inline-block;background:var(--blue);color:#fff;border:none;border-radius:10px;
   padding:10px 20px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none}
 .btn.grad{background:var(--grad)}
 .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line);
@@ -99,7 +100,7 @@ a{color:inherit}
 .fchips::-webkit-scrollbar{display:none}
 .fchip{border:1px solid var(--line);background:var(--pill);border-radius:999px;
   padding:10px 20px;font-size:15px;font-weight:600;color:var(--text2);cursor:pointer;white-space:nowrap;flex:none}
-.fchip.on{background:#000;color:#fff;border-color:#000}
+.fchip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
 /* post permalink affordances: timestamp links to the post, share icon opens it */
 .rowhead .timelink{color:var(--text3);font-weight:400;text-decoration:none}
 .rowhead .timelink:hover{text-decoration:underline}
@@ -137,16 +138,17 @@ a{color:inherit}
 .section p.lead{color:var(--text2);font-size:15px;line-height:1.6;margin:0 0 14px}
 .steps{display:grid;gap:10px}
 .step{display:flex;gap:12px;align-items:flex-start;background:var(--pill);border-radius:14px;padding:14px}
-.step .n{width:28px;height:28px;border-radius:50%;background:var(--text);color:#fff;flex-shrink:0;
+.step .n{width:28px;height:28px;border-radius:50%;background:var(--text);color:var(--bg);flex-shrink:0;
   display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
 .step b{display:block;font-size:14px;margin-bottom:2px}
 .step p{margin:0;font-size:13.5px;color:var(--text2);line-height:1.5}
 pre.code{background:#0f0f0f;color:#e6edf3;border-radius:14px;padding:16px;overflow-x:auto;
   font-size:13px;line-height:1.7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 pre.code .c{color:#8b949e}
-/* inputs are filled and borderless (Threads/IG pattern) */
-input[type=text],input[type=password],textarea{background:var(--pill);border:none;
-  border-radius:10px !important}
+/* inputs are filled with a hairline border (Threads/IG dark pattern) */
+input[type=text],input[type=password],textarea{background:var(--pill);border:1px solid var(--line);
+  border-radius:10px !important;color:var(--text)}
+input::placeholder,textarea::placeholder{color:var(--text3)}
 textarea{border-radius:10px !important}
 footer{padding:28px 0 40px;color:var(--text3);font-size:12px;text-align:center}
 footer .flinks{margin-bottom:10px}
@@ -156,13 +158,13 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .ubadge{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:8px;
   background:var(--line);color:var(--text2);font-size:10px;font-weight:700;flex-shrink:0}
 .xbadge{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:8px;
-  background:#000;color:#fff;font-size:10px;font-weight:700;flex-shrink:0;margin-left:4px}
+  background:var(--text);color:var(--bg);font-size:10px;font-weight:700;flex-shrink:0;margin-left:4px}
 .empty{color:var(--text3);text-align:center;padding:32px 0;font-size:14px}
 .stat-row{display:flex;gap:22px;padding:16px 0;border-bottom:1px solid var(--line)}
 .stat b{font-size:19px;display:block;letter-spacing:-.02em}
 .stat span{font-size:12.5px;color:var(--text2)}
 /* use cases: self-rendered X post cards + deployed-site cards */
-.uccard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px}
+.uccard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px}
 .uctag{display:inline-block;font-size:13px;font-weight:700;color:var(--blue);margin-bottom:8px}
 .ucrow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .ucav{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}
@@ -171,7 +173,7 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}
 .ucna{color:var(--text3);font-style:italic}
 .uclink{font-size:13px;color:var(--blue);font-weight:600;text-decoration:none}
-.dpcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:0 0 14px}
+.dpcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:0 0 14px}
 .dprow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}
 .dpname{font-size:17px;font-weight:700}
 .dpvisit{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;white-space:nowrap}
@@ -187,12 +189,12 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .sidenav a.sideitem svg,.bottomnav a.bnav svg{width:22px;height:22px;flex:none}
 @media(min-width:860px){
   body.has-sidenav .sidenav{display:flex;flex-direction:column;align-items:stretch;position:fixed;top:0;left:0;bottom:0;width:72px;
-    background:var(--card);border-right:1px solid var(--line);z-index:60;padding:14px 10px}
+    background:transparent;z-index:60;padding:14px 10px}
   body.has-sidenav>.wrap{margin-left:72px;max-width:700px;padding:0 32px}
 }
 /* sticky section header inside the content column (Threads-style): section title + quiet utility links */
 .sechead{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
-  gap:12px;margin:0 -32px;padding:14px 32px;background:rgba(255,255,255,.9);
+  gap:12px;margin:0 -32px;padding:14px 32px;background:rgba(18,18,18,.9);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   transition:transform .25s ease}
 .sechead.hide{transform:translateY(-110%)}
@@ -208,10 +210,10 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
   color:var(--text2);text-decoration:none;margin:2px 0}
 .sidenav a.sideitem span{display:none}
 .sidenav a.sideitem:hover{background:var(--pill);color:var(--text)}
-.sidenav a.sideitem.on{color:#000;background:var(--pill)}
+.sidenav a.sideitem.on{color:var(--text);background:var(--pill)}
 @media(max-width:859px){
   body.has-sidenav .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;
-    background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
+    background:rgba(18,18,18,.94);backdrop-filter:blur(12px);
     border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
   body.has-sidenav{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
 }
@@ -219,7 +221,7 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
   padding:6px 2px 2px;font-size:10.5px;font-weight:600;color:var(--text2);
   text-decoration:none;min-width:0;white-space:nowrap}
 .bottomnav a.bnav svg{width:24px;height:24px}
-.bottomnav a.bnav.on{color:#000}
+.bottomnav a.bnav.on{color:var(--text)}
 @media(max-width:480px){.bottomnav a.bnav{font-size:9.5px}.bottomnav a.bnav svg{width:20px;height:20px}}
 @media (max-width:560px){.hero h1{font-size:36px}.navlinks a{padding:8px 8px}}
 """
@@ -364,7 +366,7 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
     head = (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<meta name='theme-color' content='#ffffff'>"
+        "<meta name='theme-color' content='#121212'>"
         f"<meta name='description' content='{esc(desc)}'>"
         "<meta name='robots' content='index,follow'>"
         f"<link rel='canonical' href='{esc(canonical)}'>"

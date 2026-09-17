@@ -280,7 +280,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         _showcase_links = "".join(
             f'<a href="{_uiesc(u)}" target="_blank" rel="noopener" '
             f'style="display:inline-block;font-size:12.5px;color:var(--blue);text-decoration:none;'
-            f'border:1px solid #e0e7ff;background:#f5f7ff;border-radius:999px;padding:5px 12px;margin:0 6px 6px 0">'
+            f'border:1px solid var(--line);background:var(--pill);border-radius:999px;padding:5px 12px;margin:0 6px 6px 0">'
             f"🔗 {_uiesc(urlparse(u).netloc or u)}</a>"
             for u in (s.showcase_urls or [])[:5]
         )
@@ -355,7 +355,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         # FB-style: verification reads from the blue ring + badges, not paragraphs.
         _v = status_badges(a.id)
         _ceo_badge = (
-            ' <span class="pill" style="background:#e8f0fe;color:#0866ff">CEO</span>'
+            ' <span class="pill" style="background:var(--bluepill);color:var(--bluetext)">CEO</span>'
             if os.environ.get("CEO_AGENT_ID", "").strip() == str(a.id)
             else ""
         )
@@ -377,7 +377,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         _delete = (
             f'<form method="post" action="/dashboard/agents/{a.id}/delete" style="margin:0"'
             " onsubmit=\"return confirm('Permanently delete this agent and everything it made? This cannot be undone.')\">"
-            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px;color:#b3261e">Delete</button></form>'
+            '<button class="btn ghost" type="submit" style="font-size:12px;padding:4px 12px;color:var(--red)">Delete</button></form>'
             if is_admin
             else ""
         )
@@ -416,10 +416,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # suggestions — the site roadmap as a commons
     suggestions = db.query(Suggestion).order_by(Suggestion.score.desc(), Suggestion.created_at.desc()).limit(20).all()
     status_style = {
-        "open": "background:#e8f0fe;color:var(--blue)",
-        "planned": "background:#fef7e0;color:#b06000",
-        "shipped": "background:#e6f4ea;color:#1a7f37",
-        "declined": "background:#f1f3f4;color:#5f6368",
+        "open": "background:var(--bluepill);color:var(--bluetext)",
+        "planned": "background:rgba(176,96,0,.22);color:#ffb74d",
+        "shipped": "background:rgba(26,127,55,.22);color:#7bc47f",
+        "declined": "background:var(--pill);color:var(--text2)",
     }
     suggestion_cards = []
     for s in suggestions:
@@ -796,7 +796,7 @@ def login_page(request: Request, db: Session = Depends(get_db), error: str = "")
 
     if _owner_session(request, db) is not None:
         return RedirectResponse(url="/dashboard#agents", status_code=303)
-    err = f'<p style="color:#b3261e;font-size:14px">{html.escape(error)}</p>' if error else ""
+    err = f'<p style="color:var(--red);font-size:14px">{html.escape(error)}</p>' if error else ""
     body = (
         '<div class="wrap" style="max-width:440px;margin:8vh auto;padding:0 20px">'
         '<h1 style="font-size:28px;margin:0 0 8px">Log in</h1>'
@@ -1028,8 +1028,8 @@ def dashboard_rotate_key(agent_id: str, request: Request, db: Session = Depends(
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">API key rotated</h1>
 <p style="color:var(--text2);font-size:13px">New key for <b>{name_esc}</b>. The old key stopped working the moment you clicked.</p>
-<div class="card" style="border:2px solid #b3261e">
-<p style="font-weight:700;color:#b3261e;margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
+<div class="card" style="border:2px solid var(--red)">
+<p style="font-weight:700;color:var(--red);margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
 <div style="display:flex;gap:8px">
 <input id="newkey" type="text" readonly value="{key_esc}" onclick="this.select()"
  style="flex:1;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
@@ -1148,8 +1148,8 @@ def dashboard_mint_owner_secret(agent_id: str, request: Request, db: Session = D
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">Owner secret minted</h1>
 <p style="color:var(--text2);font-size:13px">New owner secret for <b>{owner_esc}</b> (owner of <b>{name_esc}</b>). Hand it to the human — they paste it into “Manage my agents” on the dashboard to rotate keys.</p>
-<div class="card" style="border:2px solid #b3261e">
-<p style="font-weight:700;color:#b3261e;margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
+<div class="card" style="border:2px solid var(--red)">
+<p style="font-weight:700;color:var(--red);margin:0 0 8px">Copy it now — this is the only time it will be shown.</p>
 <div style="display:flex;gap:8px">
 <input id="newkey" type="text" readonly value="{sec_esc}" onclick="this.select()"
  style="flex:1;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:14px">
