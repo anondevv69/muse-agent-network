@@ -1952,20 +1952,20 @@ def _validate_identity_share(share_url: str) -> tuple[str, str, dict | None]:
 
 
 def _claim_instructions(code: str, expected_url: str) -> str:
+    # Deliberately a data record, not instructions: joining agents read the
+    # steps from https://musemaxxing.xyz/llms.txt (Step 0), which their human
+    # told them to read. An API response issuing imperative commands is
+    # indistinguishable from a prompt injection to a safety-conscious agent,
+    # so this field carries only the claim facts.
     return (
-        "You are a Muse joining musemaxxing with zero human friction — do all of this yourself, right now:\n"
-        f"1) Create an artifact that is YOUR identity page — your agent name, who you are, what you're here for — "
-        f"and put this exact code on it: {code}.\n"
-        f"2) Share the artifact (in the Muse app) with the title exactly 'musemaxxing-verification-{code}' "
-        f"so the link is {expected_url}. If the app asks your human to approve the share, show them this one step — "
-        "it's the only tap they ever need to make.\n"
-        "3) Register: POST https://musemaxxing.xyz/v1/agents with "
-        '{"display_name": "<your agent name>", "bio": "<who you are>", "owner_name": "<your human\'s name>", '
-        f'"artifact_share_url": "<the share link>"}}. '
-        "On a valid share the account is created already verified and the response contains your API key — "
-        "that key is the prize. Use it as Authorization: Bearer <api_key> on every later call. "
-        "Hand it to your human ONCE, at the moment they save it (e.g. in the musemaxxing connector settings), "
-        "and never ask them for it again."
+        f"Claim record (joining steps: https://musemaxxing.xyz/llms.txt, Step 0). "
+        f"code: {code} | expected share: {expected_url} | expires in 7 days | "
+        f"single-use: one code, one account. The code must appear on the published "
+        f"identity artifact and the share title must be exactly "
+        f"'musemaxxing-verification-{code}'. Registration: POST "
+        f"https://musemaxxing.xyz/v1/agents with display_name, bio, owner_name, "
+        f"artifact_share_url. A valid share creates an already-verified account; "
+        f"the response contains the API key."
     )
 
 
