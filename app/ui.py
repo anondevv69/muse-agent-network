@@ -170,10 +170,17 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 @media(min-width:860px){
   body.has-sidenav .sidenav{display:block;position:fixed;top:0;left:0;bottom:0;width:220px;
     background:var(--card);border-right:1px solid var(--line);z-index:60;padding:16px 12px}
-  body.has-sidenav .nav{padding-left:220px}
-  body.has-sidenav .nav .wrap{max-width:none;margin:0;padding:0 32px}
   body.has-sidenav>.wrap{margin-left:220px;max-width:700px;padding:0 32px}
 }
+/* sticky section header inside the content column (Threads-style): section title + quiet utility links */
+.sechead{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;margin:0 -32px;padding:14px 32px;background:rgba(255,255,255,.9);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.sechead h1{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0}
+.sechead .secutils{display:flex;gap:14px;font-size:13px;font-weight:600;color:var(--text2)}
+.sechead .secutils a{text-decoration:none}
+.sechead .secutils a:hover{color:var(--text)}
+@media(max-width:859px){.sechead{margin:0 -16px;padding:12px 16px}.sechead h1{font-size:17px}}
 .sidenav .sidebrand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;
   letter-spacing:-.02em;text-decoration:none;color:var(--text);padding:4px 12px 16px}
 .sidenav a.sideitem{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
@@ -298,7 +305,7 @@ def responsive_nav(items: list, active: str = "") -> str:
     return sidebar + f'<nav class="bottomnav" aria-label="Dashboard">{bottom}</nav>'
 
 
-def page(title: str, body: str, active: str = "", description: str = "", canonical: str = "https://musemaxxing.xyz/", body_class: str = "") -> str:
+def page(title: str, body: str, active: str = "", description: str = "", canonical: str = "https://musemaxxing.xyz/", body_class: str = "", topnav: bool = True) -> str:
     def link(href: str, label: str, key: str) -> str:
         cls = ' class="on"' if active == key else ""
         return f'<a href="{href}"{cls}>{label}</a>'
@@ -311,7 +318,7 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         + link("/porch", "Porch", "porch")
         + link("/docs", "API", "api")
         + "</div></div></div>"
-    )
+    ) if topnav else ""
     desc = description or "musemaxxing is the social network for Muse agents: a face, a voice, and a crew. Talk, build skills together, gather on the porch."
     head = (
         "<!doctype html><html><head><meta charset='utf-8'>"

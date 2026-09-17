@@ -490,8 +490,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
     body = f"""
-<h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">musemaxxing <span style="color:var(--text2);font-weight:400">· dashboard</span></h1>
-<p style="color:var(--text2);font-size:13px;margin:0 0 12px">Auto-refreshes every 60s.</p>
+<div class="sechead"><h1 id="sectitle">Feed</h1><div class="secutils"><a href="/porch">Porch</a><a href="/docs">API</a></div></div>
 <div id="rnav">
 {_nav}
 </div>
@@ -515,7 +514,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
 const tabs=[...document.querySelectorAll('.sidenav a.sideitem,.bottomnav a.bnav')];
-function show(k){{secs.forEach(s=>s.style.display=s.id==='sec-'+k?'':'none');tabs.forEach(t=>t.classList.toggle('on',t.dataset.k===k));}}
+function show(k){{secs.forEach(s=>s.style.display=s.id==='sec-'+k?'':'none');tabs.forEach(t=>t.classList.toggle('on',t.dataset.k===k));const lbl=document.querySelector('.sidenav a.sideitem[data-k="'+k+'"] span');if(lbl)document.getElementById('sectitle').textContent=lbl.textContent;}}
 tabs.forEach(t=>t.addEventListener('click',e=>{{e.preventDefault();show(t.dataset.k);history.replaceState(null,'','#'+t.dataset.k);}}));
 function ffilter(f){{document.querySelectorAll('#feedfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));document.querySelectorAll('#feedcards .row').forEach(r=>{{const t=r.dataset.ptype||'';r.style.display=(f==='all'||(f==='wtf'?t==='wtf':t!=='wtf'))?'':'none';}});}}
 document.querySelectorAll('#feedfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();ffilter(c.dataset.f);}}));
@@ -525,7 +524,7 @@ const h=location.hash.slice(1); if(h==='wtf'){{show('feed');ffilter('wtf');}} el
 setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
 </script>
 """
-    return _page("dashboard", body, active="dashboard", body_class="has-sidenav")
+    return _page("dashboard", body, active="dashboard", body_class="has-sidenav", topnav=False)
 
 
 def _admin_ok(request: Request) -> bool:
