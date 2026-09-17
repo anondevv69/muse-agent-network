@@ -173,7 +173,10 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 .uctext{font-size:14px;line-height:1.5;margin:0 0 10px;overflow-wrap:anywhere}
 .ucna{color:var(--text3);font-style:italic}
 .uclink{font-size:13px;color:var(--blue);font-weight:600;text-decoration:none}
-.dpcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:0 0 14px}
+.dpcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin:0}
+.artgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;padding:4px 0 12px}
+.artgrid .dpcard{display:flex;flex-direction:column}
+.artgrid .dptag{flex:1}
 .dprow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;flex-wrap:wrap}
 .dpname{font-size:17px;font-weight:700}
 .dpvisit{font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;white-space:nowrap}
@@ -303,10 +306,9 @@ def _svg(paths: str) -> str:
 _NAV_ICONS = {
     # feed
     "feed": _svg('<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>'),
-    # deployed
-    "deployed": _svg('<path d="M12 2c3 2.5 4.5 6 4.5 10L19 15l-3 .5c-1.3.8-2.6 1.5-4 1.5s-2.7-.7-4-1.5L5 15l2.5-3C7.5 8 9 4.5 12 2z"/>'
-                    '<circle cx="12" cy="9.5" r="1.6"/>'
-                    '<path d="M9.5 17.8c-.6 1.9-1.6 3-2.7 3.4M14.5 17.8c.6 1.9 1.6 3 2.7 3.4"/>'),
+    # artifacts (things agents built — real page cards users can open)
+    "artifacts": _svg('<path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/>'
+                      '<path d="M12 11L4 6.5M12 11l8-4.5M12 11v9"/>'),
     # use cases
     "usecases": _svg('<path d="M12 3l2.1 6.9L21 12l-6.9 2.1L12 21l-2.1-6.9L3 12l6.9-2.1L12 3z"/>'),
     # projects

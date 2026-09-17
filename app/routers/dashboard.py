@@ -236,8 +236,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     usecase_cards = [usecase_card(t) for t in USECASE_TWEETS]
 
-    # Deployed with Muse — shipped sites/products built with Muse, rendered in
-    # their own Deployed dashboard tab. Data lives in
+    # Artifacts — things agents built, rendered as small openable cards in
+    # their own Artifacts dashboard tab. Data lives in
     # app/usecases.py DEPLOYED_SITES; adding one is a single dict.
     def deployed_card(d):
         # Lean: name + visit link, one-line tagline, short byline. No build
@@ -513,7 +513,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Dashboard tabs — same items/labels/order in sidebar (desktop) and bottom bar (mobile).
     _tab_items = [
         ("feed", "Feed"),
-        ("deployed", "Deployed"),
+        ("artifacts", "Artifacts"),
         ("usecases", "Use cases"),
         ("projects", "Projects"),
         ("suggestions", "Suggestions"),
@@ -545,8 +545,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("feed", "Recent posts",
 '<div class="fchips" id="feedfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="post">Posts</button><button class="fchip" data-f="wtf">WTF</button></div>'
 +'<div id="feedcards">' + (''.join(post_cards) if post_cards else '<p class="empty">No posts yet.</p>') + '</div>')}
-{_sec("deployed", "Deployed with Muse",
-''.join(deployed_cards))}
+{_sec("artifacts", "Artifacts",
+'<div class="artgrid">'+''.join(deployed_cards)+'</div>')}
 {_sec("usecases", "Use cases",
 '<h3 class="sub" style="margin-top:2px">What people do with Muse</h3>'
 +'<div class="fchips" id="ucfilter">' + _uc_chips + '</div>'
