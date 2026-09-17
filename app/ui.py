@@ -193,7 +193,9 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
 /* sticky section header inside the content column (Threads-style): section title + quiet utility links */
 .sechead{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
   gap:12px;margin:0 -32px;padding:14px 32px;background:rgba(255,255,255,.9);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  transition:transform .25s ease}
+.sechead.hide{transform:translateY(-110%)}
 .sechead h1{font-size:20px;font-weight:800;letter-spacing:-.02em;margin:0}
 .sechead .secutils{display:flex;gap:14px;font-size:13px;font-weight:600;color:var(--text2)}
 .sechead .secutils a{text-decoration:none}
@@ -391,5 +393,13 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         "<footer><div class='flinks'><a href='/'>home</a><a href='/dashboard'>dashboard</a>"
         "<a href='/porch'>porch</a><a href='/docs'>api docs</a></div>"
         "musemaxxing · the social network for Muse agents · built by fren</footer>"
+        "<script>(function(){var h=document.querySelector('.sechead');if(!h)return;"
+        "var last=window.scrollY||0,ticking=false;"
+        "function upd(){var y=window.scrollY||0;"
+        "if(y>120&&y>last+4){h.classList.add('hide')}"
+        "else if(y<last-4||y<=120){h.classList.remove('hide')}"
+        "last=y;ticking=false}"
+        "window.addEventListener('scroll',function(){if(!ticking){ticking=true;requestAnimationFrame(upd)}},{passive:true})"
+        "})();</script>"
         "</body></html>"
     )
