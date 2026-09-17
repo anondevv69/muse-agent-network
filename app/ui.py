@@ -1,7 +1,8 @@
 """Shared design system: Threads/Instagram-like, Meta-AI-themed.
 
 Light, clean, familiar — the way Meta's family of apps feels.
-Pill everything, hairlines over shadows, one blue CTA, one gradient moment.
+Monochrome chrome like Threads: black CTAs, hairlines over cards,
+blue rationed to links/@mentions/verified; gradient lives in the logo only.
 """
 from __future__ import annotations
 
@@ -11,9 +12,10 @@ GRADIENT = "linear-gradient(135deg,#0082fb 0%,#a24bff 50%,#ff5c8a 100%)"
 
 THEME_CSS = """
 :root{
-  --bg:#ffffff; --text:#0f0f0f; --text2:#65676b; --text3:#90949c;
-  --line:#e4e6eb; --pill:#f2f4f7; --card:#ffffff;
-  --blue:#0866ff; --bluepill:#e7f0ff;
+  --bg:#ffffff; --text:#000000; --text2:#999999; --text3:#737373;
+  --line:#e0e0e0; --pill:#f0f0f0; --card:#ffffff;
+  --blue:#0095f6; --bluepill:#e7f0ff;
+  --red:#ff3040;
   --grad:linear-gradient(135deg,#0082fb 0%,#a24bff 50%,#ff5c8a 100%);
 }
 *{box-sizing:border-box}
@@ -38,7 +40,7 @@ a{color:inherit}
 .tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:8px;overflow-x:auto}
 .tabs a{flex:1;text-align:center;padding:13px 8px;font-size:14px;font-weight:600;
   color:var(--text2);text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap}
-.tabs a.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tabs a.on{color:var(--text);border-bottom-color:var(--text)}
 /* dashboard tab sections: one short header line per tab */
 .tabsec>h2{font-size:20px;letter-spacing:-.02em;margin:18px 0 10px;font-weight:700}
 .tabsec h3.sub{font-size:15px;margin:20px 0 10px;letter-spacing:-.01em}
@@ -58,10 +60,9 @@ a{color:inherit}
 /* small gray tag pills */
 .pill{display:inline-block;background:var(--pill);border-radius:999px;
   padding:3px 10px;font-size:12px;font-weight:600;color:var(--text2);margin:2px 4px 2px 0}
-/* feed: light-gray panel, clean white cards, no shadows */
-#feedcards{background:var(--pill);border-radius:16px;padding:4px 12px;margin:12px 0}
-#feedcards .row{background:#fff;border:1px solid var(--line);border-radius:14px;
-  padding:14px;margin:12px 0;box-shadow:none}
+/* feed: one continuous column, hairline separators — no cards (Threads pattern) */
+#feedcards{margin:12px 0}
+#feedcards .row{padding:12px 0;margin:0}
 /* rich post attachments — Threads-style media grid + link/article card */
 .attach{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:2px 0 10px}
 .attach a{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
@@ -77,11 +78,11 @@ a{color:inherit}
   -webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
 .linkcard .lc-host{font-size:12px;color:var(--text3);margin-top:4px}
 /* button hierarchy: solid blue primary, blue-outline secondary, text-only tertiary */
-.btn{display:inline-block;background:var(--blue);color:#fff;border:none;border-radius:999px;
-  padding:12px 26px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none}
+.btn{display:inline-block;background:#000000;color:#fff;border:none;border-radius:10px;
+  padding:10px 20px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none}
 .btn.grad{background:var(--grad)}
-.btn.ghost{background:transparent;color:var(--blue);border:1.5px solid var(--blue);
-  padding:10px 20px}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line);
+  padding:9px 18px}
 .btn.text{background:none;border:none;color:var(--blue);font-size:14px;font-weight:700;
   padding:8px 10px}
 /* cards: one style, hairline borders, no shadows */
@@ -94,7 +95,7 @@ a{color:inherit}
 .fchips::-webkit-scrollbar{display:none}
 .fchip{border:1px solid var(--line);background:var(--pill);border-radius:999px;
   padding:10px 20px;font-size:15px;font-weight:600;color:var(--text2);cursor:pointer;white-space:nowrap;flex:none}
-.fchip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.fchip.on{background:#000;color:#fff;border-color:#000}
 /* post permalink affordances: timestamp links to the post, share icon opens it */
 .rowhead .timelink{color:var(--text3);font-weight:400;text-decoration:none}
 .rowhead .timelink:hover{text-decoration:underline}
@@ -139,9 +140,10 @@ a{color:inherit}
 pre.code{background:#0f0f0f;color:#e6edf3;border-radius:14px;padding:16px;overflow-x:auto;
   font-size:13px;line-height:1.7;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 pre.code .c{color:#8b949e}
-/* inputs are pills too */
-input[type=text],input[type=password],textarea{border-radius:999px !important}
-textarea{border-radius:16px !important}
+/* inputs are filled and borderless (Threads/IG pattern) */
+input[type=text],input[type=password],textarea{background:var(--pill);border:none;
+  border-radius:10px !important}
+textarea{border-radius:10px !important}
 footer{border-top:1px solid var(--line);padding:28px 0 40px;color:var(--text3);font-size:12px;text-align:center}
 footer .flinks{margin-bottom:10px}
 footer a{color:var(--text2);text-decoration:none;margin:0 8px}
@@ -198,7 +200,7 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
   color:var(--text2);text-decoration:none;margin:2px 0}
 .sidenav a.sideitem span{display:none}
 .sidenav a.sideitem:hover{background:var(--pill);color:var(--text)}
-.sidenav a.sideitem.on{color:var(--blue);background:var(--bluepill)}
+.sidenav a.sideitem.on{color:#000;background:var(--pill)}
 @media(max-width:859px){
   body.has-sidenav .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;
     background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
@@ -209,7 +211,7 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
   padding:6px 2px 2px;font-size:10.5px;font-weight:600;color:var(--text2);
   text-decoration:none;min-width:0;white-space:nowrap}
 .bottomnav a.bnav svg{width:24px;height:24px}
-.bottomnav a.bnav.on{color:var(--blue)}
+.bottomnav a.bnav.on{color:#000}
 @media(max-width:480px){.bottomnav a.bnav{font-size:9.5px}.bottomnav a.bnav svg{width:20px;height:20px}}
 @media (max-width:560px){.hero h1{font-size:36px}.navlinks a{padding:8px 8px}}
 """
