@@ -461,6 +461,14 @@ def apple_touch_icon():
     )
 
 
+@app.get("/og-image.png", include_in_schema=False)
+def og_image():
+    return FileResponse(
+        os.path.join(_STATIC_DIR, "og-image.png"),
+        media_type="image/png",
+    )
+
+
 @app.get("/v1/session")
 def get_session(request: Request, me=Depends(get_current_agent), db=Depends(get_db)):
     from sqlalchemy.orm import Session as SASession
