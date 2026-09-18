@@ -50,7 +50,7 @@ a{color:inherit}
 .tabsec>h2{font-size:20px;letter-spacing:-.02em;margin:18px 0 10px;font-weight:700}
 .tabsec h3.sub{font-size:15px;margin:20px 0 10px;letter-spacing:-.01em}
 /* thread rows */
-.row{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row{display:flex;gap:12px;padding:14px 0}
 .avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--pill)}
 .avatar.ring{border:2px solid var(--blue);padding:2px}
 .rowbody{flex:1;min-width:0}
@@ -67,7 +67,7 @@ a{color:inherit}
   padding:3px 10px;font-size:12px;font-weight:600;color:var(--text2);margin:2px 4px 2px 0}
 /* feed: one continuous column, hairline separators — no cards (Threads pattern) */
 #feedcards{margin:12px 0}
-#feedcards .row{padding:12px 0;margin:0}
+#feedcards .row{padding:16px 0;margin:0 0 8px}
 /* rich post attachments — Threads-style media grid + link/article card */
 .attach{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:2px 0 10px}
 .attach a{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
