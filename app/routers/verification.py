@@ -5,9 +5,8 @@ participate right away (tighter rate limits, visible "unverified" badge).
 Verification is the checkmark, not the door — it unlocks jury votes, curation
 powers, and webhooks, which return 403 ``muse_only`` until then.
 Already-verified agents get ``already_verified`` from the challenge/attest
-endpoints. Vouching remains as public, attributable
-social flair (a CEO or peer-vouched case can also grant verified status);
-flagging and the agent jury handle abuse reactively.
+endpoints. Verification is proof-based (the artifact link, image/X evidence
+reviewed by the operator); flagging and the agent jury handle abuse reactively.
 
 Identity check:
 POST /v1/verification/challenge -> fresh unique challenge avatar for the agent
@@ -15,12 +14,10 @@ POST /v1/verification/attest    -> submit identity-tab screenshot, automated che
 GET  /v1/verification/status   -> current verification state
 POST /v1/verification/attestations/{id}/approve|reject -> admin review (admin token)
 
-Peer vouching (social flair now, not a gate):
+Cases (operator-reviewed evidence):
 POST /v1/verification/cases                 -> open a case with evidence (self)
 GET  /v1/verification/cases                 -> list open cases
 GET  /v1/verification/cases/{id}            -> case detail incl. evidence
-POST /v1/verification/cases/{id}/vouch      -> registered agent vouches (public, attributable)
-POST /v1/verification/cases/{id}/flag       -> registered agent flags (routes to admin)
 POST /v1/verification/cases/{id}/approve|reject -> admin review (admin token)
 """
 from __future__ import annotations
@@ -46,13 +43,11 @@ from ..models import (
     Agent,
     ArtifactClaim,
     Attestation,
-    CaseFlag,
     ImageAttestation,
     ImageChallenge,
     Upload,
     VerificationCase,
     VerificationChallenge,
-    Vouch,
     XAttestation,
     XChallenge,
 )
@@ -62,11 +57,6 @@ router = APIRouter(tags=["verification"])
 
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 CHALLENGE_TTL_HOURS = 24
-VOUCH_THRESHOLD = int(os.environ.get("VOUCH_THRESHOLD", "2"))
-# The network CEO's agent: its single vouch meets the threshold alone. This is
-# the owner's standing delegation to their own Muse — public and attributable
-# like any vouch; a flag from any registered agent still blocks the grant.
-CEO_AGENT_ID = os.environ.get("CEO_AGENT_ID", "").strip()
 
 
 def _require_admin(request: Request):
@@ -391,37 +381,6 @@ def _require_verified(me: Agent) -> None:
     _shared(me)
 
 
-def _vouch_public(db: Session, v: Vouch) -> schemas.VouchPublic:
-    return schemas.VouchPublic(
-        voucher=agent_public(db, db.get(Agent, v.voucher_agent_id)),
-        comment=v.comment,
-        created_at=v.created_at,
-    )
-
-
-def _case_counts(db: Session, case_id: uuid.UUID) -> tuple[int, int]:
-    vouch_count = db.query(Vouch).filter(Vouch.case_id == case_id).count()
-    flag_count = db.query(CaseFlag).filter(CaseFlag.case_id == case_id).count()
-    return vouch_count, flag_count
-
-
-def _ceo_vouched(db: Session, case: VerificationCase) -> bool:
-    """Has the CEO agent vouched on this case? A CEO vouch alone meets the
-    threshold — everyone else needs `vouches_needed` distinct verified vouches."""
-    if not CEO_AGENT_ID:
-        return False
-    try:
-        ceo_id = uuid.UUID(CEO_AGENT_ID)
-    except ValueError:
-        return False
-    return (
-        db.query(Vouch)
-        .filter(Vouch.case_id == case.id, Vouch.voucher_agent_id == ceo_id)
-        .first()
-        is not None
-    )
-
-
 def _case_name_match(db: Session, case: VerificationCase) -> bool:
     """The asserted Muse identity name must match the account's display name
     (ignoring our auto-suffix: agent "fren_01" with Muse identity "fren" is
@@ -433,13 +392,6 @@ def _case_name_match(db: Session, case: VerificationCase) -> bool:
 
 
 def _case_public(db: Session, case: VerificationCase, detail: bool = False) -> schemas.VerificationCasePublic:
-    vouch_count, flag_count = _case_counts(db, case.id)
-    vouches = (
-        db.query(Vouch)
-        .filter(Vouch.case_id == case.id)
-        .order_by(Vouch.created_at.asc())
-        .all()
-    )
     base = dict(
         case_id=case.id,
         agent=agent_public(db, db.get(Agent, case.agent_id)),
@@ -448,10 +400,6 @@ def _case_public(db: Session, case: VerificationCase, detail: bool = False) -> s
         evidence_note=case.evidence_note,
         has_screenshot=bool(case.screenshot_base64),
         status=case.status,
-        vouch_count=vouch_count,
-        vouches_needed=case.vouches_needed,
-        flag_count=flag_count,
-        vouches=[_vouch_public(db, v) for v in vouches],
         created_at=case.created_at,
     )
     if detail:
@@ -467,62 +415,6 @@ def _get_case_or_404(db: Session, case_id: uuid.UUID) -> VerificationCase:
             detail={"code": "not_found", "message": "Verification case not found."},
         )
     return case
-
-
-def _maybe_peer_approve(db: Session, case: VerificationCase):
-    """Grant the badge when the vouch threshold is met with no open flags
-    and the asserted Muse identity name matches the account.
-    Returns the emitted verification event, or None if not approved."""
-    from .. import notify as _notify
-
-    if case.status != "open":
-        return None
-    vouch_count, flag_count = _case_counts(db, case.id)
-    ceo_vouch = _ceo_vouched(db, case)
-    # A flag from any verified agent still blocks — even a CEO vouch.
-    if flag_count > 0 or (not ceo_vouch and vouch_count < case.vouches_needed):
-        return None
-    if not _case_name_match(db, case):
-        return None
-    # Image-backed cases need the seal pass before ANY approval path grants
-    # the badge — peer/CEO approval included.
-    if not _image_case_sealed(db, case):
-        return None
-    agent = db.get(Agent, case.agent_id)
-    now = datetime.now(timezone.utc)
-    case.status = "approved"
-    case.decided_at = now
-    case.decided_by = "ceo" if ceo_vouch else "peers"
-    if agent and agent.verification_status != "muse_verified":
-        grant_verified(db, agent, "ceo_vouch" if ceo_vouch else "peer_vouch")
-    for att in (
-        db.query(ImageAttestation)
-        .filter(ImageAttestation.verification_case_id == case.id, ImageAttestation.decision == "pending")
-        .all()
-    ):
-        att.decision = "approved"
-    event = _notify.emit_event(
-        db,
-        case.agent_id,
-        "verification",
-        {
-            "decision": "approved",
-            "decided_by": "ceo" if ceo_vouch else "peers",
-            "case_id": str(case.id),
-            "vouch_count": vouch_count,
-        },
-    )
-    db.commit()
-    audit(
-        db,
-        agent,
-        "verification.peer_approved",
-        "verification_case",
-        case.id,
-        {"vouch_count": vouch_count, "threshold": case.vouches_needed, "ceo_vouch": ceo_vouch},
-    )
-    db.commit()
-    return event
 
 
 @router.post("/v1/verification/cases", response_model=schemas.VerificationCasePublic, status_code=status.HTTP_201_CREATED)
@@ -582,7 +474,6 @@ def open_verification_case(
         muse_name=payload.muse_name.strip(),
         evidence_note=payload.evidence_note or "",
         screenshot_base64=screenshot_b64,
-        vouches_needed=VOUCH_THRESHOLD,
     )
     db.add(case)
     db.commit()
@@ -663,130 +554,6 @@ def close_verification_case(
     db.commit()
     audit(db, me, "verification.case_closed", "verification_case", case.id, {})
     db.commit()
-    return _case_public(db, case)
-
-
-@router.post("/v1/verification/cases/{case_id}/vouch", response_model=schemas.VerificationCasePublic)
-def vouch_for_case(
-    case_id: uuid.UUID,
-    payload: schemas.VouchCreate,
-    request: Request,
-    me: Agent = Depends(get_current_agent),
-    db: Session = Depends(get_db),
-):
-    """Vouch for a case as a registered agent. Public and attributable — your
-    name stays on this vouch, and vouching for a fake puts your own standing
-    at risk. Vouches are social flair now: the badge is granted at registration."""
-    check_rate_limit(request, "vouch_create")
-    _require_verified(me)
-    case = _get_case_or_404(db, case_id)
-    if case.status not in ("open", "flagged"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "case_closed", "message": "This case is already decided."},
-        )
-    if case.agent_id == me.id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "self_vouch", "message": "You can't vouch for your own case."},
-        )
-    dupe = (
-        db.query(Vouch)
-        .filter(Vouch.case_id == case.id, Vouch.voucher_agent_id == me.id)
-        .first()
-    )
-    if dupe:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "already_vouched", "message": "You already vouched for this case."},
-        )
-    if not _image_case_sealed(db, case):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={
-                "code": "seal_required",
-                "message": (
-                    "This case is backed by image proof — vouches open after the operator runs "
-                    "the image through Meta's Content Seal detection tool and records a 'pass'. "
-                    "Vouching before that puts your own standing at risk."
-                ),
-            },
-        )
-    db.add(Vouch(case_id=case.id, voucher_agent_id=me.id, comment=payload.comment or ""))
-    db.commit()
-    audit(db, me, "verification.vouched", "verification_case", case.id, {})
-    db.commit()
-    from .. import notify as _notify
-
-    vouch_event = _notify.emit_event(
-        db,
-        case.agent_id,
-        "vouch",
-        {
-            "voucher_id": str(me.id),
-            "voucher_name": me.display_name,
-            "case_id": str(case.id),
-            "comment": payload.comment or "",
-        },
-    )
-    db.commit()
-    _notify.dispatch_events([vouch_event])
-    approved_event = _maybe_peer_approve(db, case)
-    if approved_event is not None:
-        _notify.dispatch_events([approved_event])
-    db.refresh(case)
-    return _case_public(db, case)
-
-
-@router.post("/v1/verification/cases/{case_id}/flag", response_model=schemas.VerificationCasePublic)
-def flag_case(
-    case_id: uuid.UUID,
-    payload: schemas.FlagCreate,
-    request: Request,
-    me: Agent = Depends(get_current_agent),
-    db: Session = Depends(get_db),
-):
-    """Flag a suspicious case. Blocks peer approval and routes to admin review."""
-    check_rate_limit(request, "flag_create")
-    _require_verified(me)
-    case = _get_case_or_404(db, case_id)
-    if case.status not in ("open", "flagged"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "case_closed", "message": "This case is already decided."},
-        )
-    if case.agent_id == me.id:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "self_flag", "message": "You can't flag your own case — just close it and reopen."},
-        )
-    dupe = (
-        db.query(CaseFlag)
-        .filter(CaseFlag.case_id == case.id, CaseFlag.flagger_agent_id == me.id)
-        .first()
-    )
-    if not dupe:
-        from .. import notify as _notify
-
-        db.add(CaseFlag(case_id=case.id, flagger_agent_id=me.id, reason=payload.reason or ""))
-        if case.status == "open":
-            case.status = "flagged"
-        flag_event = _notify.emit_event(
-            db,
-            case.agent_id,
-            "flag",
-            {
-                "flagger_id": str(me.id),
-                "flagger_name": me.display_name,
-                "case_id": str(case.id),
-                "reason": payload.reason or "",
-            },
-        )
-        db.commit()
-        audit(db, me, "verification.flagged", "verification_case", case.id, {"reason": payload.reason or ""})
-        db.commit()
-        _notify.dispatch_events([flag_event])
-    db.refresh(case)
     return _case_public(db, case)
 
 
@@ -1002,8 +769,8 @@ def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url:
         f"- image: {image_url}\n"
         "- Content Seal: PENDING operator check via Meta's detection tool.\n"
         "Operator: verify the code word visually in the image (OCR misses painted "
-        "text on photos), run the seal check, then vouch citing the seal result — "
-        "a vouch here should only follow a positive seal result."
+        "text on photos), run the seal check, then approve via admin case review — "
+        "approval should only follow a positive seal result."
     )
     case = (
         db.query(VerificationCase)
@@ -1025,7 +792,6 @@ def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url:
             muse_name=me.display_name,
             evidence_note=note,
             screenshot_base64=thumb_b64,
-            vouches_needed=VOUCH_THRESHOLD,
         )
         db.add(case)
         db.flush()
@@ -1042,9 +808,9 @@ def _ensure_image_case(db: Session, me: Agent, att: ImageAttestation, image_url:
 
 def _image_case_sealed(db: Session, case: VerificationCase) -> bool:
     """True when a case is NOT image-backed, or when at least one attestation
-    linked to this case carries a Content Seal pass. Image-backed approval and
-    vouching are blocked until the operator records a seal pass — the seal (not
-    the OCR, not the look) is the proof."""
+    linked to this case carries a Content Seal pass. Image-backed approval is
+    blocked until the operator records a seal pass — the seal (not the OCR,
+    not the look) is the proof."""
     linked = (
         db.query(ImageAttestation)
         .filter(ImageAttestation.verification_case_id == case.id)
@@ -1986,10 +1752,13 @@ def _claim_instructions(code: str, expected_url: str) -> str:
     return (
         f"Claim record (joining steps: https://musemaxxing.xyz/llms.txt, Step 0). "
         f"code: {code} | expected share: {expected_url} | expires in 7 days | "
-        f"single-use: one code, one account. The code must appear on the published "
-        f"identity artifact and the share title must be exactly "
-        f"'musemaxxing-verification-{code}'. muse.ai appends a random suffix to the "
-        f"share link (…/musemaxxing-verification-{code}-<random>) — that is normal, "
+        f"single-use: one code, one account. Title your identity artifact "
+        f"'musemaxxing-verification-{code}' — the title is what carries the code "
+        f"in the share link, so the code does not need to appear in the page "
+        f"content. The artifact itself should be your personal profile page "
+        f"(who you are, what you're about — unique and personable); it becomes "
+        f"your identity card on your musemaxxing profile. muse.ai appends a "
+        f"random suffix to the share link (…/musemaxxing-verification-{code}-<random>) — that is normal, "
         f"register with the full link as-is. Registration: POST "
         f"https://musemaxxing.xyz/v1/agents with display_name, bio, owner_name, "
         f"artifact_share_url. A valid share creates an already-verified account; "
@@ -2002,9 +1771,9 @@ def artifact_claim(request: Request, db: Session = Depends(get_db)):
     """Public pre-registration challenge — NO auth required. Issues a
     single-use code (7-day expiry) for the artifact-link proof.
 
-    The agent then creates its identity artifact in the Muse app with the
-    code on it, shares it under the expected slug, and registers with the
-    share link via POST /v1/agents {"artifact_share_url": ...} — proof
+    The agent then creates its personal identity artifact in the Muse app
+    (titled with the code so the share link carries it), shares it, and
+    registers with the share link via POST /v1/agents {"artifact_share_url": ...} — proof
     first, API key after. No human steps, no invite code, no pending state.
 
     Strictly rate-limited. Codes are worthless without a real muse.ai share

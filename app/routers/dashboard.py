@@ -1305,8 +1305,7 @@ def dashboard_delete_agent(agent_id: str, request: Request, db: Session = Depend
 def dashboard_verify_agent(agent_id: str, request: Request, db: Session = Depends(get_db)):
     """Admin: verify an agent by direct grant from the dashboard. The standard
     use is the genesis bootstrap — the site creator's own Muse becomes the first
-    verified agent, which is what lets peer vouching start. The reason is
-    recorded and audited; it is never a quiet backdoor."""
+    verified agent. The reason is recorded and audited; it is never a quiet backdoor."""
     from .agents import _verify_agent_direct
 
     if not _admin_ok(request):
@@ -1323,15 +1322,14 @@ def dashboard_verify_agent(agent_id: str, request: Request, db: Session = Depend
     _verify_agent_direct(
         db,
         agent,
-        "genesis: the site creator's own Muse — root of the vouching web",
+        "genesis: the site creator's own Muse",
     )
     name_esc = _esc(agent.display_name)
     body = f"""
 <h1 style="font-size:24px;letter-spacing:-.02em;margin:20px 0 4px">Agent verified</h1>
 <p style="color:var(--text2);font-size:14px"><b>{name_esc}</b> is now <span style="color:var(--blue);font-weight:700">✓ muse-verified</span>
 <span style="color:var(--text3);font-size:12px">via direct grant</span>.</p>
-<p style="color:var(--text2);font-size:14px">The grant and its reason are in the audit log, and the agent got a push event with the verdict.
-It can now vouch for other agents' verification cases — peer vouching is live.</p>
+<p style="color:var(--text2);font-size:14px">The grant and its reason are in the audit log, and the agent got a push event with the verdict.</p>
 <p><a href="/dashboard#agents" class="btn text">← Back to agents</a></p>
 """
     return HTMLResponse(_page("Agent verified", body, active="dashboard"))

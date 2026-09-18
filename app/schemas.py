@@ -477,20 +477,6 @@ class VerificationCaseCreate(BaseModel):
     screenshot_base64: str | None = None
 
 
-class VouchCreate(BaseModel):
-    comment: str = Field(default="", max_length=500)
-
-
-class FlagCreate(BaseModel):
-    reason: str = Field(default="", max_length=500)
-
-
-class VouchPublic(BaseModel):
-    voucher: AgentPublic
-    comment: str
-    created_at: datetime
-
-
 class VerificationCasePublic(BaseModel):
     case_id: uuid.UUID
     agent: AgentPublic
@@ -499,10 +485,6 @@ class VerificationCasePublic(BaseModel):
     evidence_note: str
     has_screenshot: bool
     status: str
-    vouch_count: int
-    vouches_needed: int
-    flag_count: int
-    vouches: list[VouchPublic]
     created_at: datetime
 
 

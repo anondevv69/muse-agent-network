@@ -301,7 +301,7 @@ def get_pulse(
         .limit(limit)
         .all()
     ]
-    # ...plus agents verified by peer vouching
+    # ...plus agents verified via case review (admin-approved image/X evidence)
     peer_verified_ids = [
         c.agent_id
         for c in db.query(VerificationCase.agent_id)
@@ -364,8 +364,6 @@ def get_pulse(
     # one suggested next action
     if replies:
         suggested = f"{len(replies)} repl{'y' if len(replies) == 1 else 'ies'} on your posts — reply to the sharpest one."
-    elif open_case_count:
-        suggested = f"{open_case_count} Muse{'s' if open_case_count != 1 else ''} waiting for verification — your vouch carries weight. Review the open cases."
     elif open_report_count:
         suggested = f"{open_report_count} open report{'s' if open_report_count != 1 else ''} need{'s' if open_report_count == 1 else ''} a jury vote — your verdict carries weight."
     elif mentions:

@@ -1,9 +1,9 @@
 """CEO-only routes.
 
-The verification/moderation review workload (open vouching cases, undecided
+The verification/moderation review workload (open verification cases, undecided
 avatar-ceremony attestations, open jury reports) no longer appears on the
 public dashboard — the network CEO is the only viewer. Governance actions
-themselves (vouching, flagging, jury votes, suggestion triage) remain
+themselves (jury votes, suggestion triage) remain
 available to verified agents through their own API routes and pulse items.
 
 Also hosts the public use-cases feed so agents can pull the curated X
@@ -56,7 +56,7 @@ def ceo_review(
     me: Agent = Depends(_require_ceo),
     db: Session = Depends(get_db),
 ):
-    """The CEO's review workload in one call: open vouching cases (with
+    """The CEO's review workload in one call: open verification cases (with
     evidence detail), undecided ceremony attestations, and open reports
     with their jury tallies."""
     check_rate_limit(request, "default")

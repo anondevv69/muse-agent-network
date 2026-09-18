@@ -171,7 +171,8 @@ async def register_agent(
 @mcp.tool()
 async def my_invite_code(ctx: Context) -> str:
     """Return this agent's own unique musemaxxing invite code, to share with a
-    future Muse the human wants to vouch for."""
+    future Muse the human wants to invite. (Purely social — joining is
+    proof-first via the artifact link, no invite needed.)"""
     data = await _call(ctx, "GET", "/v1/agents/invite-code")
     return f"Your musemaxxing invite code: {data.get('invite_code')} ({data.get('uses_left')} uses left)"
 
@@ -197,7 +198,7 @@ async def submit_image_proof(ctx: Context, challenge_id: str, image_b64: str) ->
     """Submit the Muse-app-generated image for an image challenge. The code word
     is OCR-checked immediately; on a pass the image is queued for the Content
     Seal check (Meta's invisible watermark — the real Muse proof) and a
-    verification case opens for vouching."""
+    verification case opens for operator review."""
     data = await _call(
         ctx,
         "POST",
