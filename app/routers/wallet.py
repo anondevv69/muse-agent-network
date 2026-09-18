@@ -51,8 +51,10 @@ SIDECAR_TOKEN = os.environ.get("SIDECAR_TOKEN", "")
 
 class WalletSendBody(BaseModel):
     to: str = Field(min_length=42, max_length=42, description="Recipient EVM address")
-    amount_meta: str = Field(description="Amount in META (decimal string, e.g. '0.00001')")
+    amount_meta: str = Field(description="Amount in token units (decimal string, e.g. '0.00001')")
     idempotency_key: str = Field(min_length=1, max_length=128, description="Client-generated unique key")
+    # Token to send: "META" (default), "ETH" (native), or 0x ERC-20 contract address.
+    token: str = Field(default="META", description="Token: 'META', 'ETH', or ERC-20 contract address")
 
 
 def _evm_address(v: str) -> str:
@@ -105,6 +107,14 @@ def _get_eth_balance(address: str) -> Decimal:
     return Decimal(wei) / Decimal(10 ** 18)
 
 
+def _get_erc20_balance(address: str, token_contract: str) -> Decimal:
+    """Get ERC-20 token balance for an address (assumes 18 decimals)."""
+    data = "0x70a08231" + address[2:].lower().zfill(64)
+    result = _rpc_call("eth_call", [{"to": token_contract, "data": data}, "latest"])
+    wei = int(result, 16)
+    return Decimal(wei) / Decimal(10 ** 18)
+
+
 def _build_transfer_calldata(to: str, amount_meta: Decimal) -> str:
     """Build ERC-20 transfer(to, amount) calldata."""
     # transfer(address,uint256) selector = 0xa9059cbb
@@ -121,9 +131,13 @@ def _call_sidecar_sign(
     calldata: str,
     wallet_metadata: dict,
     wallet_shares: dict,
+    value_wei: str = "0",
     max_retries: int = 3,
 ) -> dict:
     """Call the signing sidecar to sign a transaction. Returns signed tx.
+    
+    For ERC-20: to=token contract, calldata=transfer data, value_wei="0".
+    For ETH: to=recipient, calldata="0x", value_wei=amount in wei.
     
     Retries on network flakes. Safe: idempotency is checked before signing,
     so a retry with the same key won't double-broadcast.
@@ -132,8 +146,8 @@ def _call_sidecar_sign(
     body = {
         "walletId": wallet_id,
         "accountAddress": account_address,
-        "to": META_CONTRACT,  # META token contract
-        "valueWei": "0",
+        "to": to,
+        "valueWei": value_wei,
         "data": calldata,
         "walletMetadata": wallet_metadata,
         "externalServerKeyShares": wallet_shares,
@@ -220,7 +234,7 @@ def wallet_send(
             detail={"code": "invalid_address", "message": "Invalid recipient address."},
         )
 
-    # 4. Validate amount.
+    # 4. Validate amount and resolve token.
     try:
         amount = Decimal(body.amount_meta)
     except Exception:
@@ -234,14 +248,38 @@ def wallet_send(
             detail={"code": "invalid_amount", "message": "Amount must be positive."},
         )
 
-    # Gregory's hard rule: max 0.00001 META, unless to his wallet.
+    # Resolve token: "META" (default), "ETH" (native), or 0x ERC-20 address.
+    token = body.token.upper() if body.token.upper() in ("META", "ETH") else body.token
+    is_native_eth = (token == "ETH")
+    if is_native_eth:
+        token_contract = None
+        token_label = "ETH"
+        token_decimals = 18
+    elif token == "META":
+        token_contract = META_CONTRACT
+        token_label = "META"
+        token_decimals = META_DECIMALS
+    else:
+        # ERC-20 contract address.
+        try:
+            token_contract = _evm_address(token)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "invalid_token", "message": "Token must be 'META', 'ETH', or a valid ERC-20 contract address."},
+            )
+        token_label = token_contract[:10] + "..."
+        token_decimals = 18  # Assume 18; could query but keep simple.
+
+    # Gregory's hard rule: max 0.00001 per transfer (in token units), unless to his wallet.
+    # Applies to all tokens.
     is_gregory = to.lower() == GREGORY_WALLET.lower()
     if amount > MAX_META_PER_SEND and not is_gregory:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "code": "amount_exceeds_limit",
-                "message": f"Maximum {MAX_META_PER_SEND} META per transfer. "
+                "message": f"Maximum {MAX_META_PER_SEND} {token_label} per transfer. "
                            f"Larger amounts may only go to {GREGORY_WALLET}.",
             },
         )
@@ -261,14 +299,19 @@ def wallet_send(
             "duplicate": True,
         }
 
-    # 6. Check META balance.
-    balance = _get_meta_balance(agent.wallet_address)
+    # 6. Check token balance.
+    if is_native_eth:
+        balance = _get_eth_balance(agent.wallet_address)
+    elif token_contract == META_CONTRACT:
+        balance = _get_meta_balance(agent.wallet_address)
+    else:
+        balance = _get_erc20_balance(agent.wallet_address, token_contract)
     if balance < amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
-                "code": "insufficient_meta",
-                "message": f"Insufficient META balance: {balance}, need {amount}.",
+                "code": "insufficient_balance",
+                "message": f"Insufficient {token_label} balance: {balance}, need {amount}.",
             },
         )
 
@@ -294,15 +337,27 @@ def wallet_send(
             detail={"code": "decrypt_failed", "message": "Failed to decrypt wallet shares."},
         )
 
-    calldata = _build_transfer_calldata(to, amount)
+    # Build transaction based on token type.
+    if is_native_eth:
+        # Native ETH transfer: to=recipient, value=amount, no calldata.
+        sign_to = to
+        sign_calldata = "0x"
+        sign_value_wei = str(int(amount * Decimal(10 ** 18)))
+    else:
+        # ERC-20 transfer: to=token contract, calldata=transfer(to, amount).
+        sign_to = token_contract
+        sign_calldata = _build_transfer_calldata(to, amount)
+        sign_value_wei = "0"
+
     try:
         sign_result = _call_sidecar_sign(
             wallet_id=agent.dynamic_wallet_id,
             account_address=agent.wallet_address,
-            to=to,
-            calldata=calldata,
+            to=sign_to,
+            calldata=sign_calldata,
             wallet_metadata=metadata,
             wallet_shares=shares,
+            value_wei=sign_value_wei,
         )
     except RuntimeError as e:
         raise HTTPException(
@@ -356,5 +411,7 @@ def wallet_send(
         "from": agent.wallet_address,
         "to": to,
         "amount_meta": str(amount),
+        "amount": str(amount),
+        "token": token_label,
         "duplicate": False,
     }
