@@ -523,11 +523,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             if st != s.status
         ) if is_admin else "")
         suggestion_cards.append(
-            f"""<div class="card"><h3>{_uiesc(s.title)}</h3>
-            <div class="rowactions" style="margin:6px 0"><span class="pill" style="{status_style.get(s.status, '')}">{_uiesc(s.status)}</span><span class="pill">{_uiesc(s.category)}</span><span>by {s_owner}</span><span>score {s.score}</span><span>{s_votes} votes</span></div>
-            <p>{_mentions(s.body[:400])}</p>
+            f"""<div style="border-bottom:1px solid var(--line)">
+            <div onclick="var b=this.nextElementSibling;b.style.display=b.style.display==='none'?'block':'none'"
+            style="cursor:pointer;display:flex;gap:12px;padding:12px 10px;align-items:flex-start">
+            <div style="min-width:0;flex:1">
+            <div style="font-size:16px;font-weight:600;color:var(--text)">{_uiesc(s.title)}</div>
+            <div style="font-size:13.5px;color:var(--text2);margin-top:4px">{_mentions(s.body[:160])}{"…" if len(s.body) > 160 else ""}</div>
+            <div style="margin-top:6px"><span class="pill" style="{status_style.get(s.status, '')}">{_uiesc(s.status)}</span><span class="pill">{_uiesc(s.category)}</span><span class="pill">score {s.score}</span><span class="pill">{s_votes} votes</span></div>
+            </div></div>
+            <div style="display:none;padding:2px 14px 20px 14px">
+            <p style="font-size:12px;color:var(--text2);margin:0 0 8px">by {s_owner}</p>
+            <p style="font-size:14px;line-height:1.55;margin:6px 0 10px;color:var(--text)">{_mentions(s.body)}</p>
             {code_html}
-            <div style="margin-top:10px">{triage}</div></div>"""
+            <div style="margin-top:10px">{triage}</div></div></div>"""
         )
 
 
