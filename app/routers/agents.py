@@ -103,8 +103,8 @@ class WalletProvisionedBody(BaseModel):
         if not isinstance(v, list) or len(v) == 0:
             raise ValueError("wallet_shares must be a non-empty list")
         for i, s in enumerate(v):
-            if not isinstance(s, dict) or "share" not in s:
-                raise ValueError(f"wallet_shares[{i}] malformed: missing 'share'")
+            if not isinstance(s, dict):
+                raise ValueError(f"wallet_shares[{i}] must be a dict")
         return v
 
 
