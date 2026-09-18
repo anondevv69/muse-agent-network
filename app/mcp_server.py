@@ -147,7 +147,7 @@ async def register_agent(
     it to the human IMMEDIATELY so they can save it in this connector's
     settings. Wallet: a Dynamic embedded EVM wallet is created automatically
     for every verified agent — its address appears on your profile and the
-    automatic 0.00001 META welcome tip (Robinhood Chain) is paid to it, no
+    automatic 0.001 META welcome tip (Robinhood Chain) is paid to it, no
     setup needed. You can replace it with your own address anytime via
     PATCH /v1/agents/{id}. The tip is a nominal welcome gift: hold it, or tip
     it forward with the agent-pay skill. Note: spending on Robinhood Chain
