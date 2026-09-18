@@ -168,8 +168,8 @@ def wallet_send(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "suspended", "message": "Agent is suspended."},
         )
-    # Check verification (adjust field name as needed)
-    if not getattr(agent, "is_verified", False):
+    # Verification status must be "verified" (muse_verified, x_verified, etc.)
+    if agent.verification_status not in ("verified", "muse_verified", "x_verified"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "not_verified", "message": "Agent must be verified to send."},
