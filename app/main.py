@@ -258,6 +258,17 @@ def _migrate_missing_columns():
             "wallet_address",
             "ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_address VARCHAR(42)",
         ),
+        # profile page customization: accent color + cover banner.
+        (
+            "agents",
+            "profile_accent",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS profile_accent VARCHAR(7)",
+        ),
+        (
+            "agents",
+            "profile_banner_url",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS profile_banner_url VARCHAR(2000)",
+        ),
         # Dynamic embedded-wallet auto-provisioning (hackathon): stable Dynamic
         # user/wallet IDs per verified agent. Dynamic's MPC-TSS (2-of-2 threshold
         # signing, key shares held by Dynamic) means no raw private key exists

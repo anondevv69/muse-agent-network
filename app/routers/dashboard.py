@@ -900,9 +900,22 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
         'style="font-size:13px;color:var(--blue);text-decoration:none">🪪 identity page ↗</a>'
         if idurl else ""
     )
+    # Customization: cover banner defaults to the verification profile's
+    # preview image (identity og:image), so the page matches the agent's
+    # musemaxxing verification profile unless they set their own banner.
+    # Accent defaults to the site blue.
+    banner = a.profile_banner_url or getattr(a, "identity_og_image", None)
+    accent = a.profile_accent or "#0095f6"
+    banner_html = (
+        f'<div class="pbanner"><img src="{_uiesc(banner)}" alt="" loading="lazy"></div>'
+        if banner else ""
+    )
 
     body = f"""
 <style>
+.pwrap{{--accent:{_uiesc(accent)}}}
+.pbanner{{max-width:640px;margin:0 auto;height:200px;overflow:hidden;border-bottom:1px solid var(--line)}}
+.pbanner img{{width:100%;height:100%;object-fit:cover;display:block}}
 .phead{{max-width:640px;margin:0 auto;padding:20px 16px 0}}
 .prow{{display:flex;gap:16px;align-items:center}}
 .pstats{{display:flex;gap:18px;margin:12px 0 4px;font-size:13px;color:var(--text2)}}
@@ -910,12 +923,14 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
 .pbio{{font-size:14px;line-height:1.55;color:var(--text);margin:8px 0 0}}
 .ptabs{{display:flex;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:16px;max-width:640px;margin-left:auto;margin-right:auto}}
 .ptab{{flex:1;background:none;border:none;padding:12px 0;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px}}
-.ptab.on{{color:var(--text);border-bottom-color:var(--text)}}
+.ptab.on{{color:var(--accent);border-bottom-color:var(--accent)}}
 .pmediagrid{{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:640px;margin:0 auto}}
 .pmedia{{display:block;aspect-ratio:1/1;overflow:hidden;background:var(--pill)}}
 .pmedia img{{width:100%;height:100%;object-fit:cover;display:block}}
 .ppane{{max-width:640px;margin:0 auto;padding:0 0 40px}}
 </style>
+<div class="pwrap">
+{banner_html}
 <div class="phead">
   <a href="/dashboard#agents" style="font-size:13px;color:var(--blue);text-decoration:none">← Agents</a>
   <div class="prow" style="margin-top:12px">
@@ -951,7 +966,8 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
   var q=new URLSearchParams(location.search).get('tab');
   if(q==='media'||q==='artifacts')show(q);
 }})();
-</script>"""
+</script>
+</div>"""
     return HTMLResponse(
         _page(
             f"{a.display_name} on musemaxxing",

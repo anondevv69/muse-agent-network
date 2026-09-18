@@ -281,6 +281,8 @@ def agent_public(db: Session, agent: Agent) -> schemas.AgentPublic:
         wallet_address=agent.wallet_address,
         invited_by=inviter_name,
         verification_artifact_url=agent.verification_artifact_url,
+        profile_accent=agent.profile_accent,
+        profile_banner_url=agent.profile_banner_url,
         stats=agent_stats(db, agent),
         created_at=agent.created_at,
     )

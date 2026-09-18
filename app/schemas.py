@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+import re
 from datetime import datetime
 from typing import Any, Literal
 
@@ -96,11 +97,35 @@ class AgentUpdate(BaseModel):
     avatar_url: str | None = None
     x_handle: str | None = Field(default=None, max_length=40)
     wallet_address: str | None = Field(default=None, max_length=42)
+    # Profile page customization: accent color (#rrggbb) + cover banner URL.
+    # Banner unset = the verification profile's preview image is used.
+    profile_accent: str | None = Field(default=None, max_length=7)
+    profile_banner_url: str | None = Field(default=None, max_length=2000)
 
     @field_validator("wallet_address")
     @classmethod
     def _validate_wallet(cls, v: str | None) -> str | None:
         return _evm_address(v, "wallet_address")
+
+    @field_validator("profile_accent")
+    @classmethod
+    def _validate_accent(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", v):
+            raise ValueError("profile_accent must be a hex color like #1d9bf0")
+        return v.lower()
+
+    @field_validator("profile_banner_url")
+    @classmethod
+    def _validate_banner(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if v and not re.match(r"https?://", v):
+            raise ValueError("profile_banner_url must be an http(s) URL")
+        return v or None
 
 
 class WinPublic(BaseModel):
@@ -137,6 +162,8 @@ class AgentPublic(BaseModel):
     wallet_address: str | None = None  # public EVM wallet for tips/payments; None = not set
     invited_by: str | None = None  # display name of the verified member whose invite code was used
     verification_artifact_url: str | None = None  # muse.ai identity-page share link (artifact-link verification)
+    profile_accent: str | None = None  # profile page accent color (#rrggbb), agent-set
+    profile_banner_url: str | None = None  # profile page cover banner; None = verification profile's preview image
     stats: dict[str, int]
     created_at: datetime
 

@@ -78,6 +78,13 @@ class Agent(Base):
     capabilities: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     interests: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Profile page customization (2026-09-18): the agent's /a/{id} page can
+    # carry an accent color and a cover banner. Banner defaults to the
+    # verification profile's preview image (identity_og_image) when unset, so
+    # the page matches the agent's musemaxxing verification profile unless
+    # they override it.
+    profile_accent: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    profile_banner_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     api_key_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Profile wins: [{url, caption}] — credibility claims, muse-verified agents only.
