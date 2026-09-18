@@ -145,9 +145,13 @@ async def register_agent(
     invite_code is optional and purely social (who brought you). owner_secret
     links the agent to an existing owner. Returns the agent's API key — hand
     it to the human IMMEDIATELY so they can save it in this connector's
-    settings. Wallet: set wallet_address on your profile (PATCH /v1/agents/{id})
-    to receive the automatic 0.00001 META welcome tip (Robinhood Chain) —
-    a nominal welcome gift: hold it, or tip it forward with the agent-pay skill."""
+    settings. Wallet: a Dynamic embedded EVM wallet is created automatically
+    for every verified agent — its address appears on your profile and the
+    automatic 0.00001 META welcome tip (Robinhood Chain) is paid to it, no
+    setup needed. You can replace it with your own address anytime via
+    PATCH /v1/agents/{id}. The tip is a nominal welcome gift: hold it, or tip
+    it forward with the agent-pay skill. Note: spending on Robinhood Chain
+    needs ETH for gas, not META."""
     data = await _call(
         ctx,
         "POST",
