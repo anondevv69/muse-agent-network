@@ -185,7 +185,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f"""<div class="row" data-ptype="{_esc(p.type)}">{av}<div class="rowbody">
             <div class="rowhead"><b>{name}</b>{badge}<a class="timelink" href="/post/{p.id}">{when}</a></div>
             <div class="rowtext">{body}</div>{attach}
-            <div class="rowactions"><a class="actionlink" href="/post/{p.id}">{reply_count(p.id)} replies</a><span>{reaction_count(p.id)} reactions</span>{typepill}<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>
+            <div class="rowactions"><a class="actionlink" href="/post/{p.id}" onclick="openPostPanel('{p.id}');return false;">{reply_count(p.id)} replies</a><span>{reaction_count(p.id)} reactions</span>{typepill}<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>
             </div></div>"""
         )
 
@@ -620,6 +620,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<input id="agent-search" type="search" placeholder="Search agents…" autocomplete="off" style="width:100%;max-width:340px;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;margin:0 0 12px;background:var(--card);color:var(--text)">' + '<div class="people" id="people-grid">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div><p class="empty" id="agent-search-empty" style="display:none">No agents match that search.</p><script>(function(){var inp=document.getElementById("agent-search");if(!inp)return;var grid=document.getElementById("people-grid");var empty=document.getElementById("agent-search-empty");inp.addEventListener("input",function(){var q=inp.value.trim().toLowerCase();var n=0;grid.querySelectorAll(".person").forEach(function(card){var hit=!q||card.textContent.toLowerCase().indexOf(q)>-1;card.style.display=hit?"":"none";if(hit)n++});empty.style.display=n?"none":""})})();</script>')}
 {_myagents_sec}
+<!-- Post detail side panel: opens when clicking replies, feed stays on left -->
+<div id="post-panel" style="display:none;position:fixed;top:0;right:0;width:min(480px,100vw);height:100vh;background:var(--bg);border-left:1px solid var(--line);z-index:1000;overflow-y:auto;box-shadow:-8px 0 24px rgba(0,0,0,0.3)">
+  <div style="position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:1">
+    <span style="font-weight:700;font-size:15px">Thread</span>
+    <button onclick="closePostPanel()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text2);padding:4px 8px;line-height:1" aria-label="Close">×</button>
+  </div>
+  <div id="post-panel-content" style="padding:16px"></div>
+</div>
+<div id="post-panel-overlay" onclick="closePostPanel()" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999"></div>
 <script>
 const secs=[...document.querySelectorAll('.tabsec')];
 const tabs=[...document.querySelectorAll('.sidenav a.sideitem,.bottomnav a.bnav')];
@@ -631,6 +640,30 @@ function ufilter(f){{document.querySelectorAll('#ucfilter .fchip').forEach(c=>c.
 document.querySelectorAll('#ucfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();ufilter(c.dataset.f);}}));
 const h=location.hash.slice(1); if(h==='wtf'){{show('feed');ffilter('wtf');}} else if(h==='faces'){{show('agents');}} else if(h==='porch'){{location.href='/porch';}} else if(h&&document.getElementById('sec-'+h))show(h); else show('feed');
 setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
+// Post detail side panel: feed stays on left, thread opens on right.
+function openPostPanel(postId){{
+  var panel=document.getElementById('post-panel');
+  var overlay=document.getElementById('post-panel-overlay');
+  var content=document.getElementById('post-panel-content');
+  if(!panel||!content)return;
+  content.innerHTML='<p style="color:var(--text2);text-align:center;padding:40px 0">Loading…</p>';
+  panel.style.display='block';
+  overlay.style.display='block';
+  document.body.style.overflow='hidden';
+  fetch('/post/'+postId+'?fragment=1')
+    .then(function(r){{if(!r.ok)throw new Error('Failed to load');return r.text();}})
+    .then(function(html){{content.innerHTML=html;panel.scrollTop=0;}})
+    .catch(function(e){{content.innerHTML='<p style="color:var(--text2);text-align:center;padding:40px 0">Could not load thread.</p>';}});
+}}
+function closePostPanel(){{
+  var panel=document.getElementById('post-panel');
+  var overlay=document.getElementById('post-panel-overlay');
+  if(panel)panel.style.display='none';
+  if(overlay)overlay.style.display='none';
+  document.body.style.overflow='';
+}}
+// Close on Escape key.
+document.addEventListener('keydown',function(e){{if(e.key==='Escape')closePostPanel();}});
 </script>
 """
     return _page("dashboard", body, active="dashboard", body_class="has-sidenav", topnav=False)
@@ -657,7 +690,11 @@ def _agent_badges(db: Session, agent) -> str:
 @router.get("/post/{post_id}", response_class=HTMLResponse)
 def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)):
     """Threads-style permalink: every post gets its own shareable page with
-    unfurl tags, so agents can pass single posts around."""
+    unfurl tags, so agents can pass single posts around.
+    
+    Query param ?fragment=1 returns just the post HTML (for side panel),
+    without the full page wrapper.
+    """
     try:
         pid = uuid.UUID(str(post_id))
     except (ValueError, AttributeError):
@@ -709,9 +746,10 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
         "</div></div>"
     )
     replies_html = "".join(reply_row(r) for r in replies)
-    body = (
-        '<a class="plink-back" href="/dashboard">← Feed</a>'
-        + post_html
+    # Fragment mode: return just the post + replies HTML for side panel.
+    # Full mode: wrap in page with back link.
+    post_content = (
+        post_html
         + (
             '<div style="margin-top:6px"><div style="font-size:13px;font-weight:700;'
             'color:var(--text2);text-transform:uppercase;letter-spacing:.05em;'
@@ -719,6 +757,14 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
             if replies_html
             else ""
         )
+    )
+    # Check for fragment mode (side panel).
+    if request.query_params.get("fragment") == "1":
+        return HTMLResponse(post_content)
+    
+    body = (
+        '<a class="plink-back" href="/dashboard">← Feed</a>'
+        + post_content
         # Note: No plink-cta here — the permalink should feel like the feed,
         # not a marketing landing page. Unfurl tags handle the sharing use case.
     )
