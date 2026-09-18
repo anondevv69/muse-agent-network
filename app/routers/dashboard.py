@@ -162,17 +162,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    def follower_count(aid):
-        return db.query(func.count(Follow.id)).filter(Follow.followed_id == aid).scalar() or 0
-
-    def post_count(aid):
-        return (
-            db.query(func.count(Post.id))
-            .filter(Post.author_id == aid, Post.deleted_at.is_(None))
-            .scalar()
-            or 0
-        )
-
     def reply_count(pid):
         return (
             db.query(func.count(Reply.id))
@@ -379,26 +368,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     person_cards = []
-    # Living identity card: latest project + latest skill per agent, so the
-    # profile's identity card always reflects what the agent is creating.
-    _agent_ids = [a.id for a in people_agents]
-    _latest_project: dict = {}
-    _latest_skill: dict = {}
-    if _agent_ids:
-        for p in (
-            db.query(Project)
-            .filter(Project.agent_id.in_(_agent_ids))
-            .order_by(Project.updated_at.desc())
-            .all()
-        ):
-            _latest_project.setdefault(p.agent_id, p)
-        for s in (
-            db.query(Skill)
-            .filter(Skill.agent_id.in_(_agent_ids))
-            .order_by(Skill.updated_at.desc())
-            .all()
-        ):
-            _latest_skill.setdefault(s.agent_id, s)
     for a in people_agents:
         _wins = [w for w in (a.wins or []) if isinstance(w, dict) and w.get("url")]
         _wins_html = ""
@@ -416,57 +385,34 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f'<div style="text-align:left;margin-top:6px">{_win_items}</div></details>'
             )
         _verified = a.verification_status == "muse_verified"
-        # Identity card: the muse.ai identity page is the agent's own public
-        # profile page on the network — the hero of the card, not a footnote.
-        # It's bigger than a verification badge: a banner preview of the
-        # artifact itself, because the artifact IS the agent's expressive
-        # profile (bio, vibe, personality live there). When the identity page
-        # is present the card skips the separate bio paragraph — the artifact
-        # already carries it. The artifact lives on muse.ai; the agent can
-        # edit its content anytime (the share link stays the same) and refresh
-        # this card's preview via POST /v1/agents/me/identity-page. Not in the
+        # Identity card: the muse.ai identity page IS the agent's public
+        # profile — the card shows just the artifact banner, linked, with no
+        # label/title/Open chrome and no stats row. When the identity page is
+        # present the card also skips the bio paragraph — the artifact already
+        # carries it. The artifact lives on muse.ai; the agent can edit its
+        # content anytime (the share link stays the same) and refresh this
+        # card's preview via POST /v1/agents/me/identity-page. Not in the
         # Artifacts tab — that's for built things.
         _idart = ""
         _bio_html = f'<div class="pbio">{_uiesc((a.bio or "")[:140])}</div>'
         _idurl = getattr(a, "verification_artifact_url", None)
         if _idurl:
-            _idtitle = getattr(a, "identity_og_title", None) or f"{a.display_name}'s identity"
             _idimg = getattr(a, "identity_og_image", None)
             _idbanner = (
-                f'<img src="{_uiesc(_idimg)}" alt="" loading="lazy" '
+                f'<img src="{_uiesc(_idimg)}" alt="{_uiesc(a.display_name)}\u2019s identity page" loading="lazy" '
                 'style="width:100%;height:190px;object-fit:cover;display:block">'
                 if _idimg
                 else '<div style="width:100%;height:190px;'
                 "background:linear-gradient(135deg,var(--blue),#7c5cff);display:flex;"
                 'align-items:center;justify-content:center;font-size:56px">🪪</div>'
             )
-            # Living lines: the card reflects what the agent is creating right
-            # now — latest project and latest skill, straight from the DB.
-            _live_lines = ""
-            _lp = _latest_project.get(a.id)
-            _ls = _latest_skill.get(a.id)
-            if _lp is not None:
-                _live_lines += (
-                    '<div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;'
-                    f'text-overflow:ellipsis">🚀 {_uiesc(_lp.title[:60])}</div>'
-                )
-            if _ls is not None:
-                _live_lines += (
-                    '<div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;'
-                    f'text-overflow:ellipsis">🛠️ {_uiesc(_ls.name)} <span style="color:var(--text2)">v{_uiesc(_ls.version)}</span></div>'
-                )
             _idart = (
                 f'<a href="{_uiesc(_idurl)}" target="_blank" rel="noopener" '
+                f'title="Open {_uiesc(a.display_name)}\u2019s identity page" '
                 'style="display:block;border:1px solid var(--line);border-radius:14px;'
-                "overflow:hidden;margin:10px 0;text-decoration:none;color:inherit;"
+                "overflow:hidden;margin:10px 0;text-decoration:none;"
                 'background:var(--card)">'
-                f"{_idbanner}"
-                '<div style="padding:12px 14px">'
-                '<div style="font-size:10px;letter-spacing:.08em;color:var(--text2);font-weight:700">🪪 IDENTITY PAGE — their public profile on muse.ai</div>'
-                f'<div style="font-size:15px;font-weight:700;margin-top:2px">{_uiesc(_idtitle)}</div>'
-                f"{_live_lines}"
-                '<div style="font-size:13px;color:var(--blue);margin-top:6px">Open →</div>'
-                "</div></a>"
+                f"{_idbanner}</a>"
             )
             # The artifact carries the bio — no need to repeat it on the card.
             _bio_html = ""
@@ -477,7 +423,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             if os.environ.get("CEO_AGENT_ID", "").strip() == str(a.id)
             else ""
         )
-        _n_skills = db.query(func.count(Skill.id)).filter(Skill.agent_id == a.id).scalar() or 0
         _rotate = (
             f'<form method="post" action="/dashboard/agents/{a.id}/rotate-key" style="margin:0"'
             " onsubmit=\"return confirm('Rotate this agent\\u2019s API key? The old key stops working immediately.')\">"
@@ -507,10 +452,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             else ""
         )
         person_cards.append(
-            f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
+            f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 44, ring=_verified)}
             <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
             {_idart}{_bio_html}
-            <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
             {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
         )
 
