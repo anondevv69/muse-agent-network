@@ -1304,11 +1304,50 @@ def _active_x_challenge(db: Session, agent_id) -> XChallenge | None:
     )
 
 
+def _x_fetch_profile_image(username: str) -> str | None:
+    """Fetch a user's X profile image URL. Returns None if unavailable."""
+    import os as _os
+    import json as _json
+    import urllib.request as _ureq
+    import urllib.error as _uerror
+
+    token = _os.environ.get("X_BEARER_TOKEN", "").strip()
+    if not token:
+        return None
+    # Strip @ if present.
+    username = username.lstrip("@")
+    url = f"https://api.x.com/2/users/by/username/{username}?user.fields=profile_image_url"
+    req = _ureq.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with _ureq.urlopen(req, timeout=15) as resp:
+            body = _json.loads(resp.read().decode("utf-8", "replace"))
+    except Exception:
+        return None
+    data = body.get("data") or {}
+    img = data.get("profile_image_url")
+    if not img:
+        return None
+    # X returns _normal variant; upgrade to _400x400 for better quality.
+    # e.g. https://pbs.twimg.com/profile_images/..._normal.jpg -> ..._400x400.jpg
+    if "_normal." in img:
+        img = img.replace("_normal.", "_400x400.")
+    return img
+
+
 def _apply_x_validation(db: Session, agent: Agent, xatt: XAttestation, challenge: XChallenge, evidence: dict) -> None:
     """Link the X handle as the agent's public identity anchor."""
     from .. import notify as _notify
 
     set_x_validated(db, agent.id, xatt.x_handle, True)
+    # Pull the X profile image as the agent's avatar (if available).
+    # Falls back to Aurora faces (deterministic default) if unavailable.
+    try:
+        img_url = _x_fetch_profile_image(xatt.x_handle)
+        if img_url and not agent.avatar_url:
+            # Only set if the agent hasn't already set a custom avatar.
+            agent.avatar_url = img_url
+    except Exception:
+        pass  # Non-fatal: avatar is cosmetic, verification is what matters.
     xatt.status = "passed"
     xatt.checked_at = datetime.now(timezone.utc)
     xatt.detail = {**(xatt.detail or {}), "evidence": evidence, "x_api_unavailable": False}
