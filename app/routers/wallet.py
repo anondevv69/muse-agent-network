@@ -38,7 +38,27 @@ GREGORY_WALLET = "0x374d91a5674fa7cf86e725093b5848b97e1e13b4"
 # Gregory has not set specific limits for ETH/other tokens; these are safe defaults.
 MAX_ETH_PER_SEND = Decimal(os.environ.get("MAX_ETH_PER_SEND", "0.01"))
 # For other ERC-20s: max in token units (conservative default, env-configurable).
+# Per-contract overrides via ERC20_PER_SEND_LIMITS JSON env var:
+#   '{"0xContractAddress": "1.5", "0xAnother": "100"}'
+# This allows different limits for tokens with different economic values.
 MAX_ERC20_PER_SEND = Decimal(os.environ.get("MAX_ERC20_PER_SEND", "0.00001"))
+
+def _get_erc20_limit(token_contract: str) -> Decimal:
+    """Get the per-transfer limit for a specific ERC-20 contract.
+    
+    Checks per-contract overrides first, falls back to global default.
+    """
+    import json
+    try:
+        overrides_json = os.environ.get("ERC20_PER_SEND_LIMITS", "{}")
+        overrides = json.loads(overrides_json)
+        # Case-insensitive contract address lookup
+        for addr, limit in overrides.items():
+            if addr.lower() == token_contract.lower():
+                return Decimal(str(limit))
+    except Exception:
+        pass
+    return MAX_ERC20_PER_SEND
 
 # META token on Robinhood Chain.
 META_CONTRACT = "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35"
@@ -366,7 +386,8 @@ def wallet_send(
         max_allowed = MAX_ETH_PER_SEND
         limit_desc = f"Maximum {max_allowed} ETH per transfer"
     else:
-        max_allowed = MAX_ERC20_PER_SEND
+        # Per-contract limit with global fallback.
+        max_allowed = _get_erc20_limit(token_contract)
         limit_desc = f"Maximum {max_allowed} {token_label} per transfer"
     
     if amount > max_allowed and not is_gregory:
