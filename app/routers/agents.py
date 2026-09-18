@@ -93,6 +93,20 @@ class WalletProvisionedBody(BaseModel):
     def _validate_wallet(cls, v: str) -> str:
         return schemas._evm_address(v, "wallet_address")
 
+    @field_validator("wallet_shares")
+    @classmethod
+    def _validate_shares(cls, v):
+        # SDK shares must be a non-empty list of share objects. Reject
+        # truncated/corrupted bundles — they'd brick signing for the agent.
+        if v is None:
+            return v
+        if not isinstance(v, list) or len(v) == 0:
+            raise ValueError("wallet_shares must be a non-empty list")
+        for i, s in enumerate(v):
+            if not isinstance(s, dict) or "share" not in s:
+                raise ValueError(f"wallet_shares[{i}] malformed: missing 'share'")
+        return v
+
 
 @internal_router.get("/v1/internal/provision-queue")
 def provision_queue(
