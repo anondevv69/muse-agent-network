@@ -31,7 +31,7 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -1127,13 +1127,6 @@ def verification_sweep(
 # attestation stays "pending" with x_api_unavailable=true, retryable via
 # re-POST or the scheduled worker. It is NEVER failed for availability
 # reasons.
-#
-# No-auth fallback: X's publish oEmbed endpoint (publish.x.com/oembed) needs
-# no credential and returns the tweet's author URL + HTML text. When the X
-# API lookup is unavailable, x-attest falls back to oEmbed automatically.
-# oEmbed carries no timestamp, so the "tweeted after challenge" check is
-# skipped for oEmbed evidence — replay protection comes from the
-# per-challenge unique code, which no earlier tweet can contain.
 
 X_CHALLENGE_TTL_DAYS = 7
 
@@ -1212,53 +1205,6 @@ def _x_lookup_tweet(tweet_id: str) -> tuple[str, dict | str]:
         "author_username": author,
         "text": data.get("text") or "",
         "created_at": data.get("created_at") or "",
-        "via": "x_api",
-    }
-
-
-def _x_lookup_tweet_oembed(tweet_id: str) -> tuple[str, dict | str]:
-    """No-auth tweet lookup via X's publish oEmbed endpoint.
-
-    Needs no credential: publish.x.com/oembed returns the tweet's author URL
-    and HTML-embedded text for any public tweet. Returns the same shape as
-    _x_lookup_tweet, minus created_at (oEmbed carries no timestamp — the
-    caller skips the tweeted-after-challenge check for oEmbed evidence).
-    ("not_found", …) when the tweet is gone; ("unavailable", …) for anything
-    else (protected account, network error) — never fail the attestation.
-    """
-    import html as _html
-    import json as _json
-    import urllib.error as _uerror
-    import urllib.parse as _uparse
-    import urllib.request as _ureq
-
-    target = _uparse.quote(f"https://x.com/i/status/{tweet_id}", safe="")
-    url = f"https://publish.x.com/oembed?url={target}"
-    req = _ureq.Request(url, headers={"User-Agent": "musemaxxing/1.0"})
-    # publish.twitter.com 301s to publish.x.com — follow it.
-    opener = _ureq.build_opener(_ureq.HTTPRedirectHandler())
-    try:
-        with opener.open(req, timeout=15) as resp:
-            body = _json.loads(resp.read().decode("utf-8", "replace"))
-    except _uerror.HTTPError as e:
-        if e.code == 404:
-            return "not_found", "tweet not found on X"
-        return "unavailable", f"oEmbed HTTP {e.code} (tweet may be protected)"
-    except Exception as e:  # network/timeout — transient, retry later
-        return "unavailable", f"oEmbed request failed: {type(e).__name__}"
-    author_url = (body.get("author_url") or "").rstrip("/")
-    author_username = author_url.rsplit("/", 1)[-1] if author_url else ""
-    html_text = _html.unescape(body.get("html") or "")
-    # Strip tags to get the tweet text.
-    text = re.sub(r"<[^>]+>", " ", html_text)
-    text = re.sub(r"\s+", " ", text).strip()
-    if not author_username or not text:
-        return "not_found", "oEmbed payload incomplete"
-    return "ok", {
-        "author_username": author_username,
-        "text": text,
-        "created_at": "",
-        "via": "oembed",
     }
 
 
@@ -1271,11 +1217,6 @@ def _check_x_evidence(
     # The phrase contains the code; require the full phrase, fall back to the code.
     if challenge.phrase not in (tweet_text or "") and challenge.code not in (tweet_text or ""):
         return False, "tweet text does not contain the validation phrase/code"
-    if not tweet_created_at:
-        # oEmbed evidence carries no timestamp — skip the tweeted-after check.
-        # Replay protection comes from the per-challenge unique code, which no
-        # earlier tweet can contain.
-        return True, "ok"
     try:
         tweeted_at = datetime.fromisoformat((tweet_created_at or "").replace("Z", "+00:00"))
     except ValueError:
@@ -1389,11 +1330,11 @@ def x_attest(
     me: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ):
-    """Claim an X validation tweet. The server checks it via the X API when a
-    credential is configured, otherwise via X's no-auth oEmbed endpoint; only
-    when both are unavailable (network error, protected tweet) does the
-    attestation stay PENDING and retryable — it is never failed for
-    availability reasons. Re-POST or wait for the retry worker."""
+    """Claim an X validation tweet. The server checks it via the X API when it
+    can; when the X API is unavailable (no server credential, 402 cap, rate
+    limit, network error) the attestation stays PENDING and retryable — it is
+    never failed for availability reasons. Re-POST or wait for the retry
+    worker."""
     check_rate_limit(request, "default")
     _require_verified(me)
     handle = payload.x_handle.strip().lstrip("@")
@@ -1430,9 +1371,6 @@ def x_attest(
     audit(db, me, "verification.x_attested", "x_attestation", xatt.id, {"tweet_id": tweet_id, "x_handle": handle})
 
     status, result = _x_lookup_tweet(tweet_id)
-    if status == "unavailable":
-        # No-auth fallback: X's publish oEmbed endpoint needs no credential.
-        status, result = _x_lookup_tweet_oembed(tweet_id)
     if status == "ok":
         ok, reason = _check_x_evidence(
             challenge, handle, result["author_username"], result["text"], result["created_at"]
@@ -1896,6 +1834,7 @@ def artifact_challenge(
 def artifact_attest(
     payload: schemas.ArtifactAttestRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     me: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ):
@@ -1951,6 +1890,10 @@ def artifact_attest(
     )
     db.commit()
     _notify.dispatch_events([event])
+    # Instant wallet provisioning: don't wait for the 15-min provisioner cron.
+    # Runs after the response is sent; the cron remains as a safety net.
+    from ..wallet_provision import provision_wallet_for_agent
+    background_tasks.add_task(provision_wallet_for_agent, str(me.id))
     return schemas.ArtifactAttestPublic(
         agent_id=me.id,
         share_url=me.verification_artifact_url,

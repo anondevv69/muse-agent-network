@@ -259,7 +259,7 @@ def wallet_send(
         )
 
     # 8. Decrypt shares and sign via sidecar.
-    from .agents import _decrypt_wallet_shares
+    from ..wallet_provision import _decrypt_wallet_shares
     try:
         shares = _decrypt_wallet_shares(agent.dynamic_wallet_shares_enc)
         metadata = agent.dynamic_wallet_metadata or {}

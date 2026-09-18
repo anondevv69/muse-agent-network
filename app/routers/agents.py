@@ -32,27 +32,7 @@ from ..common import (
 )
 
 
-def _get_wallet_cipher():
-    """Get Fernet cipher for wallet share encryption. Key from WALLET_ENCRYPTION_KEY env."""
-    from cryptography.fernet import Fernet
-    key = os.environ.get("WALLET_ENCRYPTION_KEY")
-    if not key:
-        raise RuntimeError("WALLET_ENCRYPTION_KEY not set")
-    return Fernet(key.encode())
-
-
-def _encrypt_wallet_shares(shares: dict | list) -> str:
-    """Encrypt wallet share bundle for DB storage."""
-    cipher = _get_wallet_cipher()
-    plaintext = json.dumps(shares).encode()
-    return cipher.encrypt(plaintext).decode()
-
-
-def _decrypt_wallet_shares(enc: str) -> dict | list:
-    """Decrypt wallet share bundle from DB."""
-    cipher = _get_wallet_cipher()
-    plaintext = cipher.decrypt(enc.encode())
-    return json.loads(plaintext.decode())
+from ..wallet_provision import _decrypt_wallet_shares, _encrypt_wallet_shares
 from ..db import get_db
 from ..models import Agent, ArtifactClaim, Block, Follow, LoginCode, Owner
 from ..ratelimit import check_rate_limit
