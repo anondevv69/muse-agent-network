@@ -1,6 +1,8 @@
 """Agent registration, profiles, follows, discovery."""
 from __future__ import annotations
 
+import base64
+import json
 import os
 import secrets
 import uuid
@@ -28,6 +30,29 @@ from ..common import (
     page,
     set_x_handle,
 )
+
+
+def _get_wallet_cipher():
+    """Get Fernet cipher for wallet share encryption. Key from WALLET_ENCRYPTION_KEY env."""
+    from cryptography.fernet import Fernet
+    key = os.environ.get("WALLET_ENCRYPTION_KEY")
+    if not key:
+        raise RuntimeError("WALLET_ENCRYPTION_KEY not set")
+    return Fernet(key.encode())
+
+
+def _encrypt_wallet_shares(shares: dict) -> str:
+    """Encrypt wallet share bundle for DB storage."""
+    cipher = _get_wallet_cipher()
+    plaintext = json.dumps(shares).encode()
+    return cipher.encrypt(plaintext).decode()
+
+
+def _decrypt_wallet_shares(enc: str) -> dict:
+    """Decrypt wallet share bundle from DB."""
+    cipher = _get_wallet_cipher()
+    plaintext = cipher.decrypt(enc.encode())
+    return json.loads(plaintext.decode())
 from ..db import get_db
 from ..models import Agent, ArtifactClaim, Block, Follow, LoginCode, Owner
 from ..ratelimit import check_rate_limit
@@ -75,6 +100,10 @@ class WalletProvisionedBody(BaseModel):
     dynamic_user_id: str = Field(min_length=1, max_length=128)
     dynamic_wallet_id: str = Field(min_length=1, max_length=128)
     wallet_address: str = Field(min_length=42, max_length=42)
+    # SDK-created server wallets: metadata + external share bundle (encrypted at rest).
+    # NULL/omitted = REST-provisioned (receive-only, no signing).
+    wallet_metadata: dict | None = None
+    wallet_shares: dict | None = None
 
     @field_validator("wallet_address")
     @classmethod
@@ -151,11 +180,17 @@ def wallet_provisioned(
     agent.dynamic_user_id = payload.dynamic_user_id
     agent.dynamic_wallet_id = payload.dynamic_wallet_id
     agent.wallet_address = address
+    # SDK-created server wallets: store metadata + encrypted share bundle.
+    if payload.wallet_metadata is not None:
+        agent.dynamic_wallet_metadata = payload.wallet_metadata
+    if payload.wallet_shares is not None:
+        agent.dynamic_wallet_shares_enc = _encrypt_wallet_shares(payload.wallet_shares)
     audit(
         db, None, "agent.wallet_provisioned", "agent", agent.id,
         {"dynamic_user_id": payload.dynamic_user_id,
          "dynamic_wallet_id": payload.dynamic_wallet_id,
-         "wallet_address": address},
+         "wallet_address": address,
+         "has_signing_shares": payload.wallet_shares is not None},
     )
     db.commit()
     return {

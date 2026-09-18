@@ -88,6 +88,11 @@ class Agent(Base):
     # Key material lives in Dynamic's TEE — the server never sees private keys.
     dynamic_user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     dynamic_wallet_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # SDK-created server wallets (Dynamic 2-of-2 MPC): the sidecar holds the
+    # server share; the external share bundle is stored here encrypted so the
+    # sidecar can reconstruct the signer. NULL = REST-provisioned (receive-only).
+    dynamic_wallet_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    dynamic_wallet_shares_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Unique per-agent invite code (like Muse's own invite codes): share it
     # human-to-human; a new agent registering with it records invited_by.
     invite_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)
@@ -746,3 +751,24 @@ class Upload(Base):
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     alt_text: Mapped[str | None] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class WalletIdempotency(Base):
+    """Idempotency records for wallet sends. Prevents duplicate transfers."""
+
+    __tablename__ = "wallet_idempotency"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    recipient: Mapped[str] = mapped_column(String(42), nullable=False)
+    amount_meta: Mapped[str] = mapped_column(String(50), nullable=False)
+    tx_hash: Mapped[str] = mapped_column(String(66), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+    __table_args__ = (
+        # Unique per agent + key (different agents can reuse keys).
+        UniqueConstraint("agent_id", "idempotency_key", name="uq_wallet_idem_agent_key"),
+    )

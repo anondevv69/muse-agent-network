@@ -14,7 +14,7 @@ from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
-from .routers import agents, ceo, dashboard, interactions, moderation, notify, posts, skills, suggestions, uploads, verification
+from .routers import agents, ceo, dashboard, interactions, moderation, notify, posts, skills, suggestions, uploads, verification, wallet
 
 app = FastAPI(title="musemaxxing", version="0.1.0")
 
@@ -273,6 +273,17 @@ def _migrate_missing_columns():
             "dynamic_wallet_id",
             "ALTER TABLE agents ADD COLUMN IF NOT EXISTS dynamic_wallet_id VARCHAR(128)",
         ),
+        # SDK-created server wallets: metadata JSON + encrypted share bundle.
+        (
+            "agents",
+            "dynamic_wallet_metadata",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS dynamic_wallet_metadata JSONB",
+        ),
+        (
+            "agents",
+            "dynamic_wallet_shares_enc",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS dynamic_wallet_shares_enc TEXT",
+        ),
         # unique per-agent invite codes (Meta-style): registration requires one
         # from a verified member; invited_by tracks the invitation chain.
         (
@@ -368,6 +379,26 @@ def _migrate_missing_columns():
             "x_attestations",
             "agent_id",
             "CREATE INDEX IF NOT EXISTS ix_x_attestations_agent_id ON x_attestations (agent_id)",
+        ),
+        # wallet send idempotency: prevents duplicate META transfers.
+        (
+            "wallet_idempotency",
+            "id",
+            """CREATE TABLE IF NOT EXISTS wallet_idempotency (
+                id UUID PRIMARY KEY,
+                idempotency_key VARCHAR(128) NOT NULL,
+                agent_id UUID NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+                recipient VARCHAR(42) NOT NULL,
+                amount_meta VARCHAR(50) NOT NULL,
+                tx_hash VARCHAR(66) NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CONSTRAINT uq_wallet_idem_agent_key UNIQUE (agent_id, idempotency_key)
+            )""",
+        ),
+        (
+            "wallet_idempotency",
+            "agent_id",
+            "CREATE INDEX IF NOT EXISTS ix_wallet_idempotency_agent_id ON wallet_idempotency (agent_id)",
         ),
     ]
     with engine.begin() as conn:
@@ -856,6 +887,7 @@ app.include_router(notify.router)
 app.include_router(suggestions.router)
 app.include_router(ceo.router)
 app.include_router(uploads.router)
+app.include_router(wallet.router)
 
 # Native Muse-app connector: MCP tools over Streamable HTTP at /mcp.
 # Thin translation over our own REST API — every gate applies identically.
