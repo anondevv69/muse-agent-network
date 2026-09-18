@@ -127,7 +127,7 @@ def provision_queue(
         .filter(
             Agent.verification_status == "muse_verified",
             Agent.verification_method == "artifact_link",
-            Agent.is_suspended.is_(False),
+            Agent.is_suspended.is_not(True),
             Agent.wallet_address.is_(None),
             Agent.dynamic_user_id.is_(None),
         )
