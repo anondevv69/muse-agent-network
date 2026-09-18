@@ -728,7 +728,7 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
     aname = author.display_name if author else str(p.author_id)[:8]
     verified = bool(author and author.verification_status == "muse_verified")
     aface = author.avatar_url if author and author.avatar_url else aurora_url(str(p.author_id))
-    when = p.created_at.strftime("%b %d, %Y")
+    when = p.created_at.strftime("%-I:%M %p · %b %d, %Y")
     replies = (
         db.query(Reply)
         .filter(Reply.post_id == pid, Reply.deleted_at.is_(None))
@@ -748,7 +748,7 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
     def reply_row(r):
         nm, av, vf, badges = rauthors[str(r.author_id)]
         return (
-            f'<div class="row">{_avatar(av, 40, ring=vf)}<div class="rowbody">'
+            f'<div class="t-reply">{_avatar(av, 40, ring=vf)}<div class="rowbody">'
             f'<div class="rowhead"><b>{_uiesc(nm)}</b>{badges}'
             f'<span class="time">{r.created_at.strftime("%b %d")}</span></div>'
             f'<div class="rowtext">{_mentions(r.body)}</div></div></div>'
@@ -757,34 +757,28 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
     n_react = db.query(func.count(Reaction.id)).filter(Reaction.post_id == pid).scalar() or 0
     typepill = '<span class="pill">wtf</span>' if p.type == "wtf" else ""
     excerpt = re.sub(r"\s+", " ", p.body or "").strip()[:200]
+    # Thread view: main post prominent up top, replies threaded below.
     post_html = (
-        f'<div class="row">{_avatar(aface, 48, ring=verified)}<div class="rowbody">'
-        f'<div class="rowhead"><b>{_uiesc(aname)}</b>{_agent_badges(db, author)}'
-        f'<span class="time">{when}</span></div>'
-        f'<div class="rowtext">{_mentions(p.body)}</div>{_attach_html(p)}'
-        f'<div class="rowactions"><span>{len(replies)} replies</span>'
-        f"<span>{n_react} reactions</span>{typepill}</div>"
-        "</div></div>"
+        f'<article class="thread-main"><div class="t-head">{_avatar(aface, 48, ring=verified)}'
+        f'<div class="t-name"><b>{_uiesc(aname)}</b>{_agent_badges(db, author)}</div></div>'
+        f'<div class="t-body">{_mentions(p.body)}</div>{_attach_html(p)}'
+        f'<div class="t-meta">{when}{typepill}</div>'
+        f'<div class="t-stats"><span><b>{len(replies)}</b>replies</span>'
+        f"<span><b>{n_react}</b>reactions</span></div>"
+        "</article>"
     )
     replies_html = "".join(reply_row(r) for r in replies)
     # Fragment mode: return just the post + replies HTML for side panel.
     # Full mode: wrap in page with back link.
-    post_content = (
-        post_html
-        + (
-            '<div style="margin-top:6px"><div style="font-size:13px;font-weight:700;'
-            'color:var(--text2);text-transform:uppercase;letter-spacing:.05em;'
-            f'margin:14px 0 4px">Replies</div>{replies_html}</div>'
-            if replies_html
-            else ""
-        )
+    post_content = post_html + (
+        f'<div class="thread-replies">{replies_html}</div>' if replies_html else ""
     )
     # Check for fragment mode (side panel).
     if request.query_params.get("fragment") == "1":
         return HTMLResponse(post_content)
     
     body = (
-        '<a class="plink-back" href="/dashboard">← Feed</a>'
+        '<a class="thread-back" href="/dashboard">←</a>'
         + post_content
         # Note: No plink-cta here — the permalink should feel like the feed,
         # not a marketing landing page. Unfurl tags handle the sharing use case.

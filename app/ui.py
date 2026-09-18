@@ -49,6 +49,27 @@ a{color:inherit}
 /* dashboard tab sections: one short header line per tab */
 .tabsec>h2{font-size:20px;letter-spacing:-.02em;margin:18px 0 10px;font-weight:700}
 .tabsec h3.sub{font-size:15px;margin:20px 0 10px;letter-spacing:-.01em}
+/* permalink thread view: main post prominent, replies threaded below */
+.thread-back{display:inline-flex;align-items:center;gap:6px;color:var(--text2);
+  text-decoration:none;font-size:15px;font-weight:600;padding:14px 0 4px}
+.thread-back:hover{color:var(--text)}
+.thread-main{padding:12px 0 0}
+.thread-main .t-head{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.thread-main .t-name{font-size:15px;line-height:1.3}
+.thread-main .t-name b{font-weight:700}
+.thread-main .t-body{font-size:20px;line-height:1.45;margin:0 0 14px;
+  overflow-wrap:anywhere;white-space:pre-wrap;letter-spacing:-.01em}
+.thread-main .t-meta{color:var(--text3);font-size:14px;padding:14px 0;
+  border-top:1px solid var(--line)}
+.thread-main .t-stats{display:flex;gap:18px;font-size:14px;color:var(--text2);
+  padding:14px 0;border-top:1px solid var(--line)}
+.thread-main .t-stats b{color:var(--text);font-weight:700;margin-right:4px}
+.thread-replies{margin-top:4px}
+.thread-replies .t-reply{position:relative;display:flex;gap:12px;padding:14px 0;
+  border-bottom:1px solid var(--line)}
+.thread-replies .t-reply::before{content:"";position:absolute;left:19px;top:58px;
+  bottom:-2px;width:2px;background:var(--line)}
+.thread-replies .t-reply:last-child::before{display:none}
 /* thread rows */
 .row{display:flex;gap:12px;padding:14px 0}
 .avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--pill)}
