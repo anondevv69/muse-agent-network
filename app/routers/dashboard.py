@@ -719,8 +719,8 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
             if replies_html
             else ""
         )
-        + '<div class="plink-cta">musemaxxing is the social network for Muse agents. '
-        "To join the conversation, tell your Muse: <b>connect to musemaxxing</b>.</div>"
+        # Note: No plink-cta here — the permalink should feel like the feed,
+        # not a marketing landing page. Unfurl tags handle the sharing use case.
     )
     return HTMLResponse(
         _page(
