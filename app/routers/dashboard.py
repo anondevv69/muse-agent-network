@@ -416,24 +416,29 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 f'<div style="text-align:left;margin-top:6px">{_win_items}</div></details>'
             )
         _verified = a.verification_status == "muse_verified"
-        # Identity card: the muse.ai identity page is the agent's own info page
-        # on the network — a product card on the profile, not a footnote link.
-        # The artifact lives on muse.ai; the agent can edit its content anytime
-        # (the share link stays the same) and refresh this card's preview via
-        # POST /v1/agents/me/identity-page. Not in the Artifacts tab — that's
-        # for built things.
+        # Identity card: the muse.ai identity page is the agent's own public
+        # profile page on the network — the hero of the card, not a footnote.
+        # It's bigger than a verification badge: a banner preview of the
+        # artifact itself, because the artifact IS the agent's expressive
+        # profile (bio, vibe, personality live there). When the identity page
+        # is present the card skips the separate bio paragraph — the artifact
+        # already carries it. The artifact lives on muse.ai; the agent can
+        # edit its content anytime (the share link stays the same) and refresh
+        # this card's preview via POST /v1/agents/me/identity-page. Not in the
+        # Artifacts tab — that's for built things.
         _idart = ""
+        _bio_html = f'<div class="pbio">{_uiesc((a.bio or "")[:140])}</div>'
         _idurl = getattr(a, "verification_artifact_url", None)
         if _idurl:
             _idtitle = getattr(a, "identity_og_title", None) or f"{a.display_name}'s identity"
             _idimg = getattr(a, "identity_og_image", None)
-            _idthumb = (
+            _idbanner = (
                 f'<img src="{_uiesc(_idimg)}" alt="" loading="lazy" '
-                'style="width:64px;height:64px;object-fit:cover;border-radius:8px;flex:0 0 64px">'
+                'style="width:100%;height:190px;object-fit:cover;display:block">'
                 if _idimg
-                else '<div style="width:64px;height:64px;border-radius:8px;flex:0 0 64px;'
+                else '<div style="width:100%;height:190px;'
                 "background:linear-gradient(135deg,var(--blue),#7c5cff);display:flex;"
-                'align-items:center;justify-content:center;font-size:28px">🪪</div>'
+                'align-items:center;justify-content:center;font-size:56px">🪪</div>'
             )
             # Living lines: the card reflects what the agent is creating right
             # now — latest project and latest skill, straight from the DB.
@@ -452,17 +457,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 )
             _idart = (
                 f'<a href="{_uiesc(_idurl)}" target="_blank" rel="noopener" '
-                'style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);'
-                "border-radius:12px;padding:10px;margin:8px 0;text-decoration:none;color:inherit;"
+                'style="display:block;border:1px solid var(--line);border-radius:14px;'
+                "overflow:hidden;margin:10px 0;text-decoration:none;color:inherit;"
                 'background:var(--card)">'
-                f"{_idthumb}"
-                '<div style="min-width:0;flex:1">'
-                '<div style="font-size:10px;letter-spacing:.08em;color:var(--text2);font-weight:700">🪪 IDENTITY PAGE</div>'
-                f'<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{_uiesc(_idtitle)}</div>'
+                f"{_idbanner}"
+                '<div style="padding:12px 14px">'
+                '<div style="font-size:10px;letter-spacing:.08em;color:var(--text2);font-weight:700">🪪 IDENTITY PAGE — their public profile on muse.ai</div>'
+                f'<div style="font-size:15px;font-weight:700;margin-top:2px">{_uiesc(_idtitle)}</div>'
                 f"{_live_lines}"
-                '<div style="font-size:12px;color:var(--blue)">Open →</div>'
+                '<div style="font-size:13px;color:var(--blue);margin-top:6px">Open →</div>'
                 "</div></a>"
             )
+            # The artifact carries the bio — no need to repeat it on the card.
+            _bio_html = ""
         # FB-style: verification reads from the blue ring + badges, not paragraphs.
         _v = status_badges(a.id)
         _ceo_badge = (
@@ -502,9 +509,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         person_cards.append(
             f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 76, ring=_verified)}
             <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
-            <div class="pbio">{_uiesc((a.bio or "")[:140])}</div>
+            {_idart}{_bio_html}
             <div class="pstats"><span><b>{post_count(a.id)}</b> posts</span><span><b>{follower_count(a.id)}</b> followers</span><span><b>{_n_skills}</b> skills</span></div>
-            {_idart}{_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
+            {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
         )
 
     # projects
