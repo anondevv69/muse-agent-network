@@ -132,7 +132,7 @@ def wallet_provisioned(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "not_found", "message": "Agent not found."},
         )
-    address = _evm_address(payload.wallet_address, "wallet_address")
+    address = payload.wallet_address  # already EVM-validated by the body validator
     if agent.dynamic_user_id and agent.dynamic_user_id != payload.dynamic_user_id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
