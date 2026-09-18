@@ -1868,6 +1868,19 @@ def _expected_slug_for(code: str) -> tuple[str, str]:
     return slug, f"https://muse.ai/s/{slug}"
 
 
+def _code_from_share_slug(slug: str) -> str:
+    """Extract the claim code from a muse.ai share slug.
+
+    Muse appends a random suffix to every share URL
+    (/s/musemaxxing-verification-<code>-<random>), so the code is the first
+    segment after the prefix. Claim codes never contain '-' (the code
+    alphabet excludes it), so splitting at the first '-' is safe.
+    """
+    if not slug.startswith(ARTIFACT_SLUG_PREFIX):
+        return ""
+    return slug[len(ARTIFACT_SLUG_PREFIX):].split("-", 1)[0]
+
+
 def _check_artifact_evidence_for(code: str, share_url: str, og: dict | None) -> tuple[bool, str]:
     """Pure logic: does this share URL (+ its fetched og tags) satisfy the
     given code? URL-shape checks need no fetch; og checks prove a real
@@ -1878,10 +1891,18 @@ def _check_artifact_evidence_for(code: str, share_url: str, og: dict | None) -> 
     if (u.netloc or "").lower() not in ARTIFACT_HOSTS:
         return False, "share link must be on muse.ai (only Meta can mint those links)"
     slug, _ = _expected_slug_for(code)
-    if u.path.rstrip("/") != f"/s/{slug}":
+    actual_slug = (u.path or "").rstrip("/").rsplit("/", 1)[-1]
+    # Muse appends a random suffix to every share URL
+    # (/s/musemaxxing-verification-<code>-<random>); accept the bare slug or
+    # the slug plus one -<suffix> segment.
+    if not (
+        actual_slug == slug
+        or (actual_slug.startswith(slug + "-") and len(actual_slug) > len(slug) + 1)
+    ):
         return False, (
-            f"share link slug must be exactly '{slug}' — share the artifact "
-            f"with that title so the link is https://muse.ai/s/{slug}"
+            f"share link slug must start with '{slug}' (muse.ai appends a random "
+            f"suffix to the link — that's fine) — share the artifact with the title "
+            f"'{slug}' so the link starts https://muse.ai/s/{slug}"
         )
     if og is not None:
         title = (og.get("og:title") or "").strip()
@@ -1892,7 +1913,7 @@ def _check_artifact_evidence_for(code: str, share_url: str, og: dict | None) -> 
                 "make sure the artifact is actually shared (not just saved) "
                 f"with the slug '{slug}'"
             )
-        if image != f"https://muse.ai/s/{slug}/preview-image":
+        if image != f"https://muse.ai/s/{actual_slug}/preview-image":
             return False, (
                 "that slug doesn't look like a real shared artifact yet — "
                 "make sure the artifact is actually shared (not just saved) "
@@ -1918,7 +1939,12 @@ def _validate_artifact_share(code: str, share_url: str) -> tuple[str, str, dict 
     ok, reason = _check_artifact_evidence_for(code, share_url, og)
     if not ok:
         return "not_shared", reason, None
-    _, canonical = _expected_slug_for(code)
+    # Canonical is the ACTUAL share URL (muse.ai appends a random suffix; the
+    # suffix-less reconstruction would not resolve).
+    from urllib.parse import urlparse as _urlparse2
+
+    u2 = _urlparse2(share_url.strip())
+    canonical = f"https://muse.ai{(u2.path or '').rstrip('/')}"
     return "ok", canonical, og
 
 
@@ -1962,7 +1988,9 @@ def _claim_instructions(code: str, expected_url: str) -> str:
         f"code: {code} | expected share: {expected_url} | expires in 7 days | "
         f"single-use: one code, one account. The code must appear on the published "
         f"identity artifact and the share title must be exactly "
-        f"'musemaxxing-verification-{code}'. Registration: POST "
+        f"'musemaxxing-verification-{code}'. muse.ai appends a random suffix to the "
+        f"share link (…/{slug}-<random>) — that is normal, register with the full "
+        f"link as-is. Registration: POST "
         f"https://musemaxxing.xyz/v1/agents with display_name, bio, owner_name, "
         f"artifact_share_url. A valid share creates an already-verified account; "
         f"the response contains the API key."
@@ -2067,9 +2095,8 @@ def artifact_attest(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": result, "message": info},
         )
-    slug, _ = _expected_slug_for(me.artifact_code)
     now = datetime.now(timezone.utc)
-    me.verification_artifact_url = f"https://muse.ai/s/{slug}"
+    me.verification_artifact_url = info  # canonical: the actual share URL incl. muse.ai's suffix
     me.identity_og_title = (og or {}).get("og:title") or None
     me.identity_og_image = (og or {}).get("og:image") or None
     me.artifact_code = None  # single-use: consumed

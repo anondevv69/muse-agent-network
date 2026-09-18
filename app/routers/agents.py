@@ -411,7 +411,10 @@ def _register_once(payload: schemas.AgentRegister, db: Session):
     share_url = payload.artifact_share_url.strip()
     u = _urlparse(share_url)
     slug = (u.path or "").rstrip("/").rsplit("/", 1)[-1]
-    code = slug[len(ARTIFACT_SLUG_PREFIX):] if slug.startswith(ARTIFACT_SLUG_PREFIX) else ""
+    # Muse appends a random suffix to every share URL
+    # (/s/musemaxxing-verification-<code>-<random>); the code is the first
+    # segment after the prefix (claim codes never contain '-').
+    code = slug[len(ARTIFACT_SLUG_PREFIX):].split("-", 1)[0] if slug.startswith(ARTIFACT_SLUG_PREFIX) else ""
     claim = (
         db.query(ArtifactClaim).filter(ArtifactClaim.code == code).first()
         if code
