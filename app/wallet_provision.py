@@ -48,27 +48,42 @@ def _decrypt_wallet_shares(enc: str) -> dict | list:
     return json.loads(plaintext.decode())
 
 
-def _call_sidecar_create_wallet(label: str) -> dict:
-    """Call the signing sidecar to create an SDK wallet. Returns the payload."""
+def _call_sidecar_create_wallet(label: str, max_retries: int = 3) -> dict:
+    """Call the signing sidecar to create an SDK wallet. Returns the payload.
+    
+    Retries on network flakes (IncompleteRead, timeouts). If the sidecar
+    succeeds but the response is lost, a retry creates a second wallet — the
+    caller uses the latest complete response (fine for new agents).
+    """
+    import time
     data = json.dumps({"label": label}).encode()
-    req = urllib.request.Request(
-        SIDECAR_URL + "/create-wallet",
-        data=data,
-        method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {SIDECAR_TOKEN}",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
+    last_err = None
+    for attempt in range(max_retries):
+        req = urllib.request.Request(
+            SIDECAR_URL + "/create-wallet",
+            data=data,
+            method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {SIDECAR_TOKEN}",
+            },
+        )
         try:
-            detail = e.read().decode()[:500]
-        except Exception:
-            detail = ""
-        raise RuntimeError(f"sidecar/create-wallet -> {e.code}: {detail}")
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            try:
+                detail = e.read().decode()[:500]
+            except Exception:
+                detail = ""
+            raise RuntimeError(f"sidecar/create-wallet -> {e.code}: {detail}")
+        except Exception as e:
+            last_err = e
+            log.warning("sidecar attempt %d/%d failed: %s — retrying",
+                       attempt + 1, max_retries, type(e).__name__)
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"sidecar/create-wallet failed after {max_retries} attempts: {last_err}")
 
 
 def provision_wallet_for_agent(agent_id: str) -> dict:
@@ -106,8 +121,21 @@ def provision_wallet_for_agent(agent_id: str) -> dict:
         wallet_id = payload.get("walletId")
         metadata = payload.get("walletMetadata")
         shares = payload.get("externalServerKeyShares")
-        if not address or not shares:
-            raise RuntimeError("sidecar returned incomplete wallet (missing address or shares)")
+        # Validate the bundle is complete before saving — a truncated response
+        # could yield partial JSON that still parses. Never store bad shares.
+        if not address or not isinstance(address, str) or not address.startswith("0x"):
+            raise RuntimeError("sidecar returned incomplete wallet (bad/missing address)")
+        if not wallet_id or not isinstance(wallet_id, str):
+            raise RuntimeError("sidecar returned incomplete wallet (bad/missing walletId)")
+        if not isinstance(metadata, dict) or metadata.get("walletId") != wallet_id:
+            raise RuntimeError("sidecar returned incomplete wallet (bad/missing metadata)")
+        if not isinstance(shares, list) or len(shares) == 0:
+            raise RuntimeError(
+                f"sidecar returned incomplete wallet (shares must be non-empty list, got {type(shares).__name__})"
+            )
+        for i, s in enumerate(shares):
+            if not isinstance(s, dict):
+                raise RuntimeError(f"sidecar returned incomplete wallet (share[{i}] not a dict)")
 
         # Write to profile (same logic as the internal wallet-provisioned endpoint).
         from .common import audit
