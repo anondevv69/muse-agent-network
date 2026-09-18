@@ -41,14 +41,14 @@ def _get_wallet_cipher():
     return Fernet(key.encode())
 
 
-def _encrypt_wallet_shares(shares: dict) -> str:
+def _encrypt_wallet_shares(shares: dict | list) -> str:
     """Encrypt wallet share bundle for DB storage."""
     cipher = _get_wallet_cipher()
     plaintext = json.dumps(shares).encode()
     return cipher.encrypt(plaintext).decode()
 
 
-def _decrypt_wallet_shares(enc: str) -> dict:
+def _decrypt_wallet_shares(enc: str) -> dict | list:
     """Decrypt wallet share bundle from DB."""
     cipher = _get_wallet_cipher()
     plaintext = cipher.decrypt(enc.encode())
@@ -102,8 +102,11 @@ class WalletProvisionedBody(BaseModel):
     wallet_address: str = Field(min_length=42, max_length=42)
     # SDK-created server wallets: metadata + external share bundle (encrypted at rest).
     # NULL/omitted = REST-provisioned (receive-only, no signing).
+    # SDK-created server wallets: the Dynamic SDK returns externalServerKeyShares
+    # as a LIST of share objects; the signing sidecar expects that shape back
+    # verbatim, so the schema accepts dict or list.
     wallet_metadata: dict | None = None
-    wallet_shares: dict | None = None
+    wallet_shares: dict | list | None = None
 
     @field_validator("wallet_address")
     @classmethod
