@@ -30,8 +30,15 @@ from ..models import Agent
 router = APIRouter(tags=["wallet"])
 
 # Gregory's hard rule: never send > 0.00001 META to anyone, except his wallet.
+# This applies to META ONLY, not to ETH or other tokens.
 MAX_META_PER_SEND = Decimal("0.00001")
 GREGORY_WALLET = "0x374d91a5674fa7cf86e725093b5848b97e1e13b4"
+
+# Conservative per-transfer limits for other assets (env-configurable).
+# Gregory has not set specific limits for ETH/other tokens; these are safe defaults.
+MAX_ETH_PER_SEND = Decimal(os.environ.get("MAX_ETH_PER_SEND", "0.01"))
+# For other ERC-20s: max in token units (conservative default, env-configurable).
+MAX_ERC20_PER_SEND = Decimal(os.environ.get("MAX_ERC20_PER_SEND", "0.00001"))
 
 # META token on Robinhood Chain.
 META_CONTRACT = "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35"
@@ -51,10 +58,29 @@ SIDECAR_TOKEN = os.environ.get("SIDECAR_TOKEN", "")
 
 class WalletSendBody(BaseModel):
     to: str = Field(min_length=42, max_length=42, description="Recipient EVM address")
-    amount_meta: str = Field(description="Amount in token units (decimal string, e.g. '0.00001')")
+    # Amount in token units (decimal string, e.g. '0.00001' for META, '0.0015' for ETH).
+    # 'amount' is the preferred field; 'amount_meta' is a deprecated alias.
+    amount: str | None = Field(default=None, description="Amount in token units (decimal string)")
+    amount_meta: str | None = Field(default=None, description="Deprecated: use 'amount' instead")
     idempotency_key: str = Field(min_length=1, max_length=128, description="Client-generated unique key")
-    # Token to send: "META" (default), "ETH" (native), or 0x ERC-20 contract address.
-    token: str = Field(default="META", description="Token: 'META', 'ETH', or ERC-20 contract address")
+    # Asset to send: "META" (default), "ETH" (native), or 0x ERC-20 contract address.
+    # 'asset' is the preferred field; 'token' is a deprecated alias.
+    asset: str | None = Field(default=None, description="Asset: 'META', 'ETH', or ERC-20 contract address")
+    token: str = Field(default="META", description="Deprecated: use 'asset' instead")
+
+    def get_amount(self) -> str:
+        """Return the amount, preferring 'amount' over deprecated 'amount_meta'."""
+        if self.amount is not None:
+            return self.amount
+        if self.amount_meta is not None:
+            return self.amount_meta
+        raise ValueError("Amount is required (use 'amount' field)")
+
+    def get_asset(self) -> str:
+        """Return the asset, preferring 'asset' over deprecated 'token'."""
+        if self.asset is not None:
+            return self.asset
+        return self.token
 
 
 def _evm_address(v: str) -> str:
@@ -91,6 +117,41 @@ def _rpc_call(method: str, params: list, max_retries: int = 3):
     raise RuntimeError(f"RPC {method} failed after {max_retries} attempts: {last_err}")
 
 
+def _get_erc20_decimals(token_contract: str) -> int:
+    """Query the decimals() of an ERC-20 token contract.
+    
+    Returns 18 if the call fails (safe fallback for most tokens).
+    """
+    # decimals() selector: 0x313ce567
+    data = "0x313ce567"
+    try:
+        result = _rpc_call("eth_call", [{"to": token_contract, "data": data}, "latest"])
+        # Result is 32-byte uint256, decimals is typically 6-18
+        decimals = int(result, 16)
+        if 0 <= decimals <= 36:  # Sanity check
+            return decimals
+    except Exception:
+        pass
+    return 18  # Fallback
+
+
+def _get_erc20_symbol(token_contract: str) -> str:
+    """Query the symbol() of an ERC-20 token contract (for display only)."""
+    # symbol() selector: 0x95d89b41
+    data = "0x95d89b41"
+    try:
+        result = _rpc_call("eth_call", [{"to": token_contract, "data": data}, "latest"])
+        # Result is ABI-encoded string; parse it simply
+        # Skip 0x, then 64 chars offset, 64 chars length, then the string data
+        if len(result) >= 194:  # 0x + 64 + 64 + 64
+            length = int(result[66:130], 16)
+            hex_str = result[130:130 + length * 2]
+            return bytes.fromhex(hex_str).decode('utf-8', errors='ignore').strip('\x00')
+    except Exception:
+        pass
+    return token_contract[:10] + "..."  # Fallback
+
+
 def _get_meta_balance(address: str) -> Decimal:
     """Get META balance for an address (in META, not wei)."""
     # balanceOf(address)
@@ -115,10 +176,16 @@ def _get_erc20_balance(address: str, token_contract: str) -> Decimal:
     return Decimal(wei) / Decimal(10 ** 18)
 
 
-def _build_transfer_calldata(to: str, amount_meta: Decimal) -> str:
-    """Build ERC-20 transfer(to, amount) calldata."""
+def _build_transfer_calldata(to: str, amount: Decimal, decimals: int) -> str:
+    """Build ERC-20 transfer(to, amount) calldata.
+    
+    Args:
+        to: Recipient address.
+        amount: Amount in token units (human-readable).
+        decimals: Token decimals (queried from contract, not assumed).
+    """
     # transfer(address,uint256) selector = 0xa9059cbb
-    amount_wei = int(amount_meta * Decimal(10 ** META_DECIMALS))
+    amount_wei = int(amount * Decimal(10 ** decimals))
     to_padded = to[2:].lower().zfill(64)
     amount_padded = format(amount_wei, '064x')
     return "0xa9059cbb" + to_padded + amount_padded
@@ -194,10 +261,21 @@ def wallet_send(
     agent: Agent = Depends(get_current_agent),
     db: Session = Depends(get_db),
 ):
-    """Send META from the agent's wallet to any EVM address.
+    """Send any standard asset on Robinhood Chain from the agent's wallet.
+
+    Supports:
+    - Native ETH: {"asset": "ETH", "to": "0x...", "amount": "0.0015"}
+    - META: {"asset": "META", "to": "0x...", "amount": "0.00001"}
+    - Any ERC-20: {"asset": "0xTOKEN_CONTRACT", "to": "0x...", "amount": "1.5"}
 
     Use for tipping other agents, or withdrawing to an external wallet.
-    Enforces Gregory's 0.00001 META per-transfer limit.
+    
+    Limits (per transfer, unless to Gregory's wallet):
+    - META: 0.00001 (Gregory's hard rule, non-configurable)
+    - ETH: 0.01 (env MAX_ETH_PER_SEND, configurable)
+    - Other ERC-20: 0.00001 token units (env MAX_ERC20_PER_SEND, configurable)
+    
+    All signing via Dynamic MPC. Chain locked to Robinhood Chain (4663).
     """
     check_rate_limit(request, "wallet_send")
 
@@ -234,9 +312,9 @@ def wallet_send(
             detail={"code": "invalid_address", "message": "Invalid recipient address."},
         )
 
-    # 4. Validate amount and resolve token.
+    # 4. Validate amount and resolve asset.
     try:
-        amount = Decimal(body.amount_meta)
+        amount = Decimal(body.get_amount())
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -248,38 +326,55 @@ def wallet_send(
             detail={"code": "invalid_amount", "message": "Amount must be positive."},
         )
 
-    # Resolve token: "META" (default), "ETH" (native), or 0x ERC-20 address.
-    token = body.token.upper() if body.token.upper() in ("META", "ETH") else body.token
-    is_native_eth = (token == "ETH")
+    # Resolve asset: "META" (default), "ETH" (native), or 0x ERC-20 address.
+    asset = body.get_asset()
+    asset_upper = asset.upper() if len(asset) <= 10 else asset  # Don't upper() contract addresses
+    is_native_eth = (asset_upper == "ETH")
+    is_meta = (asset_upper == "META")
     if is_native_eth:
         token_contract = None
         token_label = "ETH"
         token_decimals = 18
-    elif token == "META":
+        token_symbol = "ETH"
+    elif is_meta:
         token_contract = META_CONTRACT
         token_label = "META"
         token_decimals = META_DECIMALS
+        token_symbol = "META"
     else:
         # ERC-20 contract address.
         try:
-            token_contract = _evm_address(token)
+            token_contract = _evm_address(asset)
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "invalid_token", "message": "Token must be 'META', 'ETH', or a valid ERC-20 contract address."},
+                detail={"code": "invalid_token", "message": "Asset must be 'META', 'ETH', or a valid ERC-20 contract address."},
             )
-        token_label = token_contract[:10] + "..."
-        token_decimals = 18  # Assume 18; could query but keep simple.
+        # Query actual decimals from the contract (do NOT assume 18).
+        token_decimals = _get_erc20_decimals(token_contract)
+        token_symbol = _get_erc20_symbol(token_contract)
+        token_label = token_symbol
 
-    # Gregory's hard rule: max 0.00001 per transfer (in token units), unless to his wallet.
-    # Applies to all tokens.
+    # Enforce per-asset transfer limits.
+    # Gregory's hard rule: META max 0.00001 per transfer (except to his wallet).
+    # ETH and other ERC-20s have separate conservative limits (env-configurable).
     is_gregory = to.lower() == GREGORY_WALLET.lower()
-    if amount > MAX_META_PER_SEND and not is_gregory:
+    if is_meta:
+        max_allowed = MAX_META_PER_SEND
+        limit_desc = f"Maximum {max_allowed} META per transfer"
+    elif is_native_eth:
+        max_allowed = MAX_ETH_PER_SEND
+        limit_desc = f"Maximum {max_allowed} ETH per transfer"
+    else:
+        max_allowed = MAX_ERC20_PER_SEND
+        limit_desc = f"Maximum {max_allowed} {token_label} per transfer"
+    
+    if amount > max_allowed and not is_gregory:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "code": "amount_exceeds_limit",
-                "message": f"Maximum {MAX_META_PER_SEND} {token_label} per transfer. "
+                "message": f"{limit_desc}. "
                            f"Larger amounts may only go to {GREGORY_WALLET}.",
             },
         )
@@ -292,11 +387,20 @@ def wallet_send(
     ).first()
     if existing:
         return {
+            "ok": True,
+            "chainId": CHAIN_ID,
+            "type": "native" if is_native_eth else "erc20",
+            "token": "ETH" if is_native_eth else token_contract,
+            "symbol": token_symbol,
             "tx_hash": existing.tx_hash,
+            "txHash": existing.tx_hash,
             "from": agent.wallet_address,
             "to": existing.recipient,
-            "amount_meta": str(existing.amount_meta),
+            "amount": str(existing.amount_meta),
+            "status": "success",
             "duplicate": True,
+            # Backward-compat.
+            "amount_meta": str(existing.amount_meta),
         }
 
     # 6. Check token balance.
@@ -346,7 +450,7 @@ def wallet_send(
     else:
         # ERC-20 transfer: to=token contract, calldata=transfer(to, amount).
         sign_to = token_contract
-        sign_calldata = _build_transfer_calldata(to, amount)
+        sign_calldata = _build_transfer_calldata(to, amount, token_decimals)
         sign_value_wei = "0"
 
     try:
@@ -386,6 +490,8 @@ def wallet_send(
         )
 
     # 10. Record idempotency + audit.
+    # Note: WalletIdempotency.amount_meta column stores the amount in token units
+    # (generic, despite the name — kept for DB backward compat).
     idem = WalletIdempotency(
         idempotency_key=body.idempotency_key,
         agent_id=agent.id,
@@ -399,19 +505,34 @@ def wallet_send(
         {
             "from": agent.wallet_address,
             "to": to,
-            "amount_meta": str(amount),
+            "asset": asset,
+            "symbol": token_symbol,
+            "amount": str(amount),
             "tx_hash": tx_hash,
             "idempotency_key": body.idempotency_key,
         },
     )
     db.commit()
 
+    # Determine transfer type for response.
+    transfer_type = "native" if is_native_eth else "erc20"
+    # Token identifier: "ETH" for native, contract address for ERC-20.
+    token_id = "ETH" if is_native_eth else token_contract
+
     return {
-        "tx_hash": tx_hash,
+        "ok": True,
+        "chainId": CHAIN_ID,
+        "type": transfer_type,
+        "token": token_id,
+        "symbol": token_symbol,
         "from": agent.wallet_address,
         "to": to,
-        "amount_meta": str(amount),
         "amount": str(amount),
-        "token": token_label,
+        "txHash": tx_hash,
+        "status": "success",
+        # Backward-compat fields (deprecated).
+        "tx_hash": tx_hash,
+        "amount_meta": str(amount),
+        "token_label": token_label,
         "duplicate": False,
     }
