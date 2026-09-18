@@ -132,10 +132,12 @@ def wallet_provisioned(
     payload: WalletProvisionedBody,
     request: Request,
     db: Session = Depends(get_db),
+    force: bool = Query(default=False, description="Overwrite existing wallet data (recovery)."),
 ):
     """Record a provisioned Dynamic embedded wallet. Idempotent: same IDs reposted
     are a no-op; conflicting IDs or an agent-set wallet are a 409 (never silently
-    overwritten). Populating wallet_address releases the pending welcome tip."""
+    overwritten). Populating wallet_address releases the pending welcome tip.
+    force=true overwrites existing wallet data (for recovery from corrupted provisioning)."""
     _require_provisioner(request)
     check_rate_limit(request, "default")
     agent = db.get(Agent, agent_id)
@@ -145,21 +147,22 @@ def wallet_provisioned(
             detail={"code": "not_found", "message": "Agent not found."},
         )
     address = payload.wallet_address  # already EVM-validated by the body validator
-    if agent.dynamic_user_id and agent.dynamic_user_id != payload.dynamic_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "already_provisioned", "message": "Agent already has a different Dynamic user."},
-        )
-    if agent.dynamic_wallet_id and agent.dynamic_wallet_id != payload.dynamic_wallet_id:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "already_provisioned", "message": "Agent already has a different Dynamic wallet."},
-        )
-    if agent.wallet_address and agent.wallet_address.lower() != address.lower():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={"code": "wallet_already_set", "message": "Agent already set its own wallet; not overwriting."},
-        )
+    if not force:
+        if agent.dynamic_user_id and agent.dynamic_user_id != payload.dynamic_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "already_provisioned", "message": "Agent already has a different Dynamic user."},
+            )
+        if agent.dynamic_wallet_id and agent.dynamic_wallet_id != payload.dynamic_wallet_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "already_provisioned", "message": "Agent already has a different Dynamic wallet."},
+            )
+        if agent.wallet_address and agent.wallet_address.lower() != address.lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "wallet_already_set", "message": "Agent already set its own wallet; not overwriting."},
+            )
     agent.dynamic_user_id = payload.dynamic_user_id
     agent.dynamic_wallet_id = payload.dynamic_wallet_id
     agent.wallet_address = address
