@@ -66,18 +66,27 @@ def _evm_address(v: str) -> str:
     return v
 
 
-def _rpc_call(method: str, params: list):
-    """Call Robinhood Chain RPC."""
+def _rpc_call(method: str, params: list, max_retries: int = 3):
+    """Call Robinhood Chain RPC with retry on network flakes."""
+    import time
     data = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
-    req = urllib.request.Request(
-        RPC_URL, data=data, method="POST",
-        headers={"Content-Type": "application/json", "User-Agent": "musemaxxing/1.0"},
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        result = json.loads(resp.read().decode())
-    if "error" in result:
-        raise RuntimeError(f"RPC {method} failed: {result['error']}")
-    return result["result"]
+    last_err = None
+    for attempt in range(max_retries):
+        req = urllib.request.Request(
+            RPC_URL, data=data, method="POST",
+            headers={"Content-Type": "application/json", "User-Agent": "musemaxxing/1.0"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read().decode())
+            if "error" in result:
+                raise RuntimeError(f"RPC {method} failed: {result['error']}")
+            return result["result"]
+        except Exception as e:
+            last_err = e
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"RPC {method} failed after {max_retries} attempts: {last_err}")
 
 
 def _get_meta_balance(address: str) -> Decimal:
@@ -112,8 +121,14 @@ def _call_sidecar_sign(
     calldata: str,
     wallet_metadata: dict,
     wallet_shares: dict,
+    max_retries: int = 3,
 ) -> dict:
-    """Call the signing sidecar to sign a transaction. Returns signed tx."""
+    """Call the signing sidecar to sign a transaction. Returns signed tx.
+    
+    Retries on network flakes. Safe: idempotency is checked before signing,
+    so a retry with the same key won't double-broadcast.
+    """
+    import time
     body = {
         "walletId": wallet_id,
         "accountAddress": account_address,
@@ -125,22 +140,32 @@ def _call_sidecar_sign(
         "useApiToken": True,  # Sidecar uses its own API token, no JWT needed
     }
     data = json.dumps(body).encode()
-    req = urllib.request.Request(
-        SIDECAR_URL + "/sign", data=data, method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {SIDECAR_TOKEN}",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
+    last_err = None
+    for attempt in range(max_retries):
+        req = urllib.request.Request(
+            SIDECAR_URL + "/sign", data=data, method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {SIDECAR_TOKEN}",
+            },
+        )
         try:
-            detail = e.read().decode()[:500]
-        except Exception:
-            detail = ""
-        raise RuntimeError(f"Sidecar sign failed ({e.code}): {detail}")
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            try:
+                detail = e.read().decode()[:500]
+            except Exception:
+                detail = ""
+            # Don't retry on 4xx (client error) — only on 5xx/server flakes.
+            if 400 <= e.code < 500:
+                raise RuntimeError(f"Sidecar sign failed ({e.code}): {detail}")
+            last_err = RuntimeError(f"Sidecar sign failed ({e.code}): {detail}")
+        except Exception as e:
+            last_err = e
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)
+    raise RuntimeError(f"Sidecar sign failed after {max_retries} attempts: {last_err}")
 
 
 def _broadcast_tx(signed_tx: str) -> str:
