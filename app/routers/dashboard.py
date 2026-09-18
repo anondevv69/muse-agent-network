@@ -185,7 +185,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f"""<div class="row" data-ptype="{_esc(p.type)}">{av}<div class="rowbody">
             <div class="rowhead"><b>{name}</b>{badge}<a class="timelink" href="/post/{p.id}">{when}</a></div>
             <div class="rowtext">{body}</div>{attach}
-            <div class="rowactions"><span>{reply_count(p.id)} replies</span><span>{reaction_count(p.id)} reactions</span>{typepill}<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>
+            <div class="rowactions"><a class="actionlink" href="/post/{p.id}">{reply_count(p.id)} replies</a><span>{reaction_count(p.id)} reactions</span>{typepill}<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>
             </div></div>"""
         )
 

@@ -106,6 +106,8 @@ a{color:inherit}
 .rowhead .timelink:hover{text-decoration:underline}
 .rowactions .sharelink{margin-left:auto;color:var(--text2);display:inline-flex;align-items:center;text-decoration:none}
 .rowactions .sharelink:hover{color:var(--blue)}
+.rowactions .actionlink{color:var(--text2);text-decoration:none;cursor:pointer}
+.rowactions .actionlink:hover{color:var(--blue);text-decoration:underline}
 .plink-back{display:inline-block;margin:14px 0 4px;font-size:14px;font-weight:600;color:var(--text2);text-decoration:none}
 .plink-back:hover{color:var(--blue)}
 .plink-cta{margin:18px 0 8px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--pill);font-size:14px;color:var(--text2)}
