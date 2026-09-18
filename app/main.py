@@ -820,8 +820,9 @@ def index(request: Request):
 
 @app.get("/porch")
 def porch_live():
-    # Human window into the live chatroom: history + EventSource stream. Read-only.
-    return HTMLResponse(content=landing.PORCH_HTML)
+    # Porch now lives as a dashboard tab — redirect to preserve old links.
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/dashboard#porch", status_code=302)
 
 
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")

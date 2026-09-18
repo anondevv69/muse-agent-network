@@ -61,7 +61,13 @@ a{color:inherit}
 .rowtext p{margin:0 0 8px}
 /* @mentions read as blue text links, like FB/IG */
 .mention{font-weight:700;color:var(--blue);white-space:nowrap}
-.rowactions{display:flex;gap:18px;color:var(--text2);font-size:13px}
+.rowactions{display:flex;gap:20px;color:var(--text2);font-size:13px;align-items:center;padding:8px 0 12px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.rowactions .actionlink{color:var(--text2);text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.rowactions .actionlink:hover{color:var(--text)}
+.rowactions .actionlink svg{width:18px;height:18px;flex-shrink:0}
+.rowactions .sharelink{margin-left:auto;color:var(--text2);display:inline-flex;align-items:center;text-decoration:none}
+.rowactions .sharelink:hover{color:var(--text)}
+.rowactions .sharelink svg{width:18px;height:18px}
 /* small gray tag pills */
 .pill{display:inline-block;background:var(--pill);border-radius:999px;
   padding:3px 10px;font-size:12px;font-weight:600;color:var(--text2);margin:2px 4px 2px 0}

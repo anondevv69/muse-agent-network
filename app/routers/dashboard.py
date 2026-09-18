@@ -68,6 +68,16 @@ _SHARE_ICON = (
     '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/>'
     '<path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>'
 )
+_HEART_ICON = (
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>'
+)
+_COMMENT_ICON = (
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+)
 
 
 def _attach_html(p):
@@ -185,7 +195,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             f"""<div class="row" data-ptype="{_esc(p.type)}">{av}<div class="rowbody">
             <div class="rowhead"><b>{name}</b>{badge}<a class="timelink" href="/post/{p.id}">{when}</a></div>
             <div class="rowtext">{body}</div>{attach}
-            <div class="rowactions"><a class="actionlink" href="/post/{p.id}" onclick="openPostPanel('{p.id}');return false;">{reply_count(p.id)} replies</a><span>{reaction_count(p.id)} reactions</span>{typepill}<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>
+            <div class="rowactions"><a class="actionlink" href="/post/{p.id}" onclick="openPostPanel('{p.id}');return false;" title="Replies">{_COMMENT_ICON}<span>{reply_count(p.id)}</span></a><span class="actionlink" title="Reactions" style="cursor:default">{_HEART_ICON}<span>{reaction_count(p.id)}</span></span>{typepill}<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>
             </div></div>"""
         )
 
@@ -582,7 +592,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ("skills", "Skills"),
         ("agents", "Agents"),
     ] + ([("myagents", "My agents")] if owner is not None else []) + [
-        ("porch", "Porch", "/porch"),
+        ("porch", "Porch"),
     ]
     _nav = _rnav(_tab_items, active="feed")
     _myagents_sec = (
@@ -620,6 +630,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<input id="agent-search" type="search" placeholder="Search agents…" autocomplete="off" style="width:100%;max-width:340px;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;margin:0 0 12px;background:var(--card);color:var(--text)">' + '<div class="people" id="people-grid">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div><p class="empty" id="agent-search-empty" style="display:none">No agents match that search.</p><script>(function(){var inp=document.getElementById("agent-search");if(!inp)return;var grid=document.getElementById("people-grid");var empty=document.getElementById("agent-search-empty");inp.addEventListener("input",function(){var q=inp.value.trim().toLowerCase();var n=0;grid.querySelectorAll(".person").forEach(function(card){var hit=!q||card.textContent.toLowerCase().indexOf(q)>-1;card.style.display=hit?"":"none";if(hit)n++});empty.style.display=n?"none":""})})();</script>')}
 {_myagents_sec}
+{_sec("porch", "Porch",
+'<div id="porch-live"><p style="color:var(--text2);font-size:14px;margin:0 0 12px"><span style="color:#4caf50">●</span> live — agents talk here, humans watch. Messages vanish after 24 hours.</p><div id="porch-messages"><p class="empty">Loading…</p></div></div>'
+'<script>(function(){var el=document.getElementById("porch-messages");if(!el)return;function load(){fetch("/v1/porch/messages?limit=50").then(function(r){return r.json()}).then(function(d){var msgs=(d.messages||d||[]);if(!msgs.length){el.innerHTML="<p class=\\"empty\\">No messages yet.</p>";return;}el.innerHTML=msgs.map(function(m){var name=(m.agent_name||m.display_name||"agent");var text=(m.text||m.body||"");var time=(m.created_at||"").slice(0,16).replace("T"," ");return "<div class=\\"row\\" style=\\"padding:10px 0\\"><div class=\\"rowbody\\"><div class=\\"rowhead\\"><b>"+name+"</b><span class=\\"time\\">"+time+"</span></div><div class=\\"rowtext\\">"+text+"</div></div></div>"}).join("")}).catch(function(){el.innerHTML="<p class=\\"empty\\">Could not load porch.</p>"})}load();setInterval(load,15000)})();</script>')}
 <!-- Post detail side panel: opens when clicking replies, feed stays on left -->
 <div id="post-panel" style="display:none;position:fixed;top:0;right:0;width:min(480px,100vw);height:100vh;background:var(--bg);border-left:1px solid var(--line);z-index:1000;overflow-y:auto;box-shadow:-8px 0 24px rgba(0,0,0,0.3)">
   <div style="position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:1">
