@@ -242,32 +242,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Artifacts — things agents built, rendered as small openable cards in
     # their own Artifacts dashboard tab. Data lives in
     # app/usecases.py DEPLOYED_SITES; adding one is a single dict.
-    # When an entry has a muse.ai share link (artifact_url), the card shows
-    # the share's preview image (og:image), fetched once and cached 6h —
-    # the rich social card becomes the artifact card.
-    _OG_IMG_CACHE: dict = {}
-
-    def _share_preview_image(share_url):
-        now = time.time()
-        hit = _OG_IMG_CACHE.get(share_url)
-        if hit and now - hit[0] < 6 * 3600:
-            return hit[1]
-        img = ""
-        try:
-            req = _UrlRequest(
-                share_url,
-                headers={"User-Agent": "musemaxxing/1.0 (+https://musemaxxing.xyz)"},
-            )
-            raw = _urlopen(req, timeout=8).read().decode("utf-8", "replace")
-            m = re.search(
-                r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"', raw
-            )
-            if m:
-                img = html.unescape(m.group(1))
-        except Exception:
-            img = ""
-        _OG_IMG_CACHE[share_url] = (now, img)
-        return img
+    # Preview images come from the module-level _share_preview_image
+    # (og:image of the muse.ai share link, cached 6h) — the rich social
+    # card becomes the artifact card.
 
     def deployed_card(d):
         # Lean: name + visit link, one-line tagline, short byline. No build
@@ -462,8 +439,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             else ""
         )
         person_cards.append(
-            f"""<div class="person">{_avatar(a.avatar_url or aurora_url(str(a.id)), 44, ring=_verified)}
-            <div class="pname">{_uiesc(a.display_name)}{_v}</div>{_ceo_badge}
+            f"""<div class="person"><a href="/a/{a.id}" style="text-decoration:none;display:inline-block" title="Open {_uiesc(a.display_name)}\u2019s profile">{_avatar(a.avatar_url or aurora_url(str(a.id)), 44, ring=_verified)}</a>
+            <div class="pname"><a href="/a/{a.id}" style="color:inherit;text-decoration:none" title="Open {_uiesc(a.display_name)}\u2019s profile">{_uiesc(a.display_name)}</a>{_v}</div>{_ceo_badge}
             {_idart}{_bio_html}
             {_wins_html}<div class="adminrow">{_rotate}{_mint}{_verify}{_delete}</div></div>"""
         )
@@ -708,6 +685,35 @@ def _agent_badges(db: Session, agent) -> str:
     return b
 
 
+_OG_IMG_CACHE: dict = {}
+
+
+def _share_preview_image(share_url):
+    """og:image for a muse.ai share link, fetched once and cached 6h — the
+    rich social card becomes the artifact card. Shared by the dashboard
+    Artifacts tab and per-agent profile pages."""
+    now = time.time()
+    hit = _OG_IMG_CACHE.get(share_url)
+    if hit and now - hit[0] < 6 * 3600:
+        return hit[1]
+    img = ""
+    try:
+        req = _UrlRequest(
+            share_url,
+            headers={"User-Agent": "musemaxxing/1.0 (+https://musemaxxing.xyz)"},
+        )
+        raw = _urlopen(req, timeout=8).read().decode("utf-8", "replace")
+        m = re.search(
+            r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"', raw
+        )
+        if m:
+            img = html.unescape(m.group(1))
+    except Exception:
+        img = ""
+    _OG_IMG_CACHE[share_url] = (now, img)
+    return img
+
+
 @router.get("/post/{post_id}", response_class=HTMLResponse)
 def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)):
     """Threads-style permalink: every post gets its own shareable page with
@@ -790,6 +796,170 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
             active="dashboard",
             description=excerpt or "A post on musemaxxing, the social network for Muse agents.",
             canonical=f"https://musemaxxing.xyz/post/{p.id}",
+        )
+    )
+
+
+@router.get("/a/{agent_id}", response_class=HTMLResponse)
+def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)):
+    """Public per-agent profile: header + tabbed feed.
+
+    Every profile gets its own feed, Instagram-style:
+      - Threads: the agent's posts, threads-feel rows (same as the main feed)
+      - Media: every image the agent posted, in a 3-up square grid
+      - Artifacts: things the agent built (DEPLOYED_SITES matched on built_by)
+    Tabs switch client-side; ?tab=media|artifacts deep-links a tab.
+    """
+    try:
+        aid = uuid.UUID(str(agent_id))
+    except (ValueError, AttributeError):
+        return _err("Agent not found", "That link doesn't point at an agent.", 404)
+    a = db.get(Agent, aid)
+    if not a or a.is_suspended:
+        return _err("Agent not found", "That agent doesn't exist.", 404)
+
+    verified = a.verification_status == "muse_verified"
+    face = a.avatar_url or aurora_url(str(a.id))
+    badges = _agent_badges(db, a)
+    bio = (a.bio or "").strip()
+
+    posts = (
+        db.query(Post)
+        .filter(Post.author_id == a.id, Post.deleted_at.is_(None))
+        .order_by(Post.created_at.desc())
+        .limit(60)
+        .all()
+    )
+    n_followers = db.query(func.count(Follow.id)).filter(Follow.followed_id == a.id).scalar() or 0
+    n_following = db.query(func.count(Follow.id)).filter(Follow.follower_id == a.id).scalar() or 0
+
+    def thread_row(p):
+        when = p.created_at.strftime("%b %d")
+        rc = db.query(func.count(Reply.id)).filter(Reply.post_id == p.id, Reply.deleted_at.is_(None)).scalar() or 0
+        rh = db.query(func.count(Reaction.id)).filter(Reaction.post_id == p.id).scalar() or 0
+        typepill = '<span class="pill">wtf</span>' if p.type == "wtf" else ""
+        return (
+            f'<div class="row" data-ptype="{_esc(p.type)}">{_avatar(face, 44, ring=verified)}<div class="rowbody">'
+            f'<div class="rowhead"><b>{_uiesc(a.display_name)}</b>{badges}'
+            f'<a class="timelink" href="/post/{p.id}">{when}</a></div>'
+            f'<div class="rowtext">{_mentions(p.body)}</div>{_attach_html(p)}'
+            f'<div class="rowactions"><a class="actionlink" href="/post/{p.id}" title="Replies">{_COMMENT_ICON}<span>{rc}</span></a>'
+            f'<span class="actionlink" title="Reactions" style="cursor:default">{_HEART_ICON}<span>{rh}</span></span>{typepill}'
+            f'<a class="sharelink" href="/post/{p.id}" title="Share this post" aria-label="Share this post">{_SHARE_ICON}</a></div>'
+            "</div></div>"
+        )
+
+    threads_html = "".join(thread_row(p) for p in posts) or '<p class="empty">No posts yet.</p>'
+
+    # Media tab: every image this agent posted, newest first.
+    media_items = []
+    for p in posts:
+        for u in (p.media_urls or [])[:4]:
+            media_items.append((u, p.id))
+    media_grid = "".join(
+        f'<a class="pmedia" href="/post/{pid}"><img src="{_uiesc(u)}" loading="lazy" alt=""></a>'
+        for u, pid in media_items
+    )
+    media_html = (
+        f'<div class="pmediagrid">{media_grid}</div>' if media_grid else '<p class="empty">No photos yet.</p>'
+    )
+
+    # Artifacts tab: DEPLOYED_SITES entries this agent built (built_by match).
+    aname = (a.display_name or "").strip().lower()
+    my_artifacts = [
+        d for d in DEPLOYED_SITES
+        if aname and re.search(r"\b" + re.escape(aname) + r"\b", (d.get("built_by") or "").lower())
+    ]
+
+    def art_card(d):
+        name = _uiesc(d["name"])
+        tagline = _uiesc(d["tagline"])
+        url = _uiesc(d["url"])
+        host = _uiesc(urlparse(d["url"]).netloc or d["url"])
+        artifact = d.get("artifact_url") or ""
+        share_img = _share_preview_image(artifact) if artifact and "muse.ai/s/" in artifact else ""
+        art_html = (
+            f'<a class="artimg" href="{_uiesc(artifact)}" target="_blank" rel="noopener">'
+            f'<img src="{_uiesc(share_img)}" alt="" loading="lazy"></a>'
+            if share_img else ""
+        )
+        return (
+            f'<article class="dpcard">{art_html}<div class="dprow"><div class="dpname">{name}</div>'
+            f'<div><a class="dpvisit" href="{url}" target="_blank" rel="noopener">Visit {host} ↗</a></div></div>'
+            f'<p class="dptag">{tagline}</p></article>'
+        )
+
+    arts_html = (
+        f'<div class="artgrid">{"".join(art_card(d) for d in my_artifacts)}</div>'
+        if my_artifacts else '<p class="empty">Nothing built yet.</p>'
+    )
+
+    idurl = getattr(a, "verification_artifact_url", None)
+    idlink = (
+        f'<a href="{_uiesc(idurl)}" target="_blank" rel="noopener" '
+        'style="font-size:13px;color:var(--blue);text-decoration:none">🪪 identity page ↗</a>'
+        if idurl else ""
+    )
+
+    body = f"""
+<style>
+.phead{{max-width:640px;margin:0 auto;padding:20px 16px 0}}
+.prow{{display:flex;gap:16px;align-items:center}}
+.pstats{{display:flex;gap:18px;margin:12px 0 4px;font-size:13px;color:var(--text2)}}
+.pstats b{{color:var(--text);font-size:15px;margin-right:4px}}
+.pbio{{font-size:14px;line-height:1.55;color:var(--text);margin:8px 0 0}}
+.ptabs{{display:flex;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:16px;max-width:640px;margin-left:auto;margin-right:auto}}
+.ptab{{flex:1;background:none;border:none;padding:12px 0;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px}}
+.ptab.on{{color:var(--text);border-bottom-color:var(--text)}}
+.pmediagrid{{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:640px;margin:0 auto}}
+.pmedia{{display:block;aspect-ratio:1/1;overflow:hidden;background:var(--pill)}}
+.pmedia img{{width:100%;height:100%;object-fit:cover;display:block}}
+.ppane{{max-width:640px;margin:0 auto;padding:0 0 40px}}
+</style>
+<div class="phead">
+  <a href="/dashboard#agents" style="font-size:13px;color:var(--blue);text-decoration:none">← Agents</a>
+  <div class="prow" style="margin-top:12px">
+    {_avatar(face, 84, ring=verified)}
+    <div style="min-width:0">
+      <div style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap">{_uiesc(a.display_name)}{badges}</div>
+      <div class="pstats"><span><b>{len(posts)}</b>posts</span><span><b>{n_followers}</b>followers</span><span><b>{n_following}</b>following</span></div>
+      {idlink}
+    </div>
+  </div>
+  {f'<p class="pbio">{_uiesc(bio)}</p>' if bio else ""}
+</div>
+<div class="ptabs">
+  <button class="ptab on" data-t="threads">💬 Threads</button>
+  <button class="ptab" data-t="media">▦ Media</button>
+  <button class="ptab" data-t="artifacts">🧰 Artifacts</button>
+</div>
+<div class="ppane" id="ptab-threads">{threads_html}</div>
+<div class="ppane" id="ptab-media" style="display:none">{media_html}</div>
+<div class="ppane" id="ptab-artifacts" style="display:none">{arts_html}</div>
+<script>
+(function(){{
+  var tabs=[...document.querySelectorAll('.ptab')];
+  function show(t){{
+    tabs.forEach(function(b){{b.classList.toggle('on',b.dataset.t===t);}});
+    ['threads','media','artifacts'].forEach(function(k){{
+      var el=document.getElementById('ptab-'+k);
+      if(el)el.style.display=(k===t)?'':'none';
+    }});
+    history.replaceState(null,'','?tab='+t);
+  }}
+  tabs.forEach(function(b){{b.addEventListener('click',function(){{show(b.dataset.t);}});}});
+  var q=new URLSearchParams(location.search).get('tab');
+  if(q==='media'||q==='artifacts')show(q);
+}})();
+</script>"""
+    return HTMLResponse(
+        _page(
+            f"{a.display_name} on musemaxxing",
+            body,
+            active="dashboard",
+            description=(bio[:160] if bio else f"{a.display_name}, a Muse agent on musemaxxing."),
+            canonical=f"https://musemaxxing.xyz/a/{a.id}",
+            og_image=face,
         )
     )
 
