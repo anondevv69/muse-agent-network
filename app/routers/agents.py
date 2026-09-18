@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -42,6 +42,23 @@ router = APIRouter(prefix="/v1/agents", tags=["agents"])
 
 admin_router = APIRouter(tags=["admin"])
 
+# Internal wallet-provisioner API (hackathon): the local provisioner cron creates
+# Dynamic embedded wallets for verified agents and writes the results back here.
+# Guarded by PROVISIONER_TOKEN (Railway env). Unset token = 403 on everything =
+# provisioning disabled. This is separate from the admin token on purpose.
+internal_router = APIRouter(tags=["internal"])
+
+PROVISIONER_TOKEN = os.environ.get("PROVISIONER_TOKEN", "")
+
+
+def _require_provisioner(request: Request):
+    token = request.headers.get("x-provisioner-token", "")
+    if not PROVISIONER_TOKEN or not token or token != PROVISIONER_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "forbidden", "message": "Provisioner token required."},
+        )
+
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
 
 
@@ -52,6 +69,102 @@ def _require_admin(request: Request):
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "forbidden", "message": "Admin token required."},
         )
+
+
+class WalletProvisionedBody(BaseModel):
+    dynamic_user_id: str = Field(min_length=1, max_length=128)
+    dynamic_wallet_id: str = Field(min_length=1, max_length=128)
+    wallet_address: str = Field(min_length=42, max_length=42)
+
+    @field_validator("wallet_address")
+    @classmethod
+    def _validate_wallet(cls, v: str) -> str:
+        return schemas._evm_address(v, "wallet_address")
+
+
+@internal_router.get("/v1/internal/provision-queue")
+def provision_queue(
+    request: Request,
+    limit: int = Query(default=25, le=100),
+    db: Session = Depends(get_db),
+):
+    """Agents needing a Dynamic embedded wallet: artifact-link verified,
+    no wallet of their own, not already provisioned. The provisioner cron
+    polls this and provisions each one idempotently."""
+    _require_provisioner(request)
+    check_rate_limit(request, "default")
+    rows = (
+        db.query(Agent)
+        .filter(
+            Agent.verification_status == "muse_verified",
+            Agent.verification_method == "artifact_link",
+            Agent.is_suspended.is_(False),
+            Agent.wallet_address.is_(None),
+            Agent.dynamic_user_id.is_(None),
+        )
+        .order_by(Agent.created_at.asc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "data": [
+            {"agent_id": str(a.id), "display_name": a.display_name}
+            for a in rows
+        ]
+    }
+
+
+@internal_router.post("/v1/internal/agents/{agent_id}/wallet-provisioned")
+def wallet_provisioned(
+    agent_id: uuid.UUID,
+    payload: WalletProvisionedBody,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Record a provisioned Dynamic embedded wallet. Idempotent: same IDs reposted
+    are a no-op; conflicting IDs or an agent-set wallet are a 409 (never silently
+    overwritten). Populating wallet_address releases the pending welcome tip."""
+    _require_provisioner(request)
+    check_rate_limit(request, "default")
+    agent = db.get(Agent, agent_id)
+    if agent is None or agent.is_suspended:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "not_found", "message": "Agent not found."},
+        )
+    address = _evm_address(payload.wallet_address, "wallet_address")
+    if agent.dynamic_user_id and agent.dynamic_user_id != payload.dynamic_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_provisioned", "message": "Agent already has a different Dynamic user."},
+        )
+    if agent.dynamic_wallet_id and agent.dynamic_wallet_id != payload.dynamic_wallet_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "already_provisioned", "message": "Agent already has a different Dynamic wallet."},
+        )
+    if agent.wallet_address and agent.wallet_address.lower() != address.lower():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "wallet_already_set", "message": "Agent already set its own wallet; not overwriting."},
+        )
+    agent.dynamic_user_id = payload.dynamic_user_id
+    agent.dynamic_wallet_id = payload.dynamic_wallet_id
+    agent.wallet_address = address
+    audit(
+        db, None, "agent.wallet_provisioned", "agent", agent.id,
+        {"dynamic_user_id": payload.dynamic_user_id,
+         "dynamic_wallet_id": payload.dynamic_wallet_id,
+         "wallet_address": address},
+    )
+    db.commit()
+    return {
+        "agent_id": str(agent.id),
+        "display_name": agent.display_name,
+        "wallet_address": agent.wallet_address,
+        "dynamic_user_id": agent.dynamic_user_id,
+        "dynamic_wallet_id": agent.dynamic_wallet_id,
+    }
 
 
 def _rotate_key(db: Session, agent: Agent, via: str = "admin") -> str:

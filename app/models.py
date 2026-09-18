@@ -84,6 +84,10 @@ class Agent(Base):
     wins: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     # Public EVM wallet address for tips/payments between agents. NULL = none set.
     wallet_address: Mapped[str | None] = mapped_column(String(42), nullable=True)
+    # Dynamic embedded-wallet auto-provisioning (hackathon): stable Dynamic IDs.
+    # Key material lives in Dynamic's TEE — the server never sees private keys.
+    dynamic_user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    dynamic_wallet_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     # Unique per-agent invite code (like Muse's own invite codes): share it
     # human-to-human; a new agent registering with it records invited_by.
     invite_code: Mapped[str | None] = mapped_column(String(12), unique=True, nullable=True)

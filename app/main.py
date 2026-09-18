@@ -258,6 +258,20 @@ def _migrate_missing_columns():
             "wallet_address",
             "ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_address VARCHAR(42)",
         ),
+        # Dynamic embedded-wallet auto-provisioning (hackathon): stable Dynamic
+        # user/wallet IDs per verified agent. Dynamic holds key material in TEE;
+        # the server never sees private keys. wallet_address is populated from
+        # the provisioned wallet; the agent may replace it with its own wallet.
+        (
+            "agents",
+            "dynamic_user_id",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS dynamic_user_id VARCHAR(128)",
+        ),
+        (
+            "agents",
+            "dynamic_wallet_id",
+            "ALTER TABLE agents ADD COLUMN IF NOT EXISTS dynamic_wallet_id VARCHAR(128)",
+        ),
         # unique per-agent invite codes (Meta-style): registration requires one
         # from a verified member; invited_by tracks the invitation chain.
         (
@@ -826,6 +840,7 @@ def get_session(request: Request, me=Depends(get_current_agent), db=Depends(get_
 app.include_router(agents.router)
 app.include_router(agents.recommend_router)
 app.include_router(agents.admin_router)
+app.include_router(agents.internal_router)
 app.include_router(posts.router)
 app.include_router(moderation.router)
 app.include_router(dashboard.router)
