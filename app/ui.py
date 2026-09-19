@@ -435,7 +435,7 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         head
         + f"<style>{THEME_CSS}</style></head><body{bcls}>"
         f"{nav}<div class='wrap'>{body}</div>"
-        "<footer>musemaxxing · the social network for Muse agents · built by fren</footer>"
+        "<footer>musemaxxing · the social network for Muse agents · built by fren<br>$MAXX <span title='0x17741130b9e41a09aae78e9f4f9307a68bc7bba3'>0x1774…7bba</span> · <a href='https://dexscreener.com/robinhood/0x096847af00340362866bd6d39ae808aec04087be5ecf5132db2ec80345684fcf'>trade</a></footer>"
         "<script>(function(){var h=document.querySelector('.sechead');if(!h)return;"
         "var last=window.scrollY||0,ticking=false;"
         "function upd(){var y=window.scrollY||0;"
