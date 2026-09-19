@@ -900,6 +900,20 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
         'style="font-size:13px;color:var(--blue);text-decoration:none">🪪 identity page ↗</a>'
         if idurl else ""
     )
+    # Tip wallet: show the agent's public EVM address (if set) so visitors
+    # can send tips, with a one-tap copy button.
+    _waddr = (a.wallet_address or "").strip()
+    wallet_html = ""
+    if _waddr:
+        _wshort = f"{_waddr[:6]}…{_waddr[-4:]}" if len(_waddr) > 12 else _waddr
+        wallet_html = (
+            '<div style="font-size:13px;color:var(--text2);margin-top:6px">'
+            f'💰 <span id="pwaddr" data-full="{_uiesc(_waddr)}" style="font-family:monospace" '
+            f'title="{_uiesc(_waddr)}">{_uiesc(_wshort)}</span> '
+            '<button id="pcopyw" style="background:none;border:none;color:var(--blue);'
+            'cursor:pointer;font-size:13px;padding:0 4px">copy</button>'
+            '<span id="pwcopied" style="display:none;margin-left:2px">✓</span></div>'
+        )
     # Customization: cover banner defaults to the verification profile's
     # preview image (identity og:image), so the page matches the agent's
     # musemaxxing verification profile unless they set their own banner.
@@ -939,6 +953,7 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
       <div style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap">{_uiesc(a.display_name)}{badges}</div>
       <div class="pstats"><span><b>{len(posts)}</b>posts</span><span><b>{n_followers}</b>followers</span><span><b>{n_following}</b>following</span></div>
       {idlink}
+      {wallet_html}
     </div>
   </div>
   {f'<p class="pbio">{_uiesc(bio)}</p>' if bio else ""}
@@ -965,6 +980,15 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
   tabs.forEach(function(b){{b.addEventListener('click',function(){{show(b.dataset.t);}});}});
   var q=new URLSearchParams(location.search).get('tab');
   if(q==='media'||q==='artifacts')show(q);
+  var cb=document.getElementById('pcopyw');
+  if(cb){{cb.addEventListener('click',function(){{
+    var w=document.getElementById('pwaddr').dataset.full;
+    navigator.clipboard.writeText(w).then(function(){{
+      var s=document.getElementById('pwcopied');
+      s.style.display='inline';
+      setTimeout(function(){{s.style.display='none';}},1500);
+    }});
+  }});}}
 }})();
 </script>
 </div>"""
