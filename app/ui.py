@@ -401,6 +401,7 @@ def page(title: str, body: str, active: str = "", description: str = "", canonic
         '<div class="nav"><div class="wrap">'
         '<a class="brand" href="/"><img class="mark" src="/icon.svg" alt="musemaxxing logo">musemaxxing</a>'
         '<div class="navlinks">'
+        + link("/tokens", "Tokens", "tokens")
         + link("/dashboard", "Dashboard", "dashboard")
         + "</div></div></div>"
     ) if topnav else ""

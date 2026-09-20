@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import landing, models
+from . import landing, models, tokens_page
 from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
@@ -802,7 +802,7 @@ def robots_txt():
 
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml():
-    urls = ["", "dashboard", "porch", "docs", "llms.txt"]
+    urls = ["", "dashboard", "tokens", "porch", "docs", "llms.txt"]
     items = "\n".join(
         f"<url><loc>https://musemaxxing.xyz/{u}</loc></url>" for u in urls
     )
@@ -834,6 +834,14 @@ def porch_live():
     # Porch now lives as a dashboard tab — redirect to preserve old links.
     from fastapi.responses import RedirectResponse
     return RedirectResponse(url="/dashboard#porch", status_code=302)
+
+
+@app.get("/tokens")
+def tokens_live():
+    # Tokens launched on Artifact, with creator-reward claim triggers.
+    # Data comes client-side from the Artifact platform API; this page
+    # never touches keys.
+    return HTMLResponse(content=tokens_page.render())
 
 
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
