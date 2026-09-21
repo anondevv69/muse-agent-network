@@ -29,13 +29,15 @@ BODY = """<style>
 </style>
 <div class="tabsec">
 <h2>Tokens</h2>
-<p class="toksub">Launched on <b>Artifact</b> — the Muse token launchpad. Every token pairs with META and splits creator rewards 95/5: 95% to the creator, 5% to the Artifact treasury. Rewards accrue with trading volume.</p>
+<p class="toksub">Launched on <b>Artifact</b> — the Muse token launchpad. Every token pairs with WETH on Base and splits creator rewards 95/5: 95% to the creator, 5% to the Artifact treasury. Rewards accrue with trading volume.</p>
 <p class="toksub dim">Claiming is permissionless: anyone can press the button, but funds always land in the creator wallet recorded at launch. The treasury pays the gas — no wallet connection needed.</p>
 <div id="tokgrid"><p class="toksub dim">loading…</p></div>
 </div>
 <script>
 var TAPI="__ARTIFACT_API__";
 var TEX="__EXPLORER__";
+var TBASE="https://basescan.org";
+function tex(t){return t.chain_id===8453?TBASE:TEX;}
 var tLastJson="";
 var tClaimCache={};
 function tesc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -45,16 +47,18 @@ function tokCard(t){
   var live=t.status==="confirmed";
   var badge=live?'<span class="pill">Live</span>':(t.status==="failed"?'<span class="pill">Failed</span>':'<span class="pill">'+tesc(t.status)+'…</span>');
   var img=t.image_url?'<img class="timg" src="'+tesc(t.image_url)+'" alt="" loading="lazy">':"";
-  var links=(live&&t.token_address)?'<div class="tmeta"><b>token</b> <a href="'+TEX+"/address/"+t.token_address+'" target="_blank" rel="noopener">'+tesc(tshort(t.token_address))+"</a>"+(t.tx_hash?' · <a href="'+TEX+"/tx/"+t.tx_hash+'" target="_blank" rel="noopener">tx ↗</a>':"")+"</div>":"";
-  var claim=(live&&t.launch_rail==="clanker_v4"&&t.token_address)?'<div class="tclaim" data-id="'+tesc(t.deploy_id)+'" data-ticker="'+tesc(t.ticker)+'"><span>checking rewards…</span></div>':"";
+  var links=(live&&t.token_address)?'<div class="tmeta"><b>token</b> <a href="'+tex(t)+"/address/"+t.token_address+'" target="_blank" rel="noopener">'+tesc(tshort(t.token_address))+"</a>"+(t.tx_hash?' · <a href="'+tex(t)+"/tx/"+t.tx_hash+'" target="_blank" rel="noopener">tx ↗</a>':"")+"</div>":"";
+  var claim=(live&&(t.launch_rail==="clanker_v4"||t.launch_rail==="clanker_v4_base")&&t.token_address)?'<div class="tclaim" data-id="'+tesc(t.deploy_id)+'" data-ticker="'+tesc(t.ticker)+'" data-ex="'+tex(t)+'"><span>checking rewards…</span></div>':"";
   var err=(t.status==="failed"&&t.error)?'<div class="tmeta">'+tesc(t.error)+"</div>":"";
   return '<div class="tok">'+img+'<div class="thead"><span class="tname">'+tesc(t.name)+'</span><span class="ttick">$'+tesc(t.ticker)+"</span>"+badge+"</div>"+links+err+claim+"</div>";
 }
 function tRenderClaim(box,d){
-  var c=d.claimable_wei||{token:"0",meta:"0"};
-  var dust=(c.token==="0"||BigInt(c.token)<10n**16n)&&(c.meta==="0"||BigInt(c.meta)<10n**16n);
+  var c=d.claimable_wei||{token:"0"};
+  var pk=c.weth!==undefined?"weth":"meta";
+  var pl=c.weth!==undefined?"WETH":"META";
+  var dust=(c.token==="0"||BigInt(c.token)<10n**16n)&&(c[pk]==="0"||BigInt(c[pk])<10n**16n);
   var ticker=tesc(box.getAttribute("data-ticker")||"TOKEN");
-  box.innerHTML="<b>rewards</b> "+tFmtWei(c.token)+" "+ticker+" + "+tFmtWei(c.meta)+" META → "+tesc(tshort(d.recipient))+"<br>"+
+  box.innerHTML="<b>rewards</b> "+tFmtWei(c.token)+" "+ticker+" + "+tFmtWei(c[pk])+" "+pl+" → "+tesc(tshort(d.recipient))+"<br>"+
     (dust?'<span>accrues with trading volume — nothing to claim yet</span>':'<button class="tclaimbtn" data-id="'+tesc(d.deploy_id)+'">Claim rewards</button>');
   var btn=box.querySelector(".tclaimbtn");
   if(btn)btn.addEventListener("click",function(){tDoClaim(d.deploy_id,btn,box);});
@@ -81,7 +85,8 @@ async function tDoClaim(id,btn,box){
     var r=await fetch(TAPI+"/v1/tokens/"+encodeURIComponent(id)+"/claim",{method:"POST"});
     var j=await r.json();
     if(r.ok&&j.claimed){
-      var links=(j.tx_hashes||[]).map(function(h){return '<a href="'+TEX+"/tx/"+h+'" target="_blank" rel="noopener">view ↗</a>';}).join(" ");
+      var ex=box.getAttribute("data-ex")||TBASE;
+      var links=(j.tx_hashes||[]).map(function(h){return '<a href="'+ex+"/tx/"+h+'" target="_blank" rel="noopener">view ↗</a>';}).join(" ");
       box.innerHTML='<span class="ok"><b>claimed ✓</b> rewards sent to '+tesc(tshort(j.recipient))+"</span><br>"+links;
       delete tClaimCache[id];
     }else if(r.ok&&j.reason==="dust"){
