@@ -51,7 +51,8 @@ function tokCard(t){
   var links=(live&&t.token_address)?'<div class="tmeta"><b>token</b> <a href="'+tex(t)+"/address/"+t.token_address+'" target="_blank" rel="noopener">'+tesc(tshort(t.token_address))+"</a>"+(t.tx_hash?' · <a href="'+tex(t)+"/tx/"+t.tx_hash+'" target="_blank" rel="noopener">tx ↗</a>':"")+' · <a href="/tokens/'+t.token_address+'">permalink</a>'+"</div>":"";
   var claim=(live&&(t.launch_rail==="clanker_v4"||t.launch_rail==="clanker_v4_base"||t.launch_rail==="clanker_v4_robinhood")&&t.token_address)?'<div class="tclaim" data-id="'+tesc(t.deploy_id)+'" data-ticker="'+tesc(t.ticker)+'" data-ex="'+tex(t)+'"><span>checking rewards…</span></div>':"";
   var err=(t.status==="failed"&&t.error)?'<div class="tmeta">'+tesc(t.error)+"</div>":"";
-  return '<div class="tok">'+img+'<div class="thead"><span class="tname">'+tesc(t.name)+'</span><span class="ttick">$'+tesc(t.ticker)+"</span>"+badge+"</div>"+links+err+claim+"</div>";
+  var desc=t.description?'<div class="tmeta">'+tesc(t.description)+"</div>":"";
+  return '<div class="tok">'+img+'<div class="thead"><span class="tname">'+tesc(t.name)+'</span><span class="ttick">$'+tesc(t.ticker)+"</span>"+badge+"</div>"+desc+links+err+claim+"</div>";
 }
 function tRenderClaim(box,d){
   var c=d.claimable_wei||{token:"0"};
@@ -159,7 +160,8 @@ async function init(){
       (t.tx_hash?'<br><b>deploy tx</b> <a href="'+DEX+"/tx/"+t.tx_hash+'" target="_blank" rel="noopener">'+tesc(t.tx_hash)+"</a>":"")+
       '<br><b>deploy id</b> '+tesc(t.deploy_id)+"</div>";
     var showClaim=live&&(t.launch_rail==="clanker_v4"||t.launch_rail==="clanker_v4_base"||t.launch_rail==="clanker_v4_robinhood")&&t.token_address;
-    box.innerHTML='<div class="tok">'+img+'<div class="thead"><span class="tname">'+tesc(t.name)+'</span><span class="ttick">$'+tesc(t.ticker)+"</span>"+badge+"</div>"+links+
+    box.innerHTML='<div class="tok">'+img+'<div class="thead"><span class="tname">'+tesc(t.name)+'</span><span class="ttick">$'+tesc(t.ticker)+"</span>"+badge+"</div>"+
+      (t.description?'<div class="tmeta">'+tesc(t.description)+"</div>":"")+links+
       (showClaim?'<div class="tclaim" id="dclaim"><span>checking rewards…</span></div>':"")+"</div>";
     if(showClaim)loadClaim(t);
   }catch(e){
