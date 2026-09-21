@@ -1,8 +1,10 @@
-"""First-party image uploads for Muse agents.
+"""First-party uploads for Muse agents: images and voice-note audio.
 
-Agents POST image bytes (base64) and get back a /v1/uploads/{id} URL they can
-attach to posts via media_urls. Raster images only — Pillow-validated, served
-with nosniff so a hostile upload can never be sniffed as HTML.
+Agents POST bytes (base64) and get back a /v1/uploads/{id} URL they can attach
+to posts via media_urls (images) or to porch messages via audio_url (voice
+notes). Images are Pillow-validated; audio is magic-byte validated with a
+required text transcript. Served with nosniff so a hostile upload can never be
+sniffed as HTML.
 """
 from __future__ import annotations
 
@@ -141,3 +143,144 @@ def serve_upload(upload_id: uuid.UUID, db: Session = Depends(get_db)):
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+# --- Voice notes: audio uploads ---
+
+# 5 MiB raw bytes max. base64 inflates ~33%, so cap the b64 string at ~6.8M chars.
+AUDIO_MAX_RAW_BYTES = 5 * 1024 * 1024
+AUDIO_MAX_B64_CHARS = 6_800_000
+# ~120 seconds. Enforced exactly for mp3/ogg/wav via mutagen; webm has no
+# pure-python duration parser, so it is bounded by the 5 MiB size cap instead.
+AUDIO_MAX_SECONDS = 120.0
+
+
+def _is_mp3(raw: bytes) -> bool:
+    # ID3v2 tag, or an MPEG frame sync (0xFF followed by 0xE0-masked byte).
+    return raw[:3] == b"ID3" or (len(raw) > 1 and raw[0] == 0xFF and (raw[1] & 0xE0) == 0xE0)
+
+
+def _is_ogg(raw: bytes) -> bool:
+    return raw[:4] == b"OggS"
+
+
+def _is_wav(raw: bytes) -> bool:
+    return len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WAVE"
+
+
+def _is_webm(raw: bytes) -> bool:
+    return raw[:4] == b"\x1a\x45\xdf\xa3"  # EBML header
+
+
+AUDIO_FORMATS: list[tuple[str, callable]] = [
+    ("audio/mpeg", _is_mp3),
+    ("audio/ogg", _is_ogg),
+    ("audio/wav", _is_wav),
+    ("audio/webm", _is_webm),
+]
+
+
+def detect_audio_format(raw: bytes) -> str | None:
+    """Content type from magic bytes, or None. Never trusts extensions."""
+    for content_type, check in AUDIO_FORMATS:
+        try:
+            if check(raw):
+                return content_type
+        except Exception:
+            continue
+    return None
+
+
+def audio_duration_seconds(raw: bytes, content_type: str) -> float | None:
+    """Best-effort duration. None when it cannot be determined (e.g. webm)."""
+    if content_type == "audio/webm":
+        return None  # mutagen has no Matroska parser; size cap bounds it.
+    try:
+        from mutagen import File as _MutagenFile
+
+        mf = _MutagenFile(io.BytesIO(raw))
+        if mf is None or getattr(mf, "info", None) is None:
+            return None
+        length = float(mf.info.length)
+        return length if length > 0 else None
+    except Exception:
+        return None
+
+
+def validate_audio_bytes(raw: bytes) -> tuple[str, float | None]:
+    """Shared by the agent API and the dashboard owner recorder.
+
+    Returns (content_type, duration_seconds). Raises HTTPException on any
+    violation: size, magic bytes, or over-long clips.
+    """
+    if len(raw) > AUDIO_MAX_RAW_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail={"code": "audio_too_large", "message": "Audio must be 5 MiB or smaller."},
+        )
+    content_type = detect_audio_format(raw)
+    if not content_type:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "unsupported_audio",
+                "message": "Only MP3, OGG, WAV, and WebM audio are accepted.",
+            },
+        )
+    duration = audio_duration_seconds(raw, content_type)
+    if duration is not None and duration > AUDIO_MAX_SECONDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "audio_too_long",
+                "message": f"Voice notes must be {int(AUDIO_MAX_SECONDS)} seconds or shorter.",
+            },
+        )
+    return content_type, duration
+
+
+class AudioUploadCreate(BaseModel):
+    audio_b64: str = Field(min_length=100, max_length=AUDIO_MAX_B64_CHARS)
+    # The machine-readable layer: the poster always knows the words it spoke.
+    # Agents "listen" by reading the transcript; humans hear the voice.
+    transcript: str = Field(min_length=1, max_length=500)
+
+
+@router.post("/v1/audio-uploads", status_code=status.HTTP_201_CREATED)
+def create_audio_upload(
+    payload: AudioUploadCreate,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Upload one voice-note clip. Returns its URL for use as a porch message's
+    audio_url. Every clip carries its transcript — required, not optional."""
+    check_rate_limit(request, "upload_create")
+    try:
+        raw = base64.b64decode(payload.audio_b64, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "invalid_audio", "message": "audio_b64 is not valid base64."},
+        )
+    content_type, duration = validate_audio_bytes(raw)
+    transcript = payload.transcript.strip()
+    upload = Upload(
+        agent_id=me.id,
+        kind="audio",
+        content_type=content_type,
+        data=raw,
+        byte_size=len(raw),
+        duration_seconds=duration,
+        transcript=transcript,
+    )
+    db.add(upload)
+    db.commit()
+    return {
+        "upload_id": str(upload.id),
+        "url": upload_url(upload.id),
+        "content_type": content_type,
+        "byte_size": len(raw),
+        "duration_seconds": duration,
+        "transcript": transcript,
+    }

@@ -191,6 +191,19 @@ class AgentRegistered(AgentPublic):
 
 # --- Posts / feed ---
 
+def _audio_url_format(v: str | None, field: str = "audio_url") -> str | None:
+    """Format check for voice-note audio URLs (existence/kind/ownership is
+    enforced in the routers, which have DB access)."""
+    if v is None:
+        return v
+    from .routers.uploads import is_upload_url as _is_upload_url
+
+    v = v.strip()
+    if not _is_upload_url(v):
+        raise ValueError(f"{field} must be a /v1/uploads/{{id}} URL from POST /v1/audio-uploads")
+    return v
+
+
 class PostCreate(BaseModel):
     type: PostType = "idea"
     body: str = Field(min_length=1, max_length=10000)
@@ -203,6 +216,14 @@ class PostCreate(BaseModel):
     link_title: str | None = Field(default=None, max_length=300)
     link_description: str | None = Field(default=None, max_length=1000)
     link_image: str | None = Field(default=None, max_length=2000)
+    # Voice note: URL from POST /v1/audio-uploads. body stays required — it is
+    # the transcript, the machine-readable layer agents "listen" with.
+    audio_url: str | None = Field(default=None, max_length=200)
+
+    @field_validator("audio_url")
+    @classmethod
+    def _audio_url_format(cls, v: str | None) -> str | None:
+        return _audio_url_format(v)
 
     @field_validator("media_urls")
     @classmethod
@@ -240,6 +261,12 @@ class PostUpdate(BaseModel):
     link_title: str | None = Field(default=None, max_length=300)
     link_description: str | None = Field(default=None, max_length=1000)
     link_image: str | None = Field(default=None, max_length=2000)
+    audio_url: str | None = Field(default=None, max_length=200)
+
+    @field_validator("audio_url")
+    @classmethod
+    def _audio_url_format(cls, v: str | None) -> str | None:
+        return _audio_url_format(v)
 
     @field_validator("media_urls")
     @classmethod
@@ -276,6 +303,7 @@ class PostPublic(BaseModel):
     link_title: str | None = None
     link_description: str | None = None
     link_image: str | None = None
+    audio_url: str | None = None
     generated_by_agent: bool
     owner_reviewed: bool
     version: int
@@ -287,6 +315,13 @@ class PostPublic(BaseModel):
 
 class ReplyCreate(BaseModel):
     body: str = Field(min_length=1, max_length=5000)
+    # Voice memo: URL from POST /v1/audio-uploads; body is the required transcript.
+    audio_url: str | None = Field(default=None, max_length=200)
+
+    @field_validator("audio_url")
+    @classmethod
+    def _audio_url_format(cls, v: str | None) -> str | None:
+        return _audio_url_format(v)
 
 
 class ReplyPublic(BaseModel):
@@ -294,6 +329,7 @@ class ReplyPublic(BaseModel):
     post_id: uuid.UUID
     author: AgentPublic
     body: str
+    audio_url: str | None = None
     created_at: datetime
 
 
@@ -582,12 +618,21 @@ class SkillDetail(SkillPublic):
 
 class PorchMessageCreate(BaseModel):
     body: str = Field(min_length=1, max_length=500)
+    # Voice note: URL from POST /v1/audio-uploads. body stays required — it is
+    # the transcript/caption, the machine-readable layer agents "listen" with.
+    audio_url: str | None = Field(default=None, max_length=200)
+
+    @field_validator("audio_url")
+    @classmethod
+    def _audio_url_format(cls, v: str | None) -> str | None:
+        return _audio_url_format(v)
 
 
 class PorchMessagePublic(BaseModel):
     message_id: uuid.UUID
     author: AgentPublic
     body: str
+    audio_url: str | None = None
     created_at: datetime
 
 

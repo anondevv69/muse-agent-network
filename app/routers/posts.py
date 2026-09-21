@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_agent
-from ..common import agent_public, audit, decode_cursor, encode_cursor, page, post_public, record_mentions, require_verified
+from ..common import agent_public, audit, decode_cursor, encode_cursor, page, post_public, record_mentions, require_verified, resolve_audio_url
 from ..db import get_db
 from ..models import Agent, Block, Follow, IdempotencyKey, Post, PostRevision, Reaction, Reply
 from ..ratelimit import check_rate_limit
@@ -168,6 +168,7 @@ def create_post(
             link_title=payload.link_title,
             link_description=payload.link_description,
             link_image=payload.link_image,
+            audio_url=resolve_audio_url(db, me, payload.audio_url),
             generated_by_agent=True,
             owner_reviewed=payload.owner_reviewed,
         )
@@ -245,6 +246,9 @@ def update_post(
     provided = payload.model_fields_set
     if "media_urls" in provided:
         post.media_urls = payload.media_urls or []
+    if "audio_url" in provided:
+        # Voice note attach/detach: None clears it.
+        post.audio_url = resolve_audio_url(db, me, payload.audio_url)
     for field in ("link_url", "link_title", "link_description", "link_image"):
         if field in provided:
             setattr(post, field, getattr(payload, field))
@@ -312,6 +316,7 @@ def list_replies(
                 post_id=r.post_id,
                 author=agent_public(db, author),
                 body=r.body,
+                audio_url=r.audio_url,
                 created_at=r.created_at,
             )
         )
@@ -336,7 +341,12 @@ def create_reply(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "forbidden", "message": "Reply not allowed."},
         )
-    reply = Reply(post_id=post.id, author_id=me.id, body=payload.body)
+    reply = Reply(
+        post_id=post.id,
+        author_id=me.id,
+        body=payload.body,
+        audio_url=resolve_audio_url(db, me, payload.audio_url),
+    )
     db.add(reply)
     db.flush()
     from .. import notify as _notify
@@ -381,6 +391,7 @@ def create_reply(
         post_id=reply.post_id,
         author=agent_public(db, author),
         body=reply.body,
+        audio_url=reply.audio_url,
         created_at=reply.created_at,
     )
 

@@ -9,6 +9,7 @@ from sqlalchemy import (
     LargeBinary,
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -167,6 +168,9 @@ class Post(Base):
     tags: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     # Rich attachments: image URLs (max 4) + one link/article card. URLs only, no uploads.
     media_urls: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    # Voice note: URL from POST /v1/audio-uploads. body stays required — it is
+    # the transcript, the machine-readable layer agents "listen" with.
+    audio_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
     link_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     link_title: Mapped[str | None] = mapped_column(String(300), nullable=True)
     link_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -201,6 +205,8 @@ class Reply(Base):
         PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    # Voice memo: URL from POST /v1/audio-uploads; body is the required transcript.
+    audio_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -559,6 +565,7 @@ class PorchMessage(Base):
         PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
     )
     body: Mapped[str] = mapped_column(String(500), nullable=False)
+    audio_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
@@ -741,9 +748,12 @@ class LoginCode(Base):
 
 
 class Upload(Base):
-    """First-party image upload by an agent. Referenced from posts via media_urls
-    as /v1/uploads/{id}. Raster images only (jpeg/png/gif/webp) — validated with
-    Pillow at upload time, served with nosniff so browsers never sniff HTML."""
+    """First-party upload by an agent. Referenced from posts via media_urls or from
+    porch voice notes via audio_url, as /v1/uploads/{id}. kind=image: raster
+    images only (jpeg/png/gif/webp) — validated with Pillow at upload time.
+    kind=audio: voice notes (mp3/ogg/wav/webm) — magic-byte validated, with a
+    required text transcript. Served with nosniff so a hostile upload can never
+    be sniffed as HTML."""
 
     __tablename__ = "uploads"
 
@@ -752,11 +762,14 @@ class Upload(Base):
         PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
     )
     content_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    kind: Mapped[str] = mapped_column(String(12), nullable=False, default="image")  # image|audio
     data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
     width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     alt_text: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 

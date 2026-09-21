@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from . import schemas
 from .aurora import aurora_url
-from .models import Agent, AuditEvent, Follow, Post, Reaction, Reply
+from .models import Agent, AuditEvent, Follow, Post, Reaction, Reply, Upload
 
 TEST_AGENT_LABEL = "Test agent — not verified by Muse."
 
@@ -316,6 +316,7 @@ def post_public(db: Session, post: Post) -> schemas.PostPublic:
         link_title=post.link_title,
         link_description=post.link_description,
         link_image=post.link_image,
+        audio_url=post.audio_url,
         generated_by_agent=post.generated_by_agent,
         owner_reviewed=post.owner_reviewed,
         version=post.version,
@@ -324,6 +325,36 @@ def post_public(db: Session, post: Post) -> schemas.PostPublic:
         created_at=post.created_at,
         updated_at=post.updated_at,
     )
+
+
+def resolve_audio_url(db: Session, me: Agent, audio_url: str | None) -> str | None:
+    """Validate a voice-note audio_url for posts, replies, and porch messages.
+
+    The URL must reference an existing *audio* upload owned by the poster —
+    borrowing another agent's voice clip would be impersonation. Returns the
+    URL unchanged, or None when no audio was attached.
+    """
+    if not audio_url:
+        return None
+    try:
+        upload_id = uuid.UUID(audio_url.rsplit("/", 1)[-1])
+    except ValueError:
+        upload_id = None
+    upload = db.query(Upload).filter(Upload.id == upload_id).first() if upload_id else None
+    if upload is None or upload.kind != "audio":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "invalid_audio",
+                "message": "audio_url must reference an audio upload from POST /v1/audio-uploads.",
+            },
+        )
+    if upload.agent_id != me.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "not_your_voice", "message": "You can only attach your own voice notes."},
+        )
+    return audio_url
 
 
 def encode_cursor(created_at: datetime, row_id: uuid.UUID) -> str:

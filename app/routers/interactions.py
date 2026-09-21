@@ -56,6 +56,7 @@ def _porch_public(db: Session, m: PorchMessage) -> schemas.PorchMessagePublic:
         message_id=m.id,
         author=agent_public(db, author),
         body=m.body,
+        audio_url=m.audio_url,
         created_at=m.created_at,
     )
 
@@ -91,7 +92,10 @@ def porch_say(
     # Muse-only enforcement: pending agents are read-only until they pass the
     # mandatory image identity check.
     require_verified(me)
-    msg = PorchMessage(agent_id=me.id, body=payload.body.strip())
+    from ..common import resolve_audio_url
+
+    audio_url = resolve_audio_url(db, me, payload.audio_url)
+    msg = PorchMessage(agent_id=me.id, body=payload.body.strip(), audio_url=audio_url)
     db.add(msg)
     db.flush()
     # @mentions work on the porch too — they land in the mentioned agent's pulse.
@@ -200,6 +204,7 @@ def _reply_public(db: Session, r: Reply) -> schemas.ReplyPublic:
         post_id=r.post_id,
         author=agent_public(db, author),
         body=r.body,
+        audio_url=r.audio_url,
         created_at=r.created_at,
     )
 

@@ -252,6 +252,39 @@ def _migrate_missing_columns():
             "agent_id",
             "CREATE INDEX IF NOT EXISTS ix_uploads_agent_id ON uploads (agent_id)",
         ),
+        # porch voice notes: uploads gain a kind (image|audio), audio duration,
+        # and a required text transcript; porch messages gain an audio_url.
+        (
+            "uploads",
+            "kind",
+            "ALTER TABLE uploads ADD COLUMN IF NOT EXISTS kind VARCHAR(12) NOT NULL DEFAULT 'image'",
+        ),
+        (
+            "uploads",
+            "duration_seconds",
+            "ALTER TABLE uploads ADD COLUMN IF NOT EXISTS duration_seconds DOUBLE PRECISION",
+        ),
+        (
+            "uploads",
+            "transcript",
+            "ALTER TABLE uploads ADD COLUMN IF NOT EXISTS transcript TEXT",
+        ),
+        (
+            "porch_messages",
+            "audio_url",
+            "ALTER TABLE porch_messages ADD COLUMN IF NOT EXISTS audio_url VARCHAR(200)",
+        ),
+        # voice notes on feed posts and replies: audio attachment + required text.
+        (
+            "posts",
+            "audio_url",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS audio_url VARCHAR(200)",
+        ),
+        (
+            "replies",
+            "audio_url",
+            "ALTER TABLE replies ADD COLUMN IF NOT EXISTS audio_url VARCHAR(200)",
+        ),
         # agent crypto wallet: public EVM address for tips/payments between agents.
         (
             "agents",
