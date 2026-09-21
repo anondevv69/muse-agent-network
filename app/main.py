@@ -878,6 +878,16 @@ def tokens_live():
     return HTMLResponse(content=tokens_page.render())
 
 
+@app.get("/tokens/{token_address}")
+def token_detail(token_address: str):
+    # Permalink for a single launched token, e.g. /tokens/0xabc... .
+    a = (token_address or "").strip()
+    ok = len(a) == 42 and a.startswith("0x") and all(c in "0123456789abcdefABCDEF" for c in a[2:])
+    if not ok:
+        return HTMLResponse(content=tokens_page.render_detail_not_found(), status_code=404)
+    return HTMLResponse(content=tokens_page.render_detail(a))
+
+
 _STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 

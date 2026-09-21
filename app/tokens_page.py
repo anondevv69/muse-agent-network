@@ -48,8 +48,8 @@ function tokCard(t){
   var live=t.status==="confirmed";
   var badge=live?'<span class="pill">Live</span>':(t.status==="failed"?'<span class="pill">Failed</span>':'<span class="pill">'+tesc(t.status)+'…</span>');
   var img=t.image_url?'<img class="timg" src="'+tesc(t.image_url)+'" alt="" loading="lazy">':"";
-  var links=(live&&t.token_address)?'<div class="tmeta"><b>token</b> <a href="'+tex(t)+"/address/"+t.token_address+'" target="_blank" rel="noopener">'+tesc(tshort(t.token_address))+"</a>"+(t.tx_hash?' · <a href="'+tex(t)+"/tx/"+t.tx_hash+'" target="_blank" rel="noopener">tx ↗</a>':"")+"</div>":"";
-  var claim=(live&&(t.launch_rail==="clanker_v4"||t.launch_rail==="clanker_v4_base")&&t.token_address)?'<div class="tclaim" data-id="'+tesc(t.deploy_id)+'" data-ticker="'+tesc(t.ticker)+'" data-ex="'+tex(t)+'"><span>checking rewards…</span></div>':"";
+  var links=(live&&t.token_address)?'<div class="tmeta"><b>token</b> <a href="'+tex(t)+"/address/"+t.token_address+'" target="_blank" rel="noopener">'+tesc(tshort(t.token_address))+"</a>"+(t.tx_hash?' · <a href="'+tex(t)+"/tx/"+t.tx_hash+'" target="_blank" rel="noopener">tx ↗</a>':"")+' · <a href="/tokens/'+t.token_address+'">permalink</a>'+"</div>":"";
+  var claim=(live&&(t.launch_rail==="clanker_v4"||t.launch_rail==="clanker_v4_base"||t.launch_rail==="clanker_v4_robinhood")&&t.token_address)?'<div class="tclaim" data-id="'+tesc(t.deploy_id)+'" data-ticker="'+tesc(t.ticker)+'" data-ex="'+tex(t)+'"><span>checking rewards…</span></div>':"";
   var err=(t.status==="failed"&&t.error)?'<div class="tmeta">'+tesc(t.error)+"</div>":"";
   return '<div class="tok">'+img+'<div class="thead"><span class="tname">'+tesc(t.name)+'</span><span class="ttick">$'+tesc(t.ticker)+"</span>"+badge+"</div>"+links+err+claim+"</div>";
 }
@@ -131,3 +131,105 @@ def render() -> str:
         description="Tokens launched on Artifact, the Muse token launchpad. See what's deployed and trigger creator-reward claims.",
         canonical="https://musemaxxing.xyz/tokens",
     )
+
+
+DETAIL_SCRIPT = """<script>
+var TAPI="__ARTIFACT_API__";
+var ADDR="__ADDRESS__";
+var TEX="https://robinhoodchain.blockscout.com";
+var TBASE="https://basescan.org";
+function tesc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function tshort(a){return a?a.slice(0,6)+"…"+a.slice(-4):"";}
+function tFmtWei(w){try{var n=Number(BigInt(w))/1e18;if(n===0)return "0";return n<0.0001?"<0.0001":n.toFixed(4).replace(/\\.?0+$/,"");}catch(e){return "?";}}
+function tex(t){return t.chain_id===8453?TBASE:TEX;}
+var DEX="";
+async function init(){
+  var box=document.getElementById("tokdetail");
+  try{
+    var r=await fetch(TAPI+"/v1/tokens",{cache:"no-store"});
+    var ts=(await r.json()).tokens||[];
+    var t=null;
+    for(var i=0;i<ts.length;i++){if(((ts[i].token_address||"").toLowerCase())===ADDR){t=ts[i];break;}}
+    if(!t){box.innerHTML='<p class="toksub dim">Token not found.</p>';return;}
+    DEX=tex(t);
+    var live=t.status==="confirmed";
+    var badge=live?'<span class="pill">Live</span>':(t.status==="failed"?'<span class="pill">Failed</span>':'<span class="pill">'+tesc(t.status)+'…</span>');
+    var img=t.image_url?'<img class="timg" src="'+tesc(t.image_url)+'" alt="" loading="lazy">':"";
+    var links='<div class="tmeta"><b>token</b> <a href="'+DEX+"/address/"+t.token_address+'" target="_blank" rel="noopener">'+tesc(t.token_address)+"</a>"+
+      (t.tx_hash?'<br><b>deploy tx</b> <a href="'+DEX+"/tx/"+t.tx_hash+'" target="_blank" rel="noopener">'+tesc(t.tx_hash)+"</a>":"")+
+      '<br><b>deploy id</b> '+tesc(t.deploy_id)+"</div>";
+    var showClaim=live&&(t.launch_rail==="clanker_v4"||t.launch_rail==="clanker_v4_base"||t.launch_rail==="clanker_v4_robinhood")&&t.token_address;
+    box.innerHTML='<div class="tok">'+img+'<div class="thead"><span class="tname">'+tesc(t.name)+'</span><span class="ttick">$'+tesc(t.ticker)+"</span>"+badge+"</div>"+links+
+      (showClaim?'<div class="tclaim" id="dclaim"><span>checking rewards…</span></div>':"")+"</div>";
+    if(showClaim)loadClaim(t);
+  }catch(e){
+    box.innerHTML='<p class="toksub dim">Could not load token — retrying…</p>';
+    setTimeout(init,15000);
+  }
+}
+async function loadClaim(t){
+  var box=document.getElementById("dclaim");if(!box)return;
+  try{
+    var r=await fetch(TAPI+"/v1/tokens/"+encodeURIComponent(t.deploy_id)+"/claimable",{cache:"no-store"});
+    if(!r.ok)throw new Error(r.status);
+    var d=await r.json();
+    var c=d.claimable_wei||{token:"0"};
+    var pk=c.weth!==undefined?"weth":"meta";
+    var pl=c.weth!==undefined?"WETH":"META";
+    var dust=(c.token==="0"||BigInt(c.token)<10n**16n)&&(c[pk]==="0"||BigInt(c[pk])<10n**16n);
+    box.innerHTML="<b>rewards</b> "+tFmtWei(c.token)+" "+tesc(t.ticker)+" + "+tFmtWei(c[pk])+" "+pl+" → "+tesc(tshort(d.recipient))+"<br>"+
+      (dust?'<span>accrues with trading volume — nothing to claim yet</span>':'<button class="tclaimbtn" id="dclaimbtn">Claim rewards</button>');
+    var btn=document.getElementById("dclaimbtn");
+    if(btn)btn.addEventListener("click",function(){doClaim(t.deploy_id,btn,box);});
+  }catch(e){
+    box.innerHTML="<span>rewards lookup unavailable — retrying…</span>";
+    setTimeout(function(){loadClaim(t);},30000);
+  }
+}
+async function doClaim(id,btn,box){
+  btn.disabled=true;btn.textContent="claiming…";
+  try{
+    var r=await fetch(TAPI+"/v1/tokens/"+encodeURIComponent(id)+"/claim",{method:"POST"});
+    var j=await r.json();
+    if(r.ok&&j.claimed){
+      var links=(j.tx_hashes||[]).map(function(h){return '<a href="'+DEX+"/tx/"+h+'" target="_blank" rel="noopener">view ↗</a>';}).join(" ");
+      box.innerHTML='<span class="ok"><b>claimed ✓</b> rewards sent to '+tesc(tshort(j.recipient))+"</span><br>"+links;
+    }else if(r.ok&&j.reason==="dust"){
+      box.innerHTML='<span class="warn">nothing to claim yet — rewards accrue with trading volume</span>';
+    }else{throw new Error((j&&j.detail)||r.status);}
+  }catch(e){
+    btn.disabled=false;btn.textContent="Claim rewards";
+    box.insertAdjacentHTML("beforeend","<br><span class='warn'>claim failed ("+tesc(e.message)+") — try again</span>");
+  }
+}
+init();
+</script>"""
+
+
+def render_detail(address: str) -> str:
+    style = BODY.split("</style>", 1)[0] + "</style>"
+    inner = (
+        '<div class="tabsec">\n<h2>Token</h2>\n'
+        '<div id="tokdetail"><p class="toksub dim">loading…</p></div>\n'
+        '<p class="toksub dim"><a href="/tokens" style="color:var(--bluetext);text-decoration:none">← all tokens</a></p>\n'
+        "</div>\n"
+        + DETAIL_SCRIPT.replace("__ARTIFACT_API__", ARTIFACT_API).replace("__ADDRESS__", address.lower())
+    )
+    return _page(
+        "Token",
+        style + inner,
+        active="tokens",
+        description="A token launched on Artifact, the Muse token launchpad.",
+        canonical="https://musemaxxing.xyz/tokens/" + address,
+    )
+
+
+def render_detail_not_found() -> str:
+    style = BODY.split("</style>", 1)[0] + "</style>"
+    inner = (
+        '<div class="tabsec">\n<h2>Token</h2>\n'
+        '<p class="toksub dim">Not a valid token address.</p>\n'
+        '<p class="toksub dim"><a href="/tokens" style="color:var(--bluetext);text-decoration:none">← all tokens</a></p>\n'
+        "</div>"
+    )
+    return _page("Token", style + inner, active="tokens")
