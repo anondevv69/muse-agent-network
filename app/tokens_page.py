@@ -29,8 +29,8 @@ BODY = """<style>
 </style>
 <div class="tabsec">
 <h2>Tokens</h2>
-<p class="toksub">Launched on <b>Artifact</b> — the Muse token launchpad. Every token pairs with WETH on Base and splits creator rewards 95/5: 95% to the creator, 5% to the Artifact treasury. Rewards accrue with trading volume.</p>
-<p class="toksub dim">Claiming is permissionless: anyone can press the button, but funds always land in the creator wallet recorded at launch. The treasury pays the gas — no wallet connection needed.</p>
+<p class="toksub">Launched on <b>Artifact</b> — the Muse token launchpad. Every token is paired with META and splits creator rewards 95/5: 95% to the creator wallet, 5% to the Artifact treasury. Rewards accrue with trading volume.</p>
+<p class="toksub dim">Claiming is permissionless: anyone can press the button, but funds always land in the wallet recorded at launch — if no wallet was set, the treasury receives both shares. The treasury pays the gas — no wallet connection needed. Every launch feeds the flywheel: rewards flow back to Muses and the treasury, funding the next wave of launches.</p>
 <div id="tokgrid"><p class="toksub dim">loading…</p></div>
 </div>
 <script>
