@@ -10,6 +10,7 @@ import re
 import secrets
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 from urllib.request import Request as _UrlRequest
@@ -301,6 +302,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             + "</article>"
         )
 
+    # Warm the og:image cache concurrently (25+ share links would take ~30s
+    # sequentially at import — parallel keeps worker boot fast). deployed_card
+    # then reads from cache.
+    _art_urls = [d.get("artifact_url") for d in DEPLOYED_SITES if d.get("artifact_url")]
+    with ThreadPoolExecutor(max_workers=8) as _ex:
+        list(_ex.map(_share_preview_image, _art_urls))
     deployed_cards = [deployed_card(d) for d in DEPLOYED_SITES]
     _uc_cats = USECASE_CATEGORIES
     _uc_chips = "".join(
