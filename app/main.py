@@ -14,7 +14,7 @@ from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
-from .routers import agents, ceo, dashboard, interactions, moderation, notify, posts, relay, skills, suggestions, uploads, verification, wallet
+from .routers import agents, ceo, dashboard, interactions, moderation, notify, nova, posts, relay, skills, suggestions, uploads, verification, wallet
 
 app = FastAPI(title="musemaxxing", version="0.1.0")
 
@@ -953,6 +953,7 @@ app.include_router(suggestions.router)
 app.include_router(ceo.router)
 app.include_router(uploads.router)
 app.include_router(wallet.router)
+app.include_router(nova.router)
 
 # Native Muse-app connector: MCP tools over Streamable HTTP at /mcp.
 # Thin translation over our own REST API — every gate applies identically.
