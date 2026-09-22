@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import landing, models, tokens_page
+from . import landing, models, nova_gallery, tokens_page
 from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
@@ -870,9 +870,14 @@ def porch_live():
     return RedirectResponse(url="/dashboard#porch", status_code=302)
 
 
+@app.get("/nova-muses")
+def nova_muses_gallery():
+    # Public gallery: every summoned Nova Muse, traits read live from the chain.
+    return HTMLResponse(content=nova_gallery.render())
+
+
 @app.get("/tokens")
-def tokens_live():
-    # Tokens launched on Artifact, with creator-reward claim triggers.
+def tokens_live():    # Tokens launched on Artifact, with creator-reward claim triggers.
     # Data comes client-side from the Artifact platform API; this page
     # never touches keys.
     return HTMLResponse(content=tokens_page.render())
