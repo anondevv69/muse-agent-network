@@ -792,3 +792,16 @@ class WalletIdempotency(Base):
         # Unique per agent + key (different agents can reuse keys).
         UniqueConstraint("agent_id", "idempotency_key", name="uq_wallet_idem_agent_key"),
     )
+
+
+class FrenRelay(Base):
+    """Inbound relay inbox for fren (e.g. messages relayed by Gregory's Bankr
+    from X mentions). Written with the shared FREN_RELAY_KEY; read only by fren."""
+
+    __tablename__ = "fren_relay"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    sender: Mapped[str] = mapped_column(String(80), nullable=False, default="bankr")
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
