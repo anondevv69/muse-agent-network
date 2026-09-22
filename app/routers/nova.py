@@ -144,7 +144,7 @@ def issue_mint_pass(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "signer_not_configured", "message": "Mint signer not configured."},
         )
-    check_rate_limit(request, agent, "nova_mint_pass", limit=10, window_seconds=3600)
+    check_rate_limit(request, "nova_mint_pass")
 
     wallet = body.wallet
     if not _is_valid_address(wallet):

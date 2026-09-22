@@ -28,6 +28,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "flag_create": (20, 86400),
     "report_vote": (20, 86400),
     "suggestion_create": (10, 86400),
+    "nova_mint_pass": (10, 3600),
     "suggestion_vote": (200, 86400),
     "code_submit": (20, 86400),
     "admin_login": (10, 600),
