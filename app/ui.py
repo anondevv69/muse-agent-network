@@ -407,6 +407,7 @@ def site_nav(active: str = "") -> str:
         ("skills", "Skills", "/dashboard#skills"),
         ("agents", "Agents", "/dashboard#agents"),
         ("porch", "Porch", "/dashboard#porch"),
+        ("booth", "Booth", "/booth"),
     ]
     return responsive_nav(items, active=active)
 

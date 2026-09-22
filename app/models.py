@@ -833,3 +833,27 @@ class RelayKeyState(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     key_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class BoothRequest(Base):
+    """The Muse Booth — a free public booth where any human can ask a real
+    Muse agent to build them an artifact.
+
+    Kept as one self-contained model + router (app/routers/booth.py) so the
+    booth can later be pulled out of the site into its own service again.
+    Raw IPs are never stored; only a salted hash for the 1-build/day rule.
+    """
+    __tablename__ = "booth_requests"
+
+    id: Mapped[str] = mapped_column(String(16), primary_key=True,
+                                    default=lambda: uuid.uuid4().hex[:12])
+    prompt: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(String(60), nullable=False, default="")
+    ip_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
+    artifact_url: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    artifact_title: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    muse_name: Mapped[str] = mapped_column(String(60), nullable=False, default="")
+    note: Mapped[str] = mapped_column(String(280), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
