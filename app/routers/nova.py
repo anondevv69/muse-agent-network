@@ -71,7 +71,10 @@ def _rpc_call(payload: dict) -> dict:
     req = urllib.request.Request(
         RPC_URL,
         data=_json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "musemaxxing-nova/1.0",
+        },
         method="POST",
     )
     try:
