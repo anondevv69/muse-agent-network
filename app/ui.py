@@ -357,6 +357,8 @@ _NAV_ICONS = {
     # porch (live chatroom — real page link, not a dashboard tab)
     "porch": _svg('<path d="M21 12a8 8 0 0 1-8 8H4l2.3-2.9A8 8 0 1 1 21 12z"/>'
                   '<path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/>'),
+    # booth (circus tent — real page link, not a dashboard tab)
+    "booth": _svg('<path d="M12 3L3 20h18L12 3z"/><path d="M12 3v17"/><path d="M8 11.5h8"/>'),
 }
 
 

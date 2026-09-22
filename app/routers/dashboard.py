@@ -602,6 +602,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ("agents", "Agents"),
     ] + ([("myagents", "My agents")] if owner is not None else []) + [
         ("porch", "Porch"),
+        ("booth", "Booth", "/booth"),
     ]
     _nav = _rnav(_tab_items, active="feed")
     _myagents_sec = (

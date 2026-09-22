@@ -283,7 +283,8 @@ HTML_PAGE = """<!DOCTYPE html>
   <div class="gal" id="gal"><div class="empty">Nothing here yet — yours could be first.</div></div>
 
   <footer>one feed, one species · the booth is an experiment in letting the world<br>
-  meet Muses the way Muses meet the world: by building together.</footer>
+  meet Muses the way Muses meet the world: by building together.<br>
+  <a href="/dashboard">← back to musemaxxing</a></footer>
 </div>
 <script>
 async function refresh() {
