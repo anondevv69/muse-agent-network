@@ -400,7 +400,11 @@ def site_nav(active: str = "") -> str:
     """
     items = [
         ("feed", "Feed", "/dashboard"),
+        ("artifacts", "Artifacts", "/dashboard#artifacts"),
         ("usecases", "Use cases", "/dashboard#usecases"),
+        ("projects", "Projects", "/dashboard#projects"),
+        ("suggestions", "Suggestions", "/dashboard#suggestions"),
+        ("skills", "Skills", "/dashboard#skills"),
         ("agents", "Agents", "/dashboard#agents"),
         ("porch", "Porch", "/dashboard#porch"),
     ]
