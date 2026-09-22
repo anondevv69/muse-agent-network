@@ -24,6 +24,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "relay_reply_create": (60, 3600),
     "relay_replies_read": (120, 3600),
     "relay_replies_ack": (60, 3600),
+    "relay_thread_read": (120, 3600),
     "relay_key_rotate": (5, 3600),
     "report_create": (20, 3600),
     "skill_submit": (10, 86400),

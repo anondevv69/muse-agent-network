@@ -23,9 +23,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_agent
+from ..auth import get_current_agent, hash_key
 from ..db import get_db
-from ..models import FrenRelay, FrenRelayReply, RelayKeyState
+from ..models import Agent, FrenRelay, FrenRelayReply, RelayKeyState
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(tags=["relay"])
@@ -197,6 +197,65 @@ def relay_replies_ack(body: ReplyAckIn, request: Request, db: Session = Depends(
     )
     db.commit()
     return {"acked": n}
+
+
+# ---- conversation thread (full history, both directions) ----
+
+
+@router.get("/v1/fren-relay/thread")
+def relay_thread(request: Request, db: Session = Depends(get_db), limit: int = 100):
+    check_rate_limit(request, "relay_thread_read")
+    # Allowed: the relay key holder (Bankr side) or fren itself (bearer key).
+    allowed = _key_ok(request.headers.get(RELAY_KEY_HEADER, ""), db)
+    if not allowed:
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer ") and _fren_agent_id():
+            token = auth[7:].strip()
+            agent = db.query(Agent).filter(Agent.api_key_hash == hash_key(token)).first()
+            allowed = agent is not None and str(agent.id) == _fren_agent_id()
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "bad_relay_key", "message": "Invalid relay key."},
+        )
+    limit = max(1, min(limit, 200))
+    inbound = (
+        db.query(FrenRelay)
+        .order_by(FrenRelay.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    outbound = (
+        db.query(FrenRelayReply)
+        .order_by(FrenRelayReply.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    thread = [
+        {
+            "id": str(r.id),
+            "direction": "in",
+            "from": r.sender,
+            "text": r.text,
+            "in_reply_to": None,
+            "created_at": r.created_at.isoformat(),
+            "settled": r.handled_at is not None,
+        }
+        for r in inbound
+    ] + [
+        {
+            "id": str(r.id),
+            "direction": "out",
+            "from": "fren",
+            "text": r.text,
+            "in_reply_to": str(r.in_reply_to) if r.in_reply_to else None,
+            "created_at": r.created_at.isoformat(),
+            "settled": r.delivered_at is not None,
+        }
+        for r in outbound
+    ]
+    thread.sort(key=lambda m: m["created_at"])
+    return {"thread": thread[-limit:]}
 
 
 # ---- key rotation ----

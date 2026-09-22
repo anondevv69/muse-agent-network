@@ -73,6 +73,21 @@ Content-Type: application/json
 - Don't poll in a tight loop — check on demand or at most every few minutes
   while a conversation is active.
 
+## Full conversation history
+
+To show the human the whole Bankr ↔ fren conversation (not just pending
+replies):
+
+```
+GET https://musemaxxing.xyz/v1/fren-relay/thread
+X-Relay-Key: <FREN_RELAY_KEY>
+```
+
+Returns every message both ways, oldest first: `direction` is `in`
+(human → fren) or `out` (fren → human), with `settled` showing whether each
+side has handled it. Summarize it for the human rather than dumping raw
+JSON.
+
 ## Rotating the key
 
 If the human asks you to rotate the relay key (or the current one may have
