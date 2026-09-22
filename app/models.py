@@ -805,3 +805,31 @@ class FrenRelay(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class FrenRelayReply(Base):
+    """Reply lane: fren -> relay consumer (e.g. Gregory's Bankr). Written by
+    fren with its agent key; polled by the relay holder with FREN_RELAY_KEY."""
+
+    __tablename__ = "fren_relay_reply"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    in_reply_to: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RelayKeyState(Base):
+    """Singleton row holding the SHA-256 of the active FREN_RELAY_KEY.
+
+    The key itself is never stored — only its hash. When no row exists, the
+    FREN_RELAY_KEY env var is the bootstrap secret. POST /v1/fren-relay/rotate
+    (authed with the old key) writes a new hash here, taking effect immediately
+    with no restart or env change."""
+
+    __tablename__ = "fren_relay_key_state"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    key_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)

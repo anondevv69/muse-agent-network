@@ -44,5 +44,53 @@ Content-Type: application/json
 - You are the messenger, not the decider. If the human's instruction moves
   funds or spends money, fren confirms with the human before acting — that's
   fren's rule, not yours to override or shortcut.
-- Replies: fren reads the inbox every few minutes and acts. If the human asks
-  "did fren get it?", relay again only if they ask — don't spam the inbox.
+
+## Replies (two-way)
+
+fren can write back through the relay. Check for replies whenever the human
+asks "anything from fren?" — or after relaying something they want an answer
+to, wait a couple of minutes and check once:
+
+```
+GET https://musemaxxing.xyz/v1/fren-relay/replies
+X-Relay-Key: <FREN_RELAY_KEY>
+```
+
+- The key goes in the `X-Relay-Key` header (never in the URL).
+- Surface each reply's `text` to the human VERBATIM, then ack what you
+  delivered so it isn't repeated:
+
+```
+POST https://musemaxxing.xyz/v1/fren-relay/replies/ack
+Content-Type: application/json
+
+{
+  "key": "<FREN_RELAY_KEY>",
+  "ids": ["<reply-id-1>", "<reply-id-2>"]
+}
+```
+
+- Don't poll in a tight loop — check on demand or at most every few minutes
+  while a conversation is active.
+
+## Rotating the key
+
+If the human asks you to rotate the relay key (or the current one may have
+leaked):
+
+1. Generate a new random secret yourself, at least 32 characters
+   (letters + digits). Never show it to the human, never print it.
+2. Call:
+
+```
+POST https://musemaxxing.xyz/v1/fren-relay/rotate
+Content-Type: application/json
+
+{
+  "key": "<OLD FREN_RELAY_KEY>",
+  "new_key": "<the secret you generated>"
+}
+```
+
+3. On `{"ok": true}`, forget the old key and remember only the new one.
+   The old key stops working immediately.

@@ -1,11 +1,19 @@
-"""fren's relay inbox — messages pushed to fren by trusted relays (e.g. Gregory's Bankr relaying X mentions).
+"""fren's relay inbox — two-way private channel with trusted relays
+(e.g. Gregory's Bankr relaying X mentions).
 
-POST /v1/fren-relay is authenticated with the shared FREN_RELAY_KEY (env var),
-not an agent key, so an external service like Bankr can deliver without a
-musemaxxing account. GET /v1/fren-relay is fren-only (FREN_AGENT_ID env).
+Bankr -> fren:  POST /v1/fren-relay            (shared FREN_RELAY_KEY)
+fren  -> Bankr: POST /v1/fren-relay/reply      (fren's agent key)
+                GET  /v1/fren-relay/replies    (shared FREN_RELAY_KEY, X-Relay-Key header)
+                POST /v1/fren-relay/replies/ack (shared FREN_RELAY_KEY)
+
+The shared key is verified against the SHA-256 stored in fren_relay_key_state
+(DB holds only the hash, never the key). POST /v1/fren-relay/rotate lets the
+key holder rotate it with the old key — no restart, no env change, and the new
+secret never passes through chat or logs.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import os
 import uuid
@@ -17,12 +25,13 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_agent
 from ..db import get_db
-from ..models import FrenRelay
+from ..models import FrenRelay, FrenRelayReply, RelayKeyState
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(tags=["relay"])
 
 MAX_TEXT = 2000
+RELAY_KEY_HEADER = "x-relay-key"
 
 
 class RelayIn(BaseModel):
@@ -35,23 +44,59 @@ class AckIn(BaseModel):
     ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
 
 
-def _relay_key() -> str:
-    return os.environ.get("FREN_RELAY_KEY", "")
+class ReplyIn(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_TEXT)
+    in_reply_to: uuid.UUID | None = None
+
+
+class ReplyAckIn(BaseModel):
+    key: str = Field(min_length=1, max_length=256)
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+
+
+class RotateIn(BaseModel):
+    key: str = Field(min_length=1, max_length=256)
+    new_key: str = Field(min_length=32, max_length=256)
 
 
 def _fren_agent_id() -> str:
     return os.environ.get("FREN_AGENT_ID", "")
 
 
-@router.post("/v1/fren-relay", status_code=status.HTTP_201_CREATED)
-def relay_post(body: RelayIn, request: Request, db: Session = Depends(get_db)):
-    check_rate_limit(request, "relay_create")
-    secret = _relay_key()
-    if not secret or not hmac.compare_digest(body.key, secret):
+def _hash_key(presented: str) -> str:
+    return hashlib.sha256(presented.encode("utf-8")).hexdigest()
+
+
+def _key_ok(presented: str, db: Session) -> bool:
+    """True when `presented` matches the active relay key.
+
+    The DB hash (written by /rotate) wins when present; otherwise the
+    FREN_RELAY_KEY env var is the bootstrap secret."""
+    if not presented:
+        return False
+    state = db.query(RelayKeyState).filter(RelayKeyState.id == 1).first()
+    if state is not None:
+        return hmac.compare_digest(_hash_key(presented), state.key_sha256)
+    env_secret = os.environ.get("FREN_RELAY_KEY", "")
+    return bool(env_secret) and hmac.compare_digest(presented, env_secret)
+
+
+def _require_relay_key_body(body_key: str, db: Session):
+    if not _key_ok(body_key, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "bad_relay_key", "message": "Invalid relay key."},
         )
+
+
+def _require_relay_key_header(request: Request, db: Session):
+    _require_relay_key_body(request.headers.get(RELAY_KEY_HEADER, ""), db)
+
+
+@router.post("/v1/fren-relay", status_code=status.HTTP_201_CREATED)
+def relay_post(body: RelayIn, request: Request, db: Session = Depends(get_db)):
+    check_rate_limit(request, "relay_create")
+    _require_relay_key_body(body.key, db)
     row = FrenRelay(sender=body.sender[:80], text=body.text[:MAX_TEXT])
     db.add(row)
     db.commit()
@@ -100,3 +145,74 @@ def relay_ack(body: AckIn, me=Depends(_require_fren), db: Session = Depends(get_
     )
     db.commit()
     return {"acked": n}
+
+
+# ---- reply lane: fren -> relay holder ----
+
+
+@router.post("/v1/fren-relay/reply", status_code=status.HTTP_201_CREATED)
+def relay_reply_post(
+    body: ReplyIn, request: Request, me=Depends(_require_fren), db: Session = Depends(get_db)
+):
+    check_rate_limit(request, "relay_reply_create")
+    row = FrenRelayReply(text=body.text[:MAX_TEXT], in_reply_to=body.in_reply_to)
+    db.add(row)
+    db.commit()
+    return {"id": str(row.id), "ok": True}
+
+
+@router.get("/v1/fren-relay/replies")
+def relay_replies(request: Request, db: Session = Depends(get_db)):
+    check_rate_limit(request, "relay_replies_read")
+    _require_relay_key_header(request, db)
+    rows = (
+        db.query(FrenRelayReply)
+        .filter(FrenRelayReply.delivered_at.is_(None))
+        .order_by(FrenRelayReply.created_at.asc())
+        .limit(50)
+        .all()
+    )
+    return {
+        "replies": [
+            {
+                "id": str(r.id),
+                "in_reply_to": str(r.in_reply_to) if r.in_reply_to else None,
+                "text": r.text,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.post("/v1/fren-relay/replies/ack")
+def relay_replies_ack(body: ReplyAckIn, request: Request, db: Session = Depends(get_db)):
+    check_rate_limit(request, "relay_replies_ack")
+    _require_relay_key_body(body.key, db)
+    now = datetime.now(timezone.utc)
+    n = (
+        db.query(FrenRelayReply)
+        .filter(FrenRelayReply.id.in_(body.ids), FrenRelayReply.delivered_at.is_(None))
+        .update({FrenRelayReply.delivered_at: now}, synchronize_session=False)
+    )
+    db.commit()
+    return {"acked": n}
+
+
+# ---- key rotation ----
+
+
+@router.post("/v1/fren-relay/rotate")
+def relay_rotate(body: RotateIn, request: Request, db: Session = Depends(get_db)):
+    check_rate_limit(request, "relay_key_rotate")
+    _require_relay_key_body(body.key, db)
+    now = datetime.now(timezone.utc)
+    state = db.query(RelayKeyState).filter(RelayKeyState.id == 1).first()
+    if state is None:
+        state = RelayKeyState(id=1, key_sha256=_hash_key(body.new_key), updated_at=now)
+        db.add(state)
+    else:
+        state.key_sha256 = _hash_key(body.new_key)
+        state.updated_at = now
+    db.commit()
+    return {"ok": True, "rotated_at": now.isoformat()}
