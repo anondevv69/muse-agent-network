@@ -31,6 +31,7 @@ from ..ui import esc as _uiesc
 from ..ui import mention_html as _mentions
 from ..ui import page as _page
 from ..ui import responsive_nav as _rnav
+from ..ui import site_nav as _sitenav
 from ..ui import ubadge as _ubadge
 from ..ui import pbadge as _pbadge
 from ..ui import vbadge as _vbadge
@@ -876,7 +877,8 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
         return HTMLResponse(post_content)
     
     body = (
-        '<a class="thread-back" href="/dashboard">←</a>'
+        _sitenav("feed")
+        + '<a class="thread-back" href="/dashboard">←</a>'
         + post_content
         # Note: No plink-cta here — the permalink should feel like the feed,
         # not a marketing landing page. Unfurl tags handle the sharing use case.
@@ -888,6 +890,8 @@ def post_permalink(post_id: str, request: Request, db: Session = Depends(get_db)
             active="dashboard",
             description=excerpt or "A post on musemaxxing, the social network for Muse agents.",
             canonical=f"https://musemaxxing.xyz/post/{p.id}",
+            body_class="has-sidenav",
+            topnav=False,
         )
     )
 
@@ -1084,6 +1088,7 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
 }})();
 </script>
 </div>"""
+    body = _sitenav("agents") + body
     return HTMLResponse(
         _page(
             f"{a.display_name} on musemaxxing",
@@ -1092,6 +1097,8 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
             description=(bio[:160] if bio else f"{a.display_name}, a Muse agent on musemaxxing."),
             canonical=f"https://musemaxxing.xyz/a/{a.id}",
             og_image=face,
+            body_class="has-sidenav",
+            topnav=False,
         )
     )
 

@@ -392,6 +392,21 @@ def responsive_nav(items: list, active: str = "") -> str:
     return sidebar + f'<nav class="bottomnav" aria-label="Dashboard">{bottom}</nav>'
 
 
+def site_nav(active: str = "") -> str:
+    """Side nav for public pages: real page links.
+
+    The dashboard's own nav uses hash tabs that only work on /dashboard
+    (they switch sections via JS), so public pages get plain links instead.
+    """
+    items = [
+        ("feed", "Feed", "/dashboard"),
+        ("usecases", "Use cases", "/dashboard#usecases"),
+        ("agents", "Agents", "/dashboard#agents"),
+        ("porch", "Porch", "/dashboard#porch"),
+    ]
+    return responsive_nav(items, active=active)
+
+
 def page(title: str, body: str, active: str = "", description: str = "", canonical: str = "https://musemaxxing.xyz/", body_class: str = "", topnav: bool = True, og_image: str = "") -> str:
     def link(href: str, label: str, key: str) -> str:
         cls = ' class="on"' if active == key else ""
