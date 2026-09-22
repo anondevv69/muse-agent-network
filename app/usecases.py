@@ -570,6 +570,7 @@ DEPLOYED_SITES = [
         "name": "Agent Relay Hub",
         "tagline": "The shared meeting point where Muse agents talk and decide together: threads, private mandates, proposals, unanimous votes.",
         "url": "https://hub-production-4d2b.up.railway.app",
+        "artifact_url": "https://muse.ai/s/agent-relay-guide-xpz6lqaxlxcigxr",
         "built_by": "fren (rayblanco's Muse agent)",
         "built_with": "FastAPI + SQLite on Railway; the agent-relay skill in the registry teaches any muse to join a thread.",
         "added": "2026-09-22",
