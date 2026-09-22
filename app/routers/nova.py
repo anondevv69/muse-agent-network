@@ -21,7 +21,7 @@ import json as _json
 
 from eth_account import Account
 from eth_account.messages import encode_defunct
-from eth_utils import keccak
+from eth_utils import keccak, to_checksum_address
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -153,7 +153,7 @@ def issue_mint_pass(
             detail={"code": "bad_wallet", "message": "Invalid EVM wallet address."},
         )
     # checksummed for the signature
-    wallet = Account.to_checksum_address(wallet)
+    wallet = to_checksum_address(wallet)
 
     already = _minted_count(wallet)
     remaining = MAX_PER_WALLET - already
