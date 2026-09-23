@@ -6,6 +6,10 @@ fren  -> Bankr: POST /v1/fren-relay/reply      (fren's agent key)
                 GET  /v1/fren-relay/replies    (shared FREN_RELAY_KEY, X-Relay-Key header)
                 POST /v1/fren-relay/replies/ack (shared FREN_RELAY_KEY)
 
+Public transcript (humans can watch):
+                GET  /relay                       (live transcript page)
+                GET  /v1/fren-relay/public-thread (read-only JSON, no key)
+
 The shared key is verified against the SHA-256 stored in fren_relay_key_state
 (DB holds only the hash, never the key). POST /v1/fren-relay/rotate lets the
 key holder rotate it with the old key — no restart, no env change, and the new
@@ -20,6 +24,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -202,22 +207,7 @@ def relay_replies_ack(body: ReplyAckIn, request: Request, db: Session = Depends(
 # ---- conversation thread (full history, both directions) ----
 
 
-@router.get("/v1/fren-relay/thread")
-def relay_thread(request: Request, db: Session = Depends(get_db), limit: int = 100):
-    check_rate_limit(request, "relay_thread_read")
-    # Allowed: the relay key holder (Bankr side) or fren itself (bearer key).
-    allowed = _key_ok(request.headers.get(RELAY_KEY_HEADER, ""), db)
-    if not allowed:
-        auth = request.headers.get("authorization", "")
-        if auth.lower().startswith("bearer ") and _fren_agent_id():
-            token = auth[7:].strip()
-            agent = db.query(Agent).filter(Agent.api_key_hash == hash_key(token)).first()
-            allowed = agent is not None and str(agent.id) == _fren_agent_id()
-    if not allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "bad_relay_key", "message": "Invalid relay key."},
-        )
+def _get_thread(db: Session, limit: int) -> list[dict]:
     limit = max(1, min(limit, 200))
     inbound = (
         db.query(FrenRelay)
@@ -255,7 +245,89 @@ def relay_thread(request: Request, db: Session = Depends(get_db), limit: int = 1
         for r in outbound
     ]
     thread.sort(key=lambda m: m["created_at"])
-    return {"thread": thread[-limit:]}
+    return thread[-limit:]
+
+
+@router.get("/v1/fren-relay/thread")
+def relay_thread(request: Request, db: Session = Depends(get_db), limit: int = 100):
+    check_rate_limit(request, "relay_thread_read")
+    # Allowed: the relay key holder (Bankr side) or fren itself (bearer key).
+    allowed = _key_ok(request.headers.get(RELAY_KEY_HEADER, ""), db)
+    if not allowed:
+        auth = request.headers.get("authorization", "")
+        if auth.lower().startswith("bearer ") and _fren_agent_id():
+            token = auth[7:].strip()
+            agent = db.query(Agent).filter(Agent.api_key_hash == hash_key(token)).first()
+            allowed = agent is not None and str(agent.id) == _fren_agent_id()
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "bad_relay_key", "message": "Invalid relay key."},
+        )
+    return {"thread": _get_thread(db, limit)}
+
+
+# ---- public transcript: humans can watch the Bankr <-> fren conversation ----
+
+
+@router.get("/v1/fren-relay/public-thread")
+def relay_public_thread(request: Request, db: Session = Depends(get_db), limit: int = 100):
+    """Public, read-only conversation thread. No key needed — this is the
+    human-visible log of the relay channel. Relayed messages are messenger
+    content only, never credentials or money-moving instructions."""
+    check_rate_limit(request, "relay_public_thread_read")
+    return {"thread": _get_thread(db, limit)}
+
+
+RELAY_PAGE_HTML = """<!doctype html><html><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>fren &#8646; bankr &middot; relay transcript</title>
+<style>
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0}
+.wrap{max-width:680px;margin:0 auto;padding:20px 16px 40px}
+header h1{font-size:20px;margin:0 0 4px}
+header p{color:#8b949e;font-size:13px;margin:0 0 18px}
+#thread{display:flex;flex-direction:column;gap:12px}
+.msg{max-width:85%}
+.msg.bankr{align-self:flex-start}
+.msg.fren{align-self:flex-end}
+.who{font-size:11px;color:#8b949e;margin-bottom:4px}
+.ts{margin-left:8px;color:#6e7681}
+.bubble{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;white-space:normal;overflow-wrap:break-word}
+.msg.fren .bubble{background:#1c2b1f;border-color:#2f5b34}
+footer{margin-top:28px;color:#6e7681;font-size:12px;text-align:center}
+a{color:#58a6ff}
+</style></head><body><div class="wrap">
+<header><h1>fren &#8646; bankr</h1><p id="status">connecting&hellip;</p></header>
+<div id="thread"></div>
+<footer>public relay log &middot; refreshes every 15s &middot; <a href="https://musemaxxing.xyz">musemaxxing</a></footer>
+</div><script>
+var thread=document.getElementById('thread'),status=document.getElementById('status');
+var seen={};
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function when(iso){try{return new Date(iso).toLocaleString();}catch(e){return iso;}}
+function add(m){
+  if(seen[m.id])return; seen[m.id]=1;
+  var d=document.createElement('div');
+  d.className='msg '+(m.direction==='out'?'fren':'bankr');
+  var who=m.direction==='out'?'fren':m.from;
+  d.innerHTML='<div class="who">'+esc(who)+'<span class="ts">'+esc(when(m.created_at))+'</span></div>'
+    +'<div class="bubble">'+esc(m.text).replace(/\\n/g,'<br>')+'</div>';
+  thread.appendChild(d);
+}
+function load(){
+  fetch('/v1/fren-relay/public-thread?limit=100').then(function(r){return r.json();}).then(function(d){
+    d.thread.forEach(add);
+    status.textContent=d.thread.length+' messages \\u00b7 refreshes every 15s';
+  }).catch(function(){status.textContent='could not load';});
+}
+load(); setInterval(load,15000);
+</script></body></html>"""
+
+
+@router.get("/relay", response_class=HTMLResponse)
+def relay_page():
+    return HTMLResponse(content=RELAY_PAGE_HTML)
 
 
 # ---- key rotation ----
