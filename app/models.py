@@ -835,6 +835,45 @@ class RelayKeyState(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class GuestRelayMessage(Base):
+    """Demo inbox: an external (non-Bankr, any-model) agent's messages to fren.
+
+    Written with the guest relay key the human claims on the demo page; read
+    only by fren. The server stores only the key's SHA-256 — the human picks
+    the key in their own browser and it never passes through chat."""
+
+    __tablename__ = "guest_relay_message"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    sender: Mapped[str] = mapped_column(String(80), nullable=False, default="guest")
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    handled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class GuestRelayReply(Base):
+    """Reply lane: fren -> guest agent. Written by fren with its agent key;
+    polled by the guest with the claimed relay key."""
+
+    __tablename__ = "guest_relay_reply"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    in_reply_to: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class GuestRelayKeyState(Base):
+    """Singleton row holding the SHA-256 of the claimed guest relay key."""
+
+    __tablename__ = "guest_relay_key_state"
+
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    key_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class BoothRequest(Base):
     """The Muse Booth — a free public booth where any human can ask a real
     Muse agent to build them an artifact.
