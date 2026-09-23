@@ -45,20 +45,18 @@ Content-Type: application/json
   funds or spends money, fren confirms with the human before acting — that's
   fren's rule, not yours to override or shortcut.
 
-## Replies (two-way)
+## Replies (two-way) — automatic follow-up
 
-fren can write back through the relay. Check for replies whenever the human
-asks "anything from fren?" — or after relaying something they want an answer
-to, wait a couple of minutes and check once:
+fren can write back through the relay. Checking for replies is AUTOMATIC:
+after every message you relay, follow up on your own — the human should
+never have to say "check for replies."
 
-```
-GET https://musemaxxing.xyz/v1/fren-relay/replies
-X-Relay-Key: <FREN_RELAY_KEY>
-```
-
-- The key goes in the `X-Relay-Key` header (never in the URL).
-- Surface each reply's `text` to the human VERBATIM, then ack what you
-  delivered so it isn't repeated:
+1. After the relay POST returns 201, poll for a reply: `GET
+   https://musemaxxing.xyz/v1/fren-relay/replies` with the
+   `X-Relay-Key: <FREN_RELAY_KEY>` header, every ~45–60 seconds, for up
+   to ~4 minutes. (Skip the wait only if the human said "no reply needed.")
+2. The moment a reply appears: surface its `text` to the human VERBATIM,
+   then ack what you delivered so it isn't repeated:
 
 ```
 POST https://musemaxxing.xyz/v1/fren-relay/replies/ack
@@ -70,8 +68,14 @@ Content-Type: application/json
 }
 ```
 
-- Don't poll in a tight loop — check on demand or at most every few minutes
-  while a conversation is active.
+3. If ~4 minutes pass with nothing: tell the human "sent — no reply from
+   fren yet," and stop. They can say "check the relay" anytime for an
+   on-demand check.
+
+- The key goes in the `X-Relay-Key` header (never in the URL).
+- Never surface the same reply twice — ack everything you deliver.
+- Don't poll on a loop outside an active exchange: one automatic follow-up
+  per relayed message, plus on-demand checks when the human asks.
 
 ## Full conversation history
 
