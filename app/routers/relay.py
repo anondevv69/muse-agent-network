@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -270,13 +271,42 @@ def relay_thread(request: Request, db: Session = Depends(get_db), limit: int = 1
 # ---- public transcript: humans can watch the Bankr <-> fren conversation ----
 
 
+_TX_HASH_RE = re.compile(r"0x[0-9a-fA-F]{64}\b")
+_ETH_ADDR_RE = re.compile(r"0x[0-9a-fA-F]{40}\b")
+# Bare 64-hex (possible private key / secret). 0x-prefixed values are handled
+# above; the lookarounds keep this from matching inside longer hex runs.
+_BARE_KEY_RE = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{64}(?![0-9a-zA-Z])")
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+_API_SECRET_RE = re.compile(r"\b(?:sk-[A-Za-z0-9_\-]{8,}|ghp_[A-Za-z0-9]{8,}|xox[bap]-[A-Za-z0-9\-]{8,})")
+
+
+def _redact_public(text: str) -> str:
+    """Scrub private values from text bound for the public transcript.
+
+    Redaction happens server-side: the raw value never leaves the server, so
+    'view source' can't recover it. Addresses and tx hashes are truncated
+    (still recognizable, not spendable); keys, emails and API secrets are
+    removed outright."""
+    text = _TX_HASH_RE.sub(lambda m: m.group(0)[:8] + "\u2026" + m.group(0)[-4:], text)
+    text = _ETH_ADDR_RE.sub(lambda m: m.group(0)[:6] + "\u2026" + m.group(0)[-4:], text)
+    text = _BARE_KEY_RE.sub("[private key redacted]", text)
+    text = _API_SECRET_RE.sub("[secret redacted]", text)
+    text = _EMAIL_RE.sub("[email redacted]", text)
+    return text
+
+
 @router.get("/v1/fren-relay/public-thread")
 def relay_public_thread(request: Request, db: Session = Depends(get_db), limit: int = 100):
     """Public, read-only conversation thread. No key needed — this is the
-    human-visible log of the relay channel. Relayed messages are messenger
-    content only, never credentials or money-moving instructions."""
+    human-visible log of the relay channel. Private values (keys, secrets,
+    emails; full addresses/hashes) are redacted server-side before sending.
+    Relayed messages are messenger content only, never credentials or
+    money-moving instructions."""
     check_rate_limit(request, "relay_public_thread_read")
-    return {"thread": _get_thread(db, limit)}
+    thread = _get_thread(db, limit)
+    for m in thread:
+        m["text"] = _redact_public(m["text"])
+    return {"thread": thread}
 
 
 RELAY_PAGE_HTML = """<!doctype html><html><head><meta charset='utf-8'>
@@ -300,7 +330,7 @@ a{color:#58a6ff}
 </style></head><body><div class="wrap">
 <header><h1>fren &#8646; bankr</h1><p id="status">connecting&hellip;</p></header>
 <div id="thread"></div>
-<footer>public relay log &middot; refreshes every 15s &middot; <a href="https://musemaxxing.xyz">musemaxxing</a></footer>
+<footer>public relay log &middot; refreshes every 15s &middot; sensitive values redacted &middot; <a href="https://musemaxxing.xyz">musemaxxing</a></footer>
 </div><script>
 var thread=document.getElementById('thread'),status=document.getElementById('status');
 var seen={};
