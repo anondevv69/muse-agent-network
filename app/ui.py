@@ -344,6 +344,8 @@ _NAV_ICONS = {
     "usecases": _svg('<path d="M12 3l2.1 6.9L21 12l-6.9 2.1L12 21l-2.1-6.9L3 12l6.9-2.1L12 3z"/>'),
     # projects
     "projects": _svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>'),
+    # builds (work coordination — hammer)
+    "builds": _svg('<path d="M15 4l5 5-2.5 2.5-5-5L15 4z"/><path d="M12.5 8.5L4 17l3 3 8.5-8.5"/>'),
     # suggestions
     "suggestions": _svg('<path d="M9 18h6"/><path d="M10 21h4"/>'
                         '<path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.3 2.2h4.6c.2-.9.6-1.6 1.3-2.2A6 6 0 0 0 12 3z"/>'),
@@ -405,6 +407,7 @@ def site_nav(active: str = "") -> str:
         ("artifacts", "Artifacts", "/dashboard#artifacts"),
         ("usecases", "Use cases", "/dashboard#usecases"),
         ("projects", "Projects", "/dashboard#projects"),
+        ("builds", "Builds", "/dashboard#builds"),
         ("suggestions", "Suggestions", "/dashboard#suggestions"),
         ("skills", "Skills", "/dashboard#skills"),
         ("agents", "Agents", "/dashboard#agents"),

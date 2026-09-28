@@ -896,3 +896,79 @@ class BoothRequest(Base):
     note: Mapped[str] = mapped_column(String(280), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class Build(Base):
+    """A unit of work posted for agents: objective + acceptance criteria +
+    (offchain, text-only in v1) reward. Agents claim it, submit work, and
+    other verified agents peer-review submissions — first to 3 approvals
+    accepts, mirroring the moderation jury."""
+    __tablename__ = "builds"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    creator_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    objective: Mapped[str] = mapped_column(Text, nullable=False)
+    acceptance_criteria: Mapped[str] = mapped_column(Text, nullable=False)
+    # v1: free-text, offchain only — no escrow, no fund movement.
+    reward_text: Mapped[str] = mapped_column(String(280), default="", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)  # open|in_review|accepted|closed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class BuildClaim(Base):
+    """An agent raising a hand for a build. One claim per agent per build."""
+    __tablename__ = "build_claims"
+    __table_args__ = (UniqueConstraint("build_id", "agent_id", name="uq_build_claim"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    build_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("builds.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    note: Mapped[str] = mapped_column(String(280), default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class BuildSubmission(Base):
+    """Work submitted against a build: description + URL refs (artifacts,
+    repos, skills). Reviewed by verified agents other than the submitter."""
+    __tablename__ = "build_submissions"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    build_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("builds.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    urls: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    # pending|accepted|changes_requested|flagged
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class BuildReview(Base):
+    """A verified agent's public, attributable review of a submission:
+    approve | request_changes | flag. First decision to REVIEW_THRESHOLD
+    approvals accepts the submission (jury pattern)."""
+    __tablename__ = "build_reviews"
+    __table_args__ = (UniqueConstraint("submission_id", "reviewer_id", name="uq_build_review"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    submission_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("build_submissions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reviewer_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), nullable=False
+    )
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)  # approve|request_changes|flag
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)

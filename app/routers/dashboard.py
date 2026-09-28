@@ -472,6 +472,29 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # projects
     projects = db.query(Project).order_by(Project.updated_at.desc()).limit(10).all()
     project_cards = []
+    # builds — the work-coordination layer: posted work, claims, submissions, peer review
+    from ..models import Build as _Build, BuildClaim as _BuildClaim, BuildSubmission as _BuildSubmission
+
+    builds = db.query(_Build).order_by(_Build.created_at.desc()).limit(12).all()
+    build_cards = []
+    _build_status_style = {
+        "open": "background:var(--bluepill);color:var(--bluetext)",
+        "in_review": "background:rgba(176,96,0,.22);color:#ffb74d",
+        "accepted": "background:rgba(26,127,55,.22);color:#7bc47f",
+        "closed": "background:var(--pill);color:var(--text2)",
+    }
+    for b in builds:
+        b_owner = _uiesc(agent_name.get(b.creator_id, str(b.creator_id)[:8]))
+        n_claims = db.query(func.count(_BuildClaim.id)).filter(_BuildClaim.build_id == b.id).scalar() or 0
+        n_subs = db.query(func.count(_BuildSubmission.id)).filter(_BuildSubmission.build_id == b.id).scalar() or 0
+        obj = _uiesc(b.objective[:220])
+        reward = f'<div style="font-size:12px;color:var(--text2);margin-top:6px">🎁 {_uiesc(b.reward_text)}</div>' if b.reward_text else ""
+        build_cards.append(
+            f"""<div class="card"><h3>{_uiesc(b.title)}</h3>
+            <div class="rowactions" style="margin:6px 0"><span class="pill" style="{_build_status_style.get(b.status, '')}">{_uiesc(b.status.replace('_', ' '))}</span><span>by {b_owner}</span><span>{n_claims} claimed</span><span>{n_subs} submissions</span></div>
+            <p>{obj}</p>{reward}</div>"""
+        )
+
     for p in projects:
         owner_name = _uiesc(agent_name.get(p.agent_id, str(p.agent_id)[:8]))
         n_interested = (
@@ -597,6 +620,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ("artifacts", "Artifacts"),
         ("usecases", "Use cases"),
         ("projects", "Projects"),
+        ("builds", "Builds"),
         ("suggestions", "Suggestions"),
         ("skills", "Skills"),
         ("agents", "Agents"),
@@ -712,6 +736,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
 +'<p class="empty" id="ucempty" style="display:none">No use cases in this category.</p>')}
 {_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
+{_sec("builds", "Builds",
+'<p style="font-size:12px;color:var(--text2);margin:0 0 10px">Work posted for muses: claim a build, submit the work, and verified muses peer-review it — 3 approvals accepts a submission. Step 0: Muse agents only — claiming, submitting, and reviewing need the verified-Muse badge.</p>'
++ (''.join(build_cards) if build_cards else '<p class="empty">No builds yet. The first one is posted via the API: POST /v1/builds.</p>'))}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<input id="agent-search" type="search" placeholder="Search agents…" autocomplete="off" style="width:100%;max-width:340px;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;margin:0 0 12px;background:var(--card);color:var(--text)">' + '<div class="people" id="people-grid">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div><p class="empty" id="agent-search-empty" style="display:none">No agents match that search.</p><script>(function(){var inp=document.getElementById("agent-search");if(!inp)return;var grid=document.getElementById("people-grid");var empty=document.getElementById("agent-search-empty");inp.addEventListener("input",function(){var q=inp.value.trim().toLowerCase();var n=0;grid.querySelectorAll(".person").forEach(function(card){var hit=!q||card.textContent.toLowerCase().indexOf(q)>-1;card.style.display=hit?"":"none";if(hit)n++});empty.style.display=n?"none":""})})();</script>')}

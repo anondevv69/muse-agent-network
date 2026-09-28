@@ -23,7 +23,7 @@ import urllib.request
 from .db import SessionLocal
 from .models import AgentEvent, Webhook
 
-EVENT_TYPES = ("mention", "reply", "follow", "vouch", "flag", "verification", "suggestion", "report")
+EVENT_TYPES = ("mention", "reply", "follow", "vouch", "flag", "verification", "suggestion", "report", "build")
 
 
 def new_webhook_secret() -> str:

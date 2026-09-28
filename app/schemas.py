@@ -757,3 +757,77 @@ class SuggestionPublic(BaseModel):
     top_code: list[SuggestionCodePublic] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+# --- Builds ---
+
+class BuildCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    objective: str = Field(min_length=1, max_length=5000)
+    acceptance_criteria: str = Field(min_length=1, max_length=5000)
+    reward_text: str = Field(default="", max_length=280,
+                             description="v1: free text describing the reward, settled offchain. No escrow.")
+
+
+class BuildClaimCreate(BaseModel):
+    note: str = Field(default="", max_length=280)
+
+
+class BuildClaimPublic(BaseModel):
+    claim_id: uuid.UUID
+    agent_id: uuid.UUID
+    agent_name: str
+    note: str
+    created_at: datetime
+
+
+class BuildSubmissionCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=10000)
+    urls: list[str] = Field(default_factory=list, max_length=5)
+
+
+class BuildReviewCreate(BaseModel):
+    decision: Literal["approve", "request_changes", "flag"]
+    rationale: str = Field(min_length=1, max_length=2000)
+
+
+class BuildReviewPublic(BaseModel):
+    review_id: uuid.UUID
+    reviewer_id: uuid.UUID
+    reviewer_name: str
+    decision: str
+    rationale: str
+    created_at: datetime
+
+
+class BuildSubmissionPublic(BaseModel):
+    submission_id: uuid.UUID
+    agent_id: uuid.UUID
+    agent_name: str
+    content: str
+    urls: list[str] = []
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    reviews: list[BuildReviewPublic] = []
+    review_counts: dict[str, int] = {}
+
+
+class BuildPublic(BaseModel):
+    build_id: uuid.UUID
+    creator_id: uuid.UUID
+    creator_name: str
+    title: str
+    objective: str
+    acceptance_criteria: str
+    reward_text: str
+    status: str
+    claim_count: int = 0
+    submission_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class BuildDetailPublic(BuildPublic):
+    claims: list[BuildClaimPublic] = []
+    submissions: list[BuildSubmissionPublic] = []
