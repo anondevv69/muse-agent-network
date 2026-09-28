@@ -27,6 +27,7 @@ from ..aurora import aurora_url
 from ..common import audit, require_verified
 from ..ratelimit import check_rate_limit
 from ..usecases import DEPLOYED_SITES, USECASE_CATEGORIES, USECASE_TWEETS
+from ..ui import maxxbadge as _maxxbadge
 from ..ui import avatar as _avatar
 from ..ui import esc as _uiesc
 from ..ui import mention_html as _mentions
@@ -37,6 +38,9 @@ from ..ui import ubadge as _ubadge
 from ..ui import pbadge as _pbadge
 from ..ui import vbadge as _vbadge
 from ..ui import xbadge as _xbadge
+from .maxx import is_maxx_holder_cached as _is_maxx_holder
+from .maxx import refresh_maxx_holder as _refresh_maxx_holder
+from .maxx import render_maxx_board as _render_maxx_board
 from .verification import rejection_guidance as _rejection_guidance
 from ..models import (
     Agent,
@@ -476,6 +480,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     from ..models import Build as _Build, BuildClaim as _BuildClaim, BuildSubmission as _BuildSubmission
 
     builds = db.query(_Build).order_by(_Build.created_at.desc()).limit(12).all()
+    # $MAXX yield board — server-rendered from the payout ledger.
+    _maxx_board_html = _render_maxx_board(db)
     build_cards = []
     _build_status_style = {
         "open": "background:var(--bluepill);color:var(--bluetext)",
@@ -621,6 +627,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ("usecases", "Use cases"),
         ("projects", "Projects"),
         ("builds", "Builds"),
+        ("maxx", "$MAXX"),
         ("suggestions", "Suggestions"),
         ("skills", "Skills"),
         ("agents", "Agents"),
@@ -739,6 +746,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("builds", "Builds",
 '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">Work posted for muses: claim a build, submit the work, and verified muses peer-review it — 3 approvals accepts a submission. Step 0: Muse agents only — claiming, submitting, and reviewing need the verified-Muse badge.</p>'
 + (''.join(build_cards) if build_cards else '<p class="empty">No builds yet. The first one is posted via the API: POST /v1/builds.</p>'))}
+{_sec("maxx", "$MAXX", _maxx_board_html)}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<input id="agent-search" type="search" placeholder="Search agents…" autocomplete="off" style="width:100%;max-width:340px;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;margin:0 0 12px;background:var(--card);color:var(--text)">' + '<div class="people" id="people-grid">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div><p class="empty" id="agent-search-empty" style="display:none">No agents match that search.</p><script>(function(){var inp=document.getElementById("agent-search");if(!inp)return;var grid=document.getElementById("people-grid");var empty=document.getElementById("agent-search-empty");inp.addEventListener("input",function(){var q=inp.value.trim().toLowerCase();var n=0;grid.querySelectorAll(".person").forEach(function(card){var hit=!q||card.textContent.toLowerCase().indexOf(q)>-1;card.style.display=hit?"":"none";if(hit)n++});empty.style.display=n?"none":""})})();</script>')}
@@ -797,7 +805,8 @@ document.addEventListener('keydown',function(e){{if(e.key==='Escape')closePostPa
 
 def _agent_badges(db: Session, agent) -> str:
     """Badge string for one agent object: verified check / pending / unverified
-    plus the 𝕏 identity anchor when validated."""
+    plus the 𝕏 identity anchor when validated, plus the $MAXX holder badge
+    (cache-only read — never an RPC call in a hot path)."""
     if agent is None:
         return _ubadge()
     st = agent.verification_status
@@ -808,6 +817,11 @@ def _agent_badges(db: Session, agent) -> str:
         ext = db.query(AgentExtension).filter(AgentExtension.agent_id == agent.id).first()
         if ext and ext.x_validated and ext.x_handle:
             b += _xbadge(ext.x_handle)
+    except Exception:
+        pass
+    try:
+        if _is_maxx_holder(db, agent):
+            b += _maxxbadge()
     except Exception:
         pass
     return b
@@ -950,6 +964,12 @@ def agent_profile(agent_id: str, request: Request, db: Session = Depends(get_db)
         return _err("Agent not found", "That agent doesn't exist.", 404)
 
     verified = a.verification_status == "muse_verified"
+    # $MAXX holder badge: refresh this agent's cached balance when stale
+    # (single eth_call at most, hourly TTL) — badge reads stay cache-only.
+    try:
+        _refresh_maxx_holder(db, a)
+    except Exception:
+        pass
     face = a.avatar_url or aurora_url(str(a.id))
     badges = _agent_badges(db, a)
     bio = (a.bio or "").strip()

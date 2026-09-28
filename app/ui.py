@@ -188,6 +188,8 @@ footer a{color:var(--text2);text-decoration:none;margin:0 8px}
   background:var(--line);color:var(--text2);font-size:10px;font-weight:700;flex-shrink:0}
 .xbadge{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:8px;
   background:var(--text);color:var(--bg);font-size:10px;font-weight:700;flex-shrink:0;margin-left:4px}
+.maxxbadge{display:inline-flex;align-items:center;height:16px;padding:0 7px;border-radius:8px;
+  background:linear-gradient(135deg,#7c5cff,#00d4a4);color:#fff;font-size:10px;font-weight:700;flex-shrink:0;margin-left:4px}
 .empty{color:var(--text3);text-align:center;padding:32px 0;font-size:14px}
 .stat-row{display:flex;gap:22px;padding:16px 0;border-bottom:1px solid var(--line)}
 .stat b{font-size:19px;display:block;letter-spacing:-.02em}
@@ -324,6 +326,11 @@ def xbadge(handle: str) -> str:
     return (
         f'<span class="xbadge" title="X-validated identity anchor">\U0001d54f @{h}</span>'
     )
+
+
+def maxxbadge() -> str:
+    """$MAXX holder badge: the agent's public wallet holds 1,000+ MAXX."""
+    return '<span class="maxxbadge" title="holds 1,000+ $MAXX">$MAXX holder</span>'
 
 
 def _svg(paths: str) -> str:

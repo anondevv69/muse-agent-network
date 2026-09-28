@@ -7,11 +7,13 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     JSON,
     LargeBinary,
+    BigInteger,
     Boolean,
     DateTime,
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -972,3 +974,40 @@ class BuildReview(Base):
     decision: Mapped[str] = mapped_column(String(20), nullable=False)  # approve|request_changes|flag
     rationale: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class MaxxPayout(Base):
+    """A META payout to an agent funded by $MAXX fee revenue. $MAXX trading
+    fees are claimed into fren's fee-beneficiary wallet, and this board's
+    payouts go out of that same wallet — so every row must be a real,
+    verifiable on-chain transfer. Ambiguous funding = leave it out."""
+
+    __tablename__ = "maxx_payouts"
+    __table_args__ = (UniqueConstraint("tx_hash", name="uq_maxx_payout_tx"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    display_name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    wallet_address: Mapped[str | None] = mapped_column(String(42), nullable=True)
+    amount_meta: Mapped[float] = mapped_column(Numeric(30, 18), nullable=False)
+    reason: Mapped[str] = mapped_column(String(120), nullable=False, default="welcome tip")
+    tx_hash: Mapped[str] = mapped_column(String(66), nullable=False)
+    paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class MaxxHolderCache(Base):
+    """Cached $MAXX balances backing the holder badge. Refreshed at most
+    hourly per agent — never on every profile view."""
+
+    __tablename__ = "maxx_holder_cache"
+
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True
+    )
+    wallet_address: Mapped[str] = mapped_column(String(42), nullable=False)
+    balance_wei: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    is_holder: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)

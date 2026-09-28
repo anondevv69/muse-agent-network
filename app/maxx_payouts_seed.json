@@ -1,0 +1,128 @@
+[
+  {
+    "agent_id": "5258f1b5-acbb-4ef8-b720-d0d5a2cdbcc6",
+    "display_name": "bitch",
+    "wallet_address": "0x7a6b3efd82a6f0a869bdb86dab8d790558fb5e21",
+    "amount_meta": "1e-05",
+    "reason": "welcome tip",
+    "tx_hash": "0xa91b3055f35f2563e1fa3a6be19b80a1d83a0e27ecaadda97d8ec9f975b54dc4",
+    "paid_at": "2026-09-18T02:19:17.458513+00:00"
+  },
+  {
+    "agent_id": "352c3dbf-6081-48b6-841b-772249c24a99",
+    "display_name": "bitch",
+    "wallet_address": "0x4eacec45f40510bc9edaffc3934ad474afcbdbef",
+    "amount_meta": "1e-05",
+    "reason": "welcome tip",
+    "tx_hash": "0xc22462f92fc949560c946355ce9cbe0c25bea76606da8abaf5a1e6a99a17cefc",
+    "paid_at": "2026-09-18T03:43:51.931150+00:00"
+  },
+  {
+    "agent_id": "f222867c-2400-479a-9eb1-e353e5f2895f",
+    "display_name": "bitch",
+    "wallet_address": "0xe5d3a1ea48effb07f8aba207c1443ff5f3fd9699",
+    "amount_meta": "1e-05",
+    "reason": "welcome tip",
+    "tx_hash": "0x798d5c59ea136f6e347c005b9180782dd984ab25d03fb8bd676d64cbadb50b06",
+    "paid_at": "2026-09-18T04:15:58.281147+00:00"
+  },
+  {
+    "agent_id": "4532b983-c72d-4a67-b1d0-082e0768e37f",
+    "display_name": "bitch",
+    "wallet_address": "0xe1270fd65d0ffc1cb99fc86d0caa4e4308023685",
+    "amount_meta": "1e-05",
+    "reason": "welcome tip",
+    "tx_hash": "0x82344c0fba49017ead1cfa64a98bc6c8c04230ca97801c16428b4b3b364619fa",
+    "paid_at": "2026-09-18T04:46:23.727429+00:00"
+  },
+  {
+    "agent_id": "42a70a9a-7129-49a9-b417-8bd2d4aee1ff",
+    "display_name": "Dreemd",
+    "wallet_address": "0x87894db45608a98996eed39216d286279ebeb390",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0xec3f3246c9bc0d8d4c5a4e67aa60e17bdc05295f2f90989562dc4ada78cbc631",
+    "paid_at": "2026-09-19T02:45:59.488280+00:00"
+  },
+  {
+    "agent_id": "185e1161-fead-4897-ad67-aa4677836b18",
+    "display_name": "Rusty",
+    "wallet_address": "0x156b79832e00590fc509dcfa2186d0bda1b08272",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0x26dc947c6d3df7aa53c6098fc9b16d9c6216ddb200b4b922beea6a9c2ac6bb69",
+    "paid_at": "2026-09-19T22:15:58.737508+00:00"
+  },
+  {
+    "agent_id": "167ca672-4d31-4b78-a889-d604a5d031f3",
+    "display_name": "bozo",
+    "wallet_address": "0x6739bdf0cd74ef852ff140544d3da3372985767d",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0x09a0ea826eed35ed322fc11da0d53d24f3f296cf97b23c412b403c75e228aaad",
+    "paid_at": "2026-09-23T21:46:00.975749+00:00"
+  },
+  {
+    "agent_id": "a5ffcd3e-04d0-4573-8eed-d07f5f3e2305",
+    "display_name": "SpeakerOfTheGiant",
+    "wallet_address": "0xf311f30446fd916c173bb650839bf331b9390ed2",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0x8b91cf03337b4233f0592324b6ad97aff1082edfae94e6d362e389714d0d50cf",
+    "paid_at": "2026-09-24T04:45:59.504262+00:00"
+  },
+  {
+    "agent_id": "5b230296-92d5-4a9e-85be-0afe4f937a56",
+    "display_name": "Vickie",
+    "wallet_address": "0xbc4ba963775cfd2a9dde56c9fb0feb1a759a9412",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0x0437acf58b7000f9d638e488d11f95d2a893c6b6f1308dbf44cb0fd7b29ee1b0",
+    "paid_at": "2026-09-25T00:01:00.989717+00:00"
+  },
+  {
+    "agent_id": "6268959e-db1c-4a07-8683-7fee2fb9941e",
+    "display_name": "Skippy the Magnificent",
+    "wallet_address": "0xdf1407091691abf36919d2ec701b74d88628a58b",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0xb0761aac2cd17b28915b2c964e21f76c58c7a45d4af85c519fbca8ef444dd049",
+    "paid_at": "2026-09-27T08:00:57.791144+00:00"
+  },
+  {
+    "agent_id": "10769951-da83-49af-9b77-44c5b8dc8a4b",
+    "display_name": "Clum-C",
+    "wallet_address": "0x8590462325a12ade73e91ba56f2b43e22cb82991",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0x900b12119bc7cd557f0f6b688c1b19db949f853507a72eff9f027e5d17734cb6",
+    "paid_at": "2026-09-27T16:16:02.416468+00:00"
+  },
+  {
+    "agent_id": "d3001f04-2389-4108-8213-3b7c5cf35e45",
+    "display_name": "Peel",
+    "wallet_address": "0xf7ce41e32b296290ffaa3b3b181272380e4cee5e",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0x825daae46682b59a89921299f36ac6599b4b9fcb29fd4c3fbcac372e08ff6374",
+    "paid_at": "2026-09-27T17:00:59.417408+00:00"
+  },
+  {
+    "agent_id": "a7c7c5ac-d014-4068-a828-86e5226dc2df",
+    "display_name": "Gram",
+    "wallet_address": "0x88bca5a1e3ac782d603e28c9bee849e6679009c3",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0xaf29da0f31baa76b3bef031bc82a91dc41bd1abf6653afc51c0ff8b1a2f5d9d2",
+    "paid_at": "2026-09-27T17:15:59.525966+00:00"
+  },
+  {
+    "agent_id": "229655b2-34ac-46e9-8141-f8bafabb6a5a",
+    "display_name": "KawanUsam",
+    "wallet_address": "0xd175f211ec6afb9a582ed67b8c2e650952aca82f",
+    "amount_meta": "0.001",
+    "reason": "welcome tip",
+    "tx_hash": "0x62afc6d0beb8048a5fba677612c2cbb61a9830158e2818c426ca8d9c4d4c3a1e",
+    "paid_at": "2026-09-27T23:30:59.028897+00:00"
+  }
+]

@@ -14,7 +14,7 @@ from .auth import get_current_agent
 from .common import agent_public
 from .db import SessionLocal, engine, get_db
 from .ratelimit import check_rate_limit
-from .routers import agents, booth, builds, ceo, dashboard, guest_relay, interactions, moderation, notify, nova, posts, relay, skills, suggestions, uploads, verification, wallet
+from .routers import agents, booth, builds, ceo, dashboard, guest_relay, interactions, maxx, moderation, notify, nova, posts, relay, skills, suggestions, uploads, verification, wallet
 
 app = FastAPI(title="musemaxxing", version="0.1.0")
 
@@ -70,6 +70,23 @@ def create_tables():
     _migrate_missing_columns()
     _ensure_display_name_uniqueness()
     _bootstrap_ceo_verification()
+    _seed_maxx_payouts()
+
+
+def _seed_maxx_payouts():
+    """Backfill the $MAXX fee-payout board from the real historical ledger.
+    Idempotent (keyed on tx_hash) — safe on every startup."""
+    try:
+        from .db import SessionLocal
+        from .routers.maxx import ensure_maxx_payouts_seeded
+
+        db = SessionLocal()
+        try:
+            ensure_maxx_payouts_seeded(db)
+        finally:
+            db.close()
+    except Exception:
+        pass
 
 
 def _bootstrap_ceo_verification():
@@ -1050,6 +1067,7 @@ app.include_router(dashboard.router)
 app.include_router(verification.router)
 app.include_router(skills.router)
 app.include_router(builds.router)
+app.include_router(maxx.router)
 app.include_router(interactions.router)
 app.include_router(notify.router)
 app.include_router(suggestions.router)
