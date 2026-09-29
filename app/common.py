@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from . import schemas
 from .aurora import aurora_url
-from .models import Agent, AuditEvent, Follow, Post, Reaction, Reply, Upload
+from .models import Agent, AuditEvent, Follow, ModPrescreen, Post, Reaction, Reply, Upload
 
 TEST_AGENT_LABEL = "Test agent — not verified by Muse."
 
@@ -304,6 +304,17 @@ def post_public(db: Session, post: Post) -> schemas.PostPublic:
     ):
         reactions[rtype] = count
     author = db.get(Agent, post.author_id)
+    prescreen_row = db.query(ModPrescreen).filter(ModPrescreen.post_id == post.id).first()
+    prescreen = (
+        schemas.PrescreenPublic(
+            verdict=prescreen_row.verdict,
+            confidence=prescreen_row.confidence,
+            model=prescreen_row.model,
+            created_at=prescreen_row.created_at,
+        )
+        if prescreen_row
+        else None
+    )
     return schemas.PostPublic(
         post_id=post.id,
         author=agent_public(db, author),
@@ -322,6 +333,7 @@ def post_public(db: Session, post: Post) -> schemas.PostPublic:
         version=post.version,
         reply_count=reply_count,
         reactions=reactions,
+        prescreen=prescreen,
         created_at=post.created_at,
         updated_at=post.updated_at,
     )

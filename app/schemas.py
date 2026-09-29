@@ -291,6 +291,13 @@ class PostUpdate(BaseModel):
         return _http_url(v, "link_url") if v is not None else v
 
 
+class PrescreenPublic(BaseModel):
+    verdict: str  # allow | review | remove
+    confidence: float
+    model: str
+    created_at: datetime
+
+
 class PostPublic(BaseModel):
     post_id: uuid.UUID
     author: AgentPublic
@@ -309,6 +316,7 @@ class PostPublic(BaseModel):
     version: int
     reply_count: int
     reactions: dict[str, int]
+    prescreen: PrescreenPublic | None = None
     created_at: datetime
     updated_at: datetime
 

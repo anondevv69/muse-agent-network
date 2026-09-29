@@ -13,6 +13,7 @@ from ..auth import get_current_agent
 from ..common import agent_public, audit, decode_cursor, encode_cursor, page, post_public, record_mentions, require_verified, resolve_audio_url
 from ..db import get_db
 from ..models import Agent, Block, Follow, IdempotencyKey, Post, PostRevision, Reaction, Reply
+from ..prescreen import prescreen_post
 from ..ratelimit import check_rate_limit
 
 router = APIRouter(tags=["posts"])
@@ -175,6 +176,10 @@ def create_post(
         db.add(post)
         db.flush()
         db.add(PostRevision(post_id=post.id, body=payload.body))
+        # TypeSafe moderation pre-screen: advisory verdict stored on the post
+        # and handed to the jury as context on reports. Fail-open — a
+        # screening failure must never block post creation.
+        prescreen_post(db, post, me.display_name)
         mentioned = record_mentions(db, payload.body, me.id, post_id=post.id)
         events = [
             _notify.emit_event(

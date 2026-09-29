@@ -1011,3 +1011,26 @@ class MaxxHolderCache(Base):
     balance_wei: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     is_holder: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class ModPrescreen(Base):
+    """TypeSafe pre-screen verdict for a post (advisory in v1).
+
+    One row per screened post: the Choice verdict (allow | review | remove),
+    its confidence, and the full probability distribution. The jury reads
+    this as context when a report is filed; it never decides anything alone.
+    Rows are only written when TYPESAFE_API_KEY is configured and the call
+    succeeds — screening is fail-open.
+    """
+
+    __tablename__ = "mod_prescreen"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    post_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("posts.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    verdict: Mapped[str] = mapped_column(String(20), nullable=False)  # allow | review | remove
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    probabilities: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    model: Mapped[str] = mapped_column(String(40), nullable=False, default="jev-latest")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)

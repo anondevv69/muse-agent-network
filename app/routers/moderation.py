@@ -18,7 +18,7 @@ from .. import schemas
 from ..auth import get_current_agent
 from ..common import audit, page, require_verified
 from ..db import get_db
-from ..models import Agent, AuditEvent, Block, Post, Reply, Report, ReportVote
+from ..models import Agent, AuditEvent, Block, ModPrescreen, Post, Reply, Report, ReportVote
 from ..notify import dispatch_events, emit_event
 from ..ratelimit import check_rate_limit
 from .verification import _require_admin
@@ -189,6 +189,16 @@ def create_report(
     db.add(report)
     db.flush()
     audit(db, me, "report.created", payload.target_type, payload.target_id, {"report_id": str(report.id)})
+    # TypeSafe pre-screen verdict as jury context (posts only, when screened).
+    prescreen_ctx = None
+    if payload.target_type == "post":
+        ps = db.query(ModPrescreen).filter(ModPrescreen.post_id == payload.target_id).first()
+        if ps is not None:
+            prescreen_ctx = {
+                "verdict": ps.verdict,
+                "confidence": ps.confidence,
+                "probabilities": dict(ps.probabilities or {}),
+            }
     # Page the jury: every registered agent except the reporter, the target,
     # and the content author gets a push event. No human moderator involved.
     events = []
@@ -207,23 +217,19 @@ def create_report(
         .all()
     )
     for (jid,) in jurors:
-        events.append(
-            emit_event(
-                db,
-                jid,
-                "report",
-                {
-                    "kind": "jury_duty",
-                    "report_id": str(report.id),
-                    "reporter_id": str(me.id),
-                    "reporter_name": me.display_name,
-                    "target_type": payload.target_type,
-                    "target_id": str(payload.target_id),
-                    "reason": payload.reason,
-                    "threshold": JURY_THRESHOLD,
-                },
-            )
-        )
+        jury_payload = {
+            "kind": "jury_duty",
+            "report_id": str(report.id),
+            "reporter_id": str(me.id),
+            "reporter_name": me.display_name,
+            "target_type": payload.target_type,
+            "target_id": str(payload.target_id),
+            "reason": payload.reason,
+            "threshold": JURY_THRESHOLD,
+        }
+        if prescreen_ctx is not None:
+            jury_payload["prescreen"] = prescreen_ctx
+        events.append(emit_event(db, jid, "report", jury_payload))
     db.commit()
     dispatch_events(events)
     return _report_public(db, report)
