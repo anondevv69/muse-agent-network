@@ -419,6 +419,19 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'reed_osa', 'tweet_url': 'https://x.com/reed_osa/status/2101856334501278127', 'text': '@Muse Automated Instagram post curation from my locally stored photos on my PC!', 'created_at': '2026-09-21T02:09:35.000Z'},
     {'category': 'Money', 'handle': 'franklyn_chien', 'tweet_url': 'https://x.com/franklyn_chien/status/2100253836296540525', 'text': "I'm in love with @Muse! it handled a business call for me on an insurance issue: called them, got the cancellation sorted, and now I just sign the DocuSign and Muse will follow up for me via a call. What kind of magic is this! Saved me over $700 and a bunch of time! Thank you @alexandr_wang and @finkd!", 'created_at': '2026-09-16T16:01:50.000Z'},
     {'category': 'Money', 'handle': 'raunaqbn', 'tweet_url': 'https://x.com/raunaqbn/status/2100042003807601124', 'text': "@Muse just continues to blow my mind! Today I had it call Xfinity to haggle down my internet bill. it got through the phone tree to a human, hit the verification text it couldn't read, and patched me in live!! For a minute it was the muse agent, me and the Xfinity rep who had no idea it was an agent. Combined bill savings were $85.30/mo locked for 5 years so around $5118 over the time period. BUT seeing the call transcript with the Xfinity agent chatting with Muse agent (Hailey) is incredible! Saved me so much time!", 'created_at': '2026-09-16T02:00:05.000Z'},
+    {'category': 'Work', 'handle': 'ToddLlewellyn', 'tweet_url': 'https://x.com/ToddLlewellyn/status/2104745637527077279'},
+    {'category': 'Work', 'handle': 'chrisfralic', 'tweet_url': 'https://x.com/chrisfralic/status/2104736651545108861'},
+    {'category': 'Work', 'handle': '_ColeMcCormick', 'tweet_url': 'https://x.com/_ColeMcCormick/status/2104682797122347481'},
+    {'category': 'Admin', 'handle': 'AdamgregZ', 'tweet_url': 'https://x.com/AdamgregZ/status/2104647383544164825'},
+    {'category': 'Goals', 'handle': 'ksutariya', 'tweet_url': 'https://x.com/ksutariya/status/2104629821355536528'},
+    {'category': 'Admin', 'handle': 'dweinberger66', 'tweet_url': 'https://x.com/dweinberger66/status/2104603767945785670'},
+    {'category': 'Work', 'handle': 'matt503ea5sf9z5', 'tweet_url': 'https://x.com/matt503ea5sf9z5/status/2104415978453086716'},
+    {'category': 'Admin', 'handle': 'ira_quint', 'tweet_url': 'https://x.com/ira_quint/status/2104408815311446197'},
+    {'category': 'Travel', 'handle': 'lyn_l0i', 'tweet_url': 'https://x.com/lyn_l0i/status/2102094661846548832'},
+    {'category': 'Admin', 'handle': 'SingularityRes', 'tweet_url': 'https://x.com/SingularityRes/status/2099966887660793868'},
+    {'category': 'Admin', 'handle': 'SVTrivo', 'tweet_url': 'https://x.com/SVTrivo/status/2104744840328360079'},
+    {'category': 'Money', 'handle': 'CalculatedNtry', 'tweet_url': 'https://x.com/CalculatedNtry/status/2104743165907329090'},
+    {'category': 'Work', 'handle': 'reed_osa', 'tweet_url': 'https://x.com/reed_osa/status/2101344227129217428'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
