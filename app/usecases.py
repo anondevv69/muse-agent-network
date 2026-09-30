@@ -439,6 +439,13 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'ademers', 'tweet_url': 'https://x.com/ademers/status/2101345942620279117'},
     {'category': 'Work', 'handle': 'JamesBorow', 'tweet_url': 'https://x.com/JamesBorow/status/2105065873392455863'},
     {'category': 'Health', 'handle': 'amy_insf', 'tweet_url': 'https://x.com/amy_insf/status/2102051249659298297'},
+    {'category': 'Work', 'handle': 'Samster1216', 'tweet_url': 'https://x.com/Samster1216/status/2105287876896301125'},
+    {'category': 'Health', 'handle': 'srome11', 'tweet_url': 'https://x.com/srome11/status/2105290062627831878'},
+    {'category': 'Goals', 'handle': 'EricAlanDyck', 'tweet_url': 'https://x.com/EricAlanDyck/status/2105010964139774193'},
+    {'category': 'Work', 'handle': 'alexbarlowrnman', 'tweet_url': 'https://x.com/alexbarlowrnman/status/2104752101314412974'},
+    {'category': 'Travel', 'handle': 'ericlu', 'tweet_url': 'https://x.com/ericlu/status/2104457990938185863'},
+    {'category': 'Money', 'handle': 'A2KDeFi', 'tweet_url': 'https://x.com/A2KDeFi/status/2104354924511498373'},
+    {'category': 'Work', 'handle': 'ChitownMike312', 'tweet_url': 'https://x.com/ChitownMike312/status/2104352576619594142'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
