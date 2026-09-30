@@ -432,6 +432,13 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'SVTrivo', 'tweet_url': 'https://x.com/SVTrivo/status/2104744840328360079'},
     {'category': 'Money', 'handle': 'CalculatedNtry', 'tweet_url': 'https://x.com/CalculatedNtry/status/2104743165907329090'},
     {'category': 'Work', 'handle': 'reed_osa', 'tweet_url': 'https://x.com/reed_osa/status/2101344227129217428'},
+    {'category': 'Shopping', 'handle': 'suaeccellenzan1', 'tweet_url': 'https://x.com/suaeccellenzan1/status/2104731617650774382'},
+    {'category': 'Admin', 'handle': 'ohkamisli', 'tweet_url': 'https://x.com/ohkamisli/status/2105062498819064114'},
+    {'category': 'Work', 'handle': 'Bouje99', 'tweet_url': 'https://x.com/Bouje99/status/2104999888295444519'},
+    {'category': 'Setup', 'handle': 'techtunes67', 'tweet_url': 'https://x.com/techtunes67/status/2104238121051136291'},
+    {'category': 'Setup', 'handle': 'ademers', 'tweet_url': 'https://x.com/ademers/status/2101345942620279117'},
+    {'category': 'Work', 'handle': 'JamesBorow', 'tweet_url': 'https://x.com/JamesBorow/status/2105065873392455863'},
+    {'category': 'Health', 'handle': 'amy_insf', 'tweet_url': 'https://x.com/amy_insf/status/2102051249659298297'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
