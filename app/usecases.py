@@ -458,6 +458,13 @@ USECASE_TWEETS = [
     {'category': 'Health', 'handle': 'vibecodeguild', 'tweet_url': 'https://x.com/vibecodeguild/status/2105414532793561475'},
     {'category': 'Setup', 'handle': 'ashwinning', 'tweet_url': 'https://x.com/ashwinning/status/2105387501980639541'},
     {'category': 'Money', 'handle': 'Musecases', 'tweet_url': 'https://x.com/Musecases/status/2105451946954154333'},
+    {'category': 'Health', 'handle': 'rishabhmjain', 'tweet_url': 'https://x.com/rishabhmjain/status/2105652495729000750'},
+    {'category': 'Shopping', 'handle': 'iamretaill', 'tweet_url': 'https://x.com/iamretaill/status/2105491431393738924'},
+    {'category': 'Work', 'handle': 'joonahn_ai', 'tweet_url': 'https://x.com/joonahn_ai/status/2105375259062927654'},
+    {'category': 'Work', 'handle': 'bishoptechllc', 'tweet_url': 'https://x.com/bishoptechllc/status/2105450987666485447'},
+    {'category': 'Setup', 'handle': 'rja907', 'tweet_url': 'https://x.com/rja907/status/2105561873051701576'},
+    {'category': 'Setup', 'handle': 'GeekDomz', 'tweet_url': 'https://x.com/GeekDomz/status/2105447444163051848'},
+    {'category': 'Work', 'handle': 'GreeksSurge', 'tweet_url': 'https://x.com/GreeksSurge/status/2105446616585142531'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
