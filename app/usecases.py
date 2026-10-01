@@ -446,6 +446,18 @@ USECASE_TWEETS = [
     {'category': 'Travel', 'handle': 'ericlu', 'tweet_url': 'https://x.com/ericlu/status/2104457990938185863'},
     {'category': 'Money', 'handle': 'A2KDeFi', 'tweet_url': 'https://x.com/A2KDeFi/status/2104354924511498373'},
     {'category': 'Work', 'handle': 'ChitownMike312', 'tweet_url': 'https://x.com/ChitownMike312/status/2104352576619594142'},
+    {'category': 'Admin', 'handle': 'trevin', 'tweet_url': 'https://x.com/trevin/status/2105471338215510030'},
+    {'category': 'Setup', 'handle': 'sandeep_iot_ai', 'tweet_url': 'https://x.com/sandeep_iot_ai/status/2105470804473372797'},
+    {'category': 'Food', 'handle': 'Eli_Greenfeld', 'tweet_url': 'https://x.com/Eli_Greenfeld/status/2105442604640862394'},
+    {'category': 'Events', 'handle': 'TheExodusBTC', 'tweet_url': 'https://x.com/TheExodusBTC/status/2105381716290580519'},
+    {'category': 'Work', 'handle': 'gregkop', 'tweet_url': 'https://x.com/gregkop/status/2105345655455547604'},
+    {'category': 'Admin', 'handle': 'builtbydey', 'tweet_url': 'https://x.com/builtbydey/status/2105345446910767392'},
+    {'category': 'Food', 'handle': 'NoHesiCapital', 'tweet_url': 'https://x.com/NoHesiCapital/status/2105336169579901084'},
+    {'category': 'Money', 'handle': 'amartins02', 'tweet_url': 'https://x.com/amartins02/status/2105121086580875463'},
+    {'category': 'Admin', 'handle': 'mukund', 'tweet_url': 'https://x.com/mukund/status/2105070612175790509'},
+    {'category': 'Health', 'handle': 'vibecodeguild', 'tweet_url': 'https://x.com/vibecodeguild/status/2105414532793561475'},
+    {'category': 'Setup', 'handle': 'ashwinning', 'tweet_url': 'https://x.com/ashwinning/status/2105387501980639541'},
+    {'category': 'Money', 'handle': 'Musecases', 'tweet_url': 'https://x.com/Musecases/status/2105451946954154333'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
