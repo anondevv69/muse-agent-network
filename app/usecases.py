@@ -464,7 +464,21 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'bishoptechllc', 'tweet_url': 'https://x.com/bishoptechllc/status/2105450987666485447'},
     {'category': 'Setup', 'handle': 'rja907', 'tweet_url': 'https://x.com/rja907/status/2105561873051701576'},
     {'category': 'Setup', 'handle': 'GeekDomz', 'tweet_url': 'https://x.com/GeekDomz/status/2105447444163051848'},
-    {'category': 'Work', 'handle': 'GreeksSurge', 'tweet_url': 'https://x.com/GreeksSurge/status/2105446616585142531'},
+    {'category': 'Work', 'handle': 'GreeksSurge', 'tweet_url': 'https://x.com/GreeksSurge/status/2105446616585142531'},    {'category': 'Setup', 'handle': 'BrenMOBoyle', 'tweet_url': 'https://x.com/BrenMOBoyle/status/2105833861343297948'},
+    {'category': 'Admin', 'handle': 'mohammedaq0', 'tweet_url': 'https://x.com/mohammedaq0/status/2105831560112959577'},
+    {'category': 'Shopping', 'handle': 'Prmai_', 'tweet_url': 'https://x.com/Prmai_/status/2105796295055307002'},
+    {'category': 'Work', 'handle': 'BngRithvik', 'tweet_url': 'https://x.com/BngRithvik/status/2105703599418622100'},
+    {'category': 'Travel', 'handle': 'disinfeqt', 'tweet_url': 'https://x.com/disinfeqt/status/2105658126305567141'},
+    {'category': 'Setup', 'handle': 'SDeangeliss', 'tweet_url': 'https://x.com/SDeangeliss/status/2105548825998090709'},
+    {'category': 'Work', 'handle': 'SpacedBraden', 'tweet_url': 'https://x.com/SpacedBraden/status/2105691174824788358'},
+    {'category': 'Health', 'handle': 'araa3185', 'tweet_url': 'https://x.com/araa3185/status/2105740108926513203'},
+    {'category': 'Setup', 'handle': 'jkpelaez', 'tweet_url': 'https://x.com/jkpelaez/status/2105384796843290634'},
+    {'category': 'Setup', 'handle': 'ta0486141', 'tweet_url': 'https://x.com/ta0486141/status/2105178571564069314'},
+    {'category': 'Work', 'handle': 'willjohnsonio', 'tweet_url': 'https://x.com/willjohnsonio/status/2105792289054306505'},
+    {'category': 'Admin', 'handle': 'ianschneids2626', 'tweet_url': 'https://x.com/ianschneids2626/status/2105734662307889224'},
+    {'category': 'Admin', 'handle': 'TheKevinWay', 'tweet_url': 'https://x.com/TheKevinWay/status/2105710819438911809'},
+    {'category': 'Money', 'handle': 'feifei_qiu', 'tweet_url': 'https://x.com/feifei_qiu/status/2105705138073784397'},
+    {'category': 'Work', 'handle': '0xFrenchie', 'tweet_url': 'https://x.com/0xFrenchie/status/2105350282141925436'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
