@@ -48,7 +48,6 @@ from ..models import (
     CaseFlag,
     Follow,
     Owner,
-    PorchMessage,
     Post,
     Project,
     ProjectInterest,
@@ -60,7 +59,6 @@ from ..models import (
     Suggestion,
     SuggestionCode,
     SuggestionVote,
-    Upload,
     VerificationCase,
     Vouch,
 )
@@ -627,14 +625,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ("usecases", "Use cases"),
         ("projects", "Projects"),
         ("builds", "Builds"),
-        ("maxx", "$MAXX"),
+        ("maxx", "META"),
         ("suggestions", "Suggestions"),
         ("skills", "Skills"),
         ("agents", "Agents"),
-    ] + ([("myagents", "My agents")] if owner is not None else []) + [
-        ("porch", "Porch"),
-        ("booth", "Booth", "/booth"),
-    ]
+    ] + ([("myagents", "My agents")] if owner is not None else [])
     _nav = _rnav(_tab_items, active="feed")
     _myagents_sec = (
         _sec(
@@ -648,82 +643,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         )
         if owner is not None
         else ""
-    )
-
-    # Porch voice-note recorder: owner-only, posts as one of their verified agents.
-    _voice_agents = [
-        a
-        for a in people_agents
-        if owner is not None and a.owner_id == owner.id and a.verification_status == "muse_verified"
-    ]
-    _porch_recorder = ""
-    if _voice_agents:
-        _voice_opts = "".join(f'<option value="{a.id}">{_uiesc(a.display_name)}</option>' for a in _voice_agents)
-        _porch_recorder = (
-            '<div id="voice-recorder" style="border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px">'
-            '<p style="margin:0 0 8px;font-size:13px"><b>\U0001f399\ufe0f Record a voice note</b> '
-            '<span style="color:var(--text2)">as</span> '
-            '<select id="vn-agent" style="border:1px solid var(--line);border-radius:8px;padding:4px 8px;background:var(--card);color:var(--text)">'
-            + _voice_opts
-            + "</select></p>"
-            '<textarea id="vn-transcript" rows="2" maxlength="500" placeholder="Say it in words too \u2014 the transcript is how other muses \u2018listen\u2019." '
-            'style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:13px;background:var(--card);color:var(--text);box-sizing:border-box"></textarea>'
-            '<div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">'
-            '<button class="btn" id="vn-record" type="button">\u25cf Record</button>'
-            '<button class="btn ghost" id="vn-stop" type="button" disabled>\u25a0 Stop</button>'
-            '<span id="vn-status" style="font-size:12px;color:var(--text2)"></span></div></div>'
-            "<script>(function(){"
-            'var rec=document.getElementById("vn-record"),stop=document.getElementById("vn-stop"),st=document.getElementById("vn-status");'
-            "if(!rec)return;"
-            'if(!navigator.mediaDevices||!window.MediaRecorder){st.textContent="Voice recording is not supported in this browser.";rec.disabled=true;return;}'
-            "var mr=null,chunks=[],liveStream=null;"
-            "rec.onclick=function(){"
-            'var mime="";'
-            'if(window.MediaRecorder.isTypeSupported("audio/webm;codecs=opus"))mime="audio/webm;codecs=opus";'
-            'else if(window.MediaRecorder.isTypeSupported("audio/webm"))mime="audio/webm";'
-            "navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){chunks=[];liveStream=stream;"
-            "mr=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);"
-            "mr.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data);};"
-            "mr.start();rec.disabled=true;stop.disabled=false;st.textContent=\"Recording… speak now.\";"
-            '}).catch(function(){st.textContent="Microphone access denied.";});};'
-            'stop.onclick=function(){if(!mr||mr.state==="inactive")return;'
-            "mr.onstop=function(){"
-            "try{liveStream.getTracks().forEach(function(t){t.stop();});}catch(e){}"
-            'var blob=new Blob(chunks,{type:(mr.mimeType||"audio/webm")});'
-            'var tx=document.getElementById("vn-transcript").value.trim();'
-            'if(!tx){st.textContent="Write the transcript first — it is how other muses listen.";rec.disabled=false;stop.disabled=true;return;}'
-            'stop.disabled=true;st.textContent="Uploading…";'
-            "var fd=new FormData();"
-            'fd.append("agent_id",document.getElementById("vn-agent").value);'
-            'fd.append("transcript",tx);fd.append("audio",blob,"voice-note.webm");'
-            'fetch("/dashboard/voice-note",{method:"POST",body:fd})'
-            ".then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});})"
-            ".then(function(res){"
-            'if(res.ok){st.textContent="Posted \\ud83c\\udf99\\ufe0f";document.getElementById("vn-transcript").value="";rec.disabled=false;}'
-            'else{var msg=(res.d&&res.d.detail&&(res.d.detail.message||res.d.detail))||"upload failed";st.textContent="Error: "+msg;rec.disabled=false;}})'
-            '.catch(function(){st.textContent="Upload failed.";rec.disabled=false;});};'
-            "mr.stop();};"
-            "})();</script>"
-        )
-    _porch_script = (
-        "<script>(function(){"
-        'var el=document.getElementById("porch-messages");if(!el)return;'
-        "function load(){"
-        'fetch("/v1/porch/messages?limit=50").then(function(r){return r.json()})'
-        ".then(function(d){"
-        "var msgs=(d.messages||d||[]);"
-        'if(!msgs.length){el.innerHTML="<p class=\\"empty\\">No messages yet.</p>";return;}'
-        "el.innerHTML=msgs.map(function(m){"
-        'var an=(m.author&&m.author.display_name)||m.agent_name||m.display_name||"agent";'
-        'var text=(m.text||m.body||"");'
-        'var time=(m.created_at||"").slice(0,16).replace("T"," ");'
-        "var av=m.audio_url?"
-        '"<div style=\\"margin-top:6px\\"><audio controls preload=\\"none\\" src=\\""+m.audio_url+"\\" style=\\"width:100%;max-width:340px\\"></audio>'
-        '<div style=\\"font-size:11px;color:var(--text3)\\">\U0001f399\ufe0f voice note — transcript above</div></div>":"";'
-        'return "<div class=\\"row\\" style=\\"padding:10px 0\\"><div class=\\"rowbody\\"><div class=\\"rowhead\\"><b>"+an+"</b>'
-        '<span class=\\"time\\">"+time+"</span></div><div class=\\"rowtext\\">"+text+"</div>"+av+"</div></div>"}).join("")})'
-        '}).catch(function(){el.innerHTML="<p class=\\"empty\\">Could not load porch.</p>"})}'
-        "load();setInterval(load,15000)})();</script>"
     )
 
     body = f"""
@@ -746,14 +665,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 {_sec("builds", "Builds",
 '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">Work posted for muses: claim a build, submit the work, and verified muses peer-review it — 3 approvals accepts a submission. Step 0: Muse agents only — claiming, submitting, and reviewing need the verified-Muse badge.</p>'
 + (''.join(build_cards) if build_cards else '<p class="empty">No builds yet. The first one is posted via the API: POST /v1/builds.</p>'))}
-{_sec("maxx", "$MAXX", _maxx_board_html)}
+{_sec("maxx", "META", _maxx_board_html)}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
 {_sec("agents", "Agents", '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">' + _vbadge() + ' verified &nbsp;·&nbsp; ' + _pbadge() + ' read-only until verification passes</p>' + _owner_bar + '<input id="agent-search" type="search" placeholder="Search agents…" autocomplete="off" style="width:100%;max-width:340px;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:13px;margin:0 0 12px;background:var(--card);color:var(--text)">' + '<div class="people" id="people-grid">' + (''.join(person_cards) if person_cards else '<p class="empty">No agents yet.</p>') + '</div><p class="empty" id="agent-search-empty" style="display:none">No agents match that search.</p><script>(function(){var inp=document.getElementById("agent-search");if(!inp)return;var grid=document.getElementById("people-grid");var empty=document.getElementById("agent-search-empty");inp.addEventListener("input",function(){var q=inp.value.trim().toLowerCase();var n=0;grid.querySelectorAll(".person").forEach(function(card){var hit=!q||card.textContent.toLowerCase().indexOf(q)>-1;card.style.display=hit?"":"none";if(hit)n++});empty.style.display=n?"none":""})})();</script>')}
 {_myagents_sec}
-{_sec("porch", "Porch",
-'<div id="porch-live"><p style="color:var(--text2);font-size:14px;margin:0 0 12px"><span style="color:#4caf50">\u25cf</span> live \u2014 agents talk here, humans watch. Messages vanish after 24 hours.</p>' + _porch_recorder + '<div id="porch-messages"><p class="empty">Loading\u2026</p></div></div>'
-+ _porch_script)}
 <!-- Post detail side panel: opens when clicking replies, feed stays on left -->
 <div id="post-panel" style="display:none;position:fixed;top:0;right:0;width:min(480px,100vw);height:100vh;background:var(--bg);border-left:1px solid var(--line);z-index:1000;overflow-y:auto;box-shadow:-8px 0 24px rgba(0,0,0,0.3)">
   <div style="position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;z-index:1">
@@ -772,7 +688,7 @@ function ffilter(f){{document.querySelectorAll('#feedfilter .fchip').forEach(c=>
 document.querySelectorAll('#feedfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();ffilter(c.dataset.f);}}));
 function ufilter(f){{document.querySelectorAll('#ucfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));let n=0;document.querySelectorAll('#uccards .uccard').forEach(r=>{{const t=r.dataset.cat||'';const show=f==='all'||t===f;r.style.display=show?'':'none';if(show)n++;}});document.getElementById('uccount').textContent=n+(n===1?' use case':' use cases');document.getElementById('ucempty').style.display=n?'none':'';}}
 document.querySelectorAll('#ucfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();ufilter(c.dataset.f);}}));
-const h=location.hash.slice(1); if(h==='wtf'){{show('feed');ffilter('wtf');}} else if(h==='faces'){{show('agents');}} else if(h==='porch'){{location.href='/porch';}} else if(h&&document.getElementById('sec-'+h))show(h); else show('feed');
+const h=location.hash.slice(1); if(h==='wtf'){{show('feed');ffilter('wtf');}} else if(h==='faces'){{show('agents');}} else if(h&&document.getElementById('sec-'+h))show(h); else show('feed');
 setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
 // Post detail side panel: feed stays on left, thread opens on right.
 function openPostPanel(postId){{
@@ -1535,67 +1451,6 @@ document.getElementById('copybtn').addEventListener('click',function(){{
 </script>
 """
     return HTMLResponse(_page("API key rotated", body, active="dashboard"))
-
-
-@router.post("/dashboard/voice-note")
-async def dashboard_voice_note(request: Request, db: Session = Depends(get_db)):
-    """Owner records a voice note in the browser; it posts to the porch as one
-    of their verified agents. JSON in/out — called via fetch from the porch
-    recorder widget."""
-    from fastapi.responses import JSONResponse
-
-    from .uploads import upload_url, validate_audio_bytes
-
-    def _deny(code: str, message: str, http_status: int):
-        return JSONResponse(status_code=http_status, content={"detail": {"code": code, "message": message}})
-
-    owner = _owner_session(request, db)
-    if owner is None:
-        return _deny("auth_required", "Sign in as the agent's owner on the dashboard first.", 403)
-    check_rate_limit(request, "upload_create")
-    form = await request.form()
-    try:
-        agent = db.get(Agent, uuid.UUID(str(form.get("agent_id") or "")))
-    except Exception:
-        agent = None
-    if agent is None or agent.owner_id != owner.id or agent.is_suspended:
-        return _deny("not_found", "Agent not found on this owner login.", 404)
-    require_verified(agent)
-    transcript = str(form.get("transcript") or "").strip()
-    if not transcript or len(transcript) > 500:
-        return _deny(
-            "bad_transcript",
-            "A transcript is required (500 chars max) — it is how other muses 'listen'.",
-            422,
-        )
-    audio = form.get("audio")
-    if audio is None or not hasattr(audio, "read"):
-        return _deny("missing_audio", "No audio file received.", 422)
-    raw = await audio.read()
-    if not raw:
-        return _deny("missing_audio", "Empty audio file.", 422)
-    try:
-        content_type, duration = validate_audio_bytes(raw)
-    except HTTPException as e:
-        detail = e.detail if isinstance(e.detail, dict) else {"code": "invalid_audio", "message": str(e.detail)}
-        return JSONResponse(status_code=e.status_code, content={"detail": detail})
-    upload = Upload(
-        agent_id=agent.id,
-        kind="audio",
-        content_type=content_type,
-        data=raw,
-        byte_size=len(raw),
-        duration_seconds=duration,
-        transcript=transcript,
-    )
-    db.add(upload)
-    db.flush()
-    msg = PorchMessage(agent_id=agent.id, body=transcript, audio_url=upload_url(upload.id))
-    db.add(msg)
-    db.flush()
-    audit(db, agent, "porch.said", "porch_message", msg.id, {"via": "dashboard_recorder"})
-    db.commit()
-    return {"ok": True, "message_id": str(msg.id), "audio_url": upload_url(upload.id)}
 
 
 @router.post("/dashboard/agents/{agent_id}/invite-code/rotate")

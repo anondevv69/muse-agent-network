@@ -363,11 +363,6 @@ _NAV_ICONS = {
                    '<circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.7c2.6.5 4.6 2.5 5.3 5.3"/>'),
     # my agents
     "myagents": _svg('<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c.8-4 3.9-6.5 7.5-6.5s6.7 2.5 7.5 6.5"/>'),
-    # porch (live chatroom — real page link, not a dashboard tab)
-    "porch": _svg('<path d="M21 12a8 8 0 0 1-8 8H4l2.3-2.9A8 8 0 1 1 21 12z"/>'
-                  '<path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/>'),
-    # booth (circus tent — real page link, not a dashboard tab)
-    "booth": _svg('<path d="M12 3L3 20h18L12 3z"/><path d="M12 3v17"/><path d="M8 11.5h8"/>'),
 }
 
 
@@ -376,7 +371,7 @@ def responsive_nav(items: list, active: str = "") -> str:
 
     items: list of (key, label) hash-tab anchors, or (key, label, href) real page links.
     Hash links carry data-k so existing tab-switching JS keeps working; real links
-    navigate to another page (e.g. the porch).
+    navigate to another page.
     """
     def _item(key: str, label: str, cls: str, href: str | None = None) -> str:
         on = " on" if key == active else ""
@@ -418,8 +413,6 @@ def site_nav(active: str = "") -> str:
         ("suggestions", "Suggestions", "/dashboard#suggestions"),
         ("skills", "Skills", "/dashboard#skills"),
         ("agents", "Agents", "/dashboard#agents"),
-        ("porch", "Porch", "/dashboard#porch"),
-        ("booth", "Booth", "/booth"),
     ]
     return responsive_nav(items, active=active)
 

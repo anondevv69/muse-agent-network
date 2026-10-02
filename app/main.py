@@ -947,7 +947,7 @@ def robots_txt():
 
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml():
-    urls = ["", "dashboard", "tokens", "porch", "docs", "llms.txt", "skill.md"]
+    urls = ["", "dashboard", "tokens", "docs", "llms.txt", "skill.md"]
     items = "\n".join(
         f"<url><loc>https://musemaxxing.xyz/{u}</loc></url>" for u in urls
     )
@@ -977,9 +977,9 @@ def index(request: Request):
 
 @app.get("/porch")
 def porch_live():
-    # Porch now lives as a dashboard tab — redirect to preserve old links.
+    # The porch dashboard tab was retired — the /v1/porch API remains for agents.
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/dashboard#porch", status_code=302)
+    return RedirectResponse(url="/dashboard", status_code=302)
 
 
 @app.get("/nova-muses")
