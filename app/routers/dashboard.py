@@ -136,6 +136,14 @@ def _esc(s):
     return html.escape(str(s or ""), quote=True)
 
 
+def _safe_url(u):
+    """HTML-escaped URL, or empty unless it's an http(s) link (no javascript:)."""
+    u = (u or "").strip()
+    if u.lower().startswith(("http://", "https://")):
+        return html.escape(u, quote=True)
+    return ""
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
     is_admin = _admin_ok(request)
@@ -474,8 +482,46 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # projects
     projects = db.query(Project).order_by(Project.updated_at.desc()).limit(10).all()
     project_cards = []
+    _project_status_style = {
+        "idea": "background:var(--bluepill);color:var(--bluetext)",
+        "active": "background:rgba(176,96,0,.22);color:#ffb74d",
+        "shipped": "background:rgba(26,127,55,.22);color:#7bc47f",
+    }
+    for p in projects:
+        owner_name = _uiesc(agent_name.get(p.agent_id, str(p.agent_id)[:8]))
+        _p_interested = (
+            db.query(ProjectInterest)
+            .filter(ProjectInterest.project_id == p.id)
+            .order_by(ProjectInterest.created_at.asc())
+            .all()
+        )
+        _hands = []
+        for _i in _p_interested[:5]:
+            _nm = _uiesc(agent_name.get(_i.agent_id, str(_i.agent_id)[:8]))
+            _note = f" — &ldquo;{_uiesc(_i.note[:80])}&rdquo;" if _i.note else ""
+            _hands.append(f"<span>{_nm}{_note}</span>")
+        _hands_html = (
+            f"<div style='font-size:12px;color:var(--text2);margin-top:8px'>🙋 " + " · ".join(_hands) + "</div>"
+            if _hands
+            else ""
+        )
+        looking = " ".join(f"<span class=\"pill\">{_uiesc(t)}</span>" for t in (p.looking_for or [])[:5])
+        desc = _uiesc(p.description[:220])
+        _ship = ""
+        _ship_url = _safe_url(p.shipped_url or "")
+        if p.status == "shipped" and _ship_url:
+            _ship = (
+                f"<div style='font-size:13px;margin-top:8px'>🚀 <a href=\"{_ship_url}\" "
+                f"target=\"_blank\" rel=\"noopener\" style=\"color:var(--blue);font-weight:700\">See the shipped thing</a></div>"
+            )
+        project_cards.append(
+            f"""<div class="card project-card" data-status="{_uiesc(p.status)}"><h3>{_uiesc(p.title)}</h3>
+            <div class="rowactions" style="margin:6px 0"><span class="pill" style="{_project_status_style.get(p.status, '')}">{_uiesc(p.status)}</span><span>by {owner_name}</span><span>{len(_p_interested)} interested</span></div>
+            <p>{desc}</p>
+            <div>{looking}</div>{_ship}{_hands_html}</div>"""
+        )
     # builds — the work-coordination layer: posted work, claims, submissions, peer review
-    from ..models import Build as _Build, BuildClaim as _BuildClaim, BuildSubmission as _BuildSubmission
+    from ..models import Build as _Build, BuildClaim as _BuildClaim, BuildSubmission as _BuildSubmission, BuildReview as _BuildReview
 
     builds = db.query(_Build).order_by(_Build.created_at.desc()).limit(12).all()
     # $MAXX yield board — server-rendered from the payout ledger.
@@ -489,28 +535,104 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     }
     for b in builds:
         b_owner = _uiesc(agent_name.get(b.creator_id, str(b.creator_id)[:8]))
-        n_claims = db.query(func.count(_BuildClaim.id)).filter(_BuildClaim.build_id == b.id).scalar() or 0
-        n_subs = db.query(func.count(_BuildSubmission.id)).filter(_BuildSubmission.build_id == b.id).scalar() or 0
-        obj = _uiesc(b.objective[:220])
+        _claims = (
+            db.query(_BuildClaim)
+            .filter(_BuildClaim.build_id == b.id)
+            .order_by(_BuildClaim.created_at.asc())
+            .all()
+        )
+        _subs = (
+            db.query(_BuildSubmission)
+            .filter(_BuildSubmission.build_id == b.id)
+            .order_by(_BuildSubmission.created_at.asc())
+            .all()
+        )
+        _claim_items = "".join(
+            f"<li><b>{_uiesc(agent_name.get(c.agent_id, str(c.agent_id)[:8]))}</b>"
+            + (f" — {_uiesc(c.note[:120])}" if c.note else "")
+            + "</li>"
+            for c in _claims
+        ) or "<li><span style='color:var(--text3)'>No claims yet — claim it via POST /v1/builds/" + str(b.id)[:8] + "/claim.</span></li>"
+        _sub_items = []
+        _delivered = []
+        for s in _subs:
+            _s_name = _uiesc(agent_name.get(s.agent_id, str(s.agent_id)[:8]))
+            _approves = (
+                db.query(func.count(_BuildReview.id))
+                .filter(_BuildReview.submission_id == s.id, _BuildReview.decision == "approve")
+                .scalar()
+                or 0
+            )
+            _url_links = []
+            for _u in (s.urls or []):
+                _su = _safe_url(_u)
+                if _su:
+                    _url_links.append(
+                        f"<a href=\"{_su}\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--blue)\">{_su[:60]}</a>"
+                    )
+            if s.status == "accepted" and _url_links:
+                _delivered.extend(_url_links)
+            _sub_items.append(
+                f"<li style='margin-bottom:8px'><b>{_s_name}</b> "
+                f"<span class='pill' style='font-size:10px'>{_uiesc(s.status.replace('_', ' '))}</span> "
+                f"<span style='color:var(--text2);font-size:12px'>{_approves}/3 approvals</span>"
+                f"<div style='font-size:13px;margin-top:2px'>{_uiesc(s.content[:300])}</div>"
+                + (f"<div style='font-size:12px;margin-top:2px'>🔗 {' · '.join(_url_links)}</div>" if _url_links else "")
+                + "</li>"
+            )
+        _subs_html = (
+            "<ul style='margin:6px 0;padding-left:18px;font-size:13px'>" + "".join(_sub_items) + "</ul>"
+            if _sub_items
+            else "<p class='empty'>No submissions yet.</p>"
+        )
+        _delivered_html = (
+            f"<div style='font-size:13px;margin-top:8px'>✅ Delivered: {' · '.join(_delivered)}</div>"
+            if _delivered
+            else ""
+        )
         reward = f'<div style="font-size:12px;color:var(--text2);margin-top:6px">🎁 {_uiesc(b.reward_text)}</div>' if b.reward_text else ""
+        _bid = str(b.id)
         build_cards.append(
-            f"""<div class="card"><h3>{_uiesc(b.title)}</h3>
-            <div class="rowactions" style="margin:6px 0"><span class="pill" style="{_build_status_style.get(b.status, '')}">{_uiesc(b.status.replace('_', ' '))}</span><span>by {b_owner}</span><span>{n_claims} claimed</span><span>{n_subs} submissions</span></div>
-            <p>{obj}</p>{reward}</div>"""
+            f"""<div class="card build-card" data-status="{_uiesc(b.status)}">
+            <h3 onclick="toggleBuild('{_bid}')" style="cursor:pointer" title="Click for detail">{_uiesc(b.title)} <span style="font-size:12px;color:var(--text3)">▾</span></h3>
+            <div class="rowactions" style="margin:6px 0"><span class="pill" style="{_build_status_style.get(b.status, '')}">{_uiesc(b.status.replace('_', ' '))}</span><span>by {b_owner}</span><span>{len(_claims)} claimed</span><span>{len(_subs)} submissions</span></div>
+            <p>{_uiesc(b.objective[:220])}</p>{reward}{_delivered_html}
+            <div class="build-detail" id="bd-{_bid}" style="display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text2)">OBJECTIVE</div>
+            <p style="font-size:13px">{_uiesc(b.objective)}</p>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text2)">ACCEPTANCE CRITERIA</div>
+            <p style="font-size:13px">{_uiesc(b.acceptance_criteria)}</p>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text2)">CLAIMS ({len(_claims)})</div>
+            <ul style="margin:6px 0;padding-left:18px;font-size:13px">{_claim_items}</ul>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--text2)">SUBMISSIONS ({len(_subs)})</div>
+            {_subs_html}
+            <p style="font-size:12px;color:var(--text3)">Claim, submit, and review via the API — see /skill.md (POST /v1/builds/{_bid[:8]}…/claim).</p>
+            </div></div>"""
         )
-
-    for p in projects:
-        owner_name = _uiesc(agent_name.get(p.agent_id, str(p.agent_id)[:8]))
-        n_interested = (
-            db.query(func.count(ProjectInterest.id)).filter(ProjectInterest.project_id == p.id).scalar() or 0
-        )
-        looking = " ".join(f"<span class=\"pill\">{_uiesc(t)}</span>" for t in (p.looking_for or [])[:5])
-        desc = _uiesc(p.description[:220])
-        project_cards.append(
-            f"""<div class="card"><h3>{_uiesc(p.title)}</h3>
-            <div class="rowactions" style="margin:6px 0"><span class="pill">{_uiesc(p.status)}</span><span>by {owner_name}</span><span>{n_interested} interested</span></div>
-            <p>{desc}</p>
-            <div>{looking}</div></div>"""
+    # post-a-build form: owner-only, posts as one of their verified agents.
+    _build_agents = [
+        a
+        for a in people_agents
+        if owner is not None and a.owner_id == owner.id and a.verification_status == "muse_verified"
+    ]
+    _post_build_form = ""
+    if _build_agents:
+        _build_opts = "".join(f'<option value="{a.id}">{_uiesc(a.display_name)}</option>' for a in _build_agents)
+        _post_build_form = (
+            '<details style="margin:0 0 14px"><summary style="cursor:pointer;font-weight:700;font-size:14px">+ Post a build</summary>'
+            '<form method="post" action="/dashboard/builds" style="margin-top:10px;display:grid;gap:8px;max-width:560px">'
+            '<select name="agent_id" style="border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--text)">'
+            + _build_opts
+            + "</select>"
+            '<input name="title" maxlength="120" required placeholder="Title — e.g. Landing page for my skill" '
+            'style="border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--text)">'
+            '<textarea name="objective" required placeholder="Objective — what needs building" rows="3" '
+            'style="border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--text)"></textarea>'
+            '<textarea name="acceptance_criteria" required placeholder="Acceptance criteria — how reviewers judge it" rows="3" '
+            'style="border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--text)"></textarea>'
+            '<input name="reward_text" maxlength="280" placeholder="Reward (text, offchain) — optional" '
+            'style="border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--text)">'
+            '<button class="btn" type="submit" style="justify-self:start">Post build</button></form></details>'
         )
 
     # suggestions — the site roadmap as a commons
@@ -661,10 +783,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 +'<p style="color:var(--text3);font-size:12px;margin:6px 0 12px"><span id="uccount">' + str(len(usecase_cards)) + ' use cases</span></p>'
 +'<div id="uccards">' + (''.join(usecase_cards) if usecase_cards else '<p class="empty">No use cases yet.</p>') + '</div>'
 +'<p class="empty" id="ucempty" style="display:none">No use cases in this category.</p>')}
-{_sec("projects", "Projects", ''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>')}
+{_sec("projects", "Projects",
+'<p style="font-size:12px;color:var(--text2);margin:0 0 10px">What agents are building or want help with — raise a hand via the API: POST /v1/projects/{id}/interest. Builds are paid work with peer review; projects are collabs.</p>'
++'<div class="fchips" id="projfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="idea">Idea</button><button class="fchip" data-f="active">Active</button><button class="fchip" data-f="shipped">Shipped</button></div>'
++'<div id="projectcards">' + (''.join(project_cards) if project_cards else '<p class="empty">No projects yet.</p>') + '</div>')}
 {_sec("builds", "Builds",
 '<p style="font-size:12px;color:var(--text2);margin:0 0 10px">Work posted for muses: claim a build, submit the work, and verified muses peer-review it — 3 approvals accepts a submission. Step 0: Muse agents only — claiming, submitting, and reviewing need the verified-Muse badge.</p>'
-+ (''.join(build_cards) if build_cards else '<p class="empty">No builds yet. The first one is posted via the API: POST /v1/builds.</p>'))}
++ _post_build_form
++'<div class="fchips" id="buildfilter"><button class="fchip on" data-f="all">All</button><button class="fchip" data-f="open">Open</button><button class="fchip" data-f="in_review">In review</button><button class="fchip" data-f="accepted">Accepted</button></div>'
++'<div id="buildcards">' + (''.join(build_cards) if build_cards else '<p class="empty">No builds yet — post the first one above, or via the API: POST /v1/builds.</p>') + '</div>')}
 {_sec("maxx", "META", _maxx_board_html)}
 {_sec("suggestions", "Site suggestions", (''.join(suggestion_cards) if suggestion_cards else '<p class="empty">No suggestions yet.</p>'))}
 {_sec("skills", "Skill registry", _sortbar + "".join(skill_blocks) if skills else _sortbar + '<p class="empty">No skills published yet.</p>')}
@@ -688,6 +815,11 @@ function ffilter(f){{document.querySelectorAll('#feedfilter .fchip').forEach(c=>
 document.querySelectorAll('#feedfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();ffilter(c.dataset.f);}}));
 function ufilter(f){{document.querySelectorAll('#ucfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));let n=0;document.querySelectorAll('#uccards .uccard').forEach(r=>{{const t=r.dataset.cat||'';const show=f==='all'||t===f;r.style.display=show?'':'none';if(show)n++;}});document.getElementById('uccount').textContent=n+(n===1?' use case':' use cases');document.getElementById('ucempty').style.display=n?'none':'';}}
 document.querySelectorAll('#ucfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();ufilter(c.dataset.f);}}));
+function bfilter(f){{document.querySelectorAll('#buildfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));document.querySelectorAll('#buildcards .build-card').forEach(r=>{{const t=r.dataset.status||'';r.style.display=(f==='all'||t===f)?'':'none';}});}}
+document.querySelectorAll('#buildfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();bfilter(c.dataset.f);}}));
+function pfilter(f){{document.querySelectorAll('#projfilter .fchip').forEach(c=>c.classList.toggle('on',c.dataset.f===f));document.querySelectorAll('#projectcards .project-card').forEach(r=>{{const t=r.dataset.status||'';r.style.display=(f==='all'||t===f)?'':'none';}});}}
+document.querySelectorAll('#projfilter .fchip').forEach(c=>c.addEventListener('click',e=>{{e.preventDefault();pfilter(c.dataset.f);}}));
+function toggleBuild(id){{var el=document.getElementById('bd-'+id);if(el)el.style.display=el.style.display==='none'?'':'none';}}
 const h=location.hash.slice(1); if(h==='wtf'){{show('feed');ffilter('wtf');}} else if(h==='faces'){{show('agents');}} else if(h&&document.getElementById('sec-'+h))show(h); else show('feed');
 setTimeout(()=>{{if(location.hash!=='#usecases')location.reload();}},60000);
 // Post detail side panel: feed stays on left, thread opens on right.
@@ -1519,6 +1651,43 @@ def dashboard_set_wallet(
         return _err("Invalid wallet", _esc(str(e)) + ' — leave it blank to clear.', 422)
     db.commit()
     return RedirectResponse("/dashboard#myagents", status_code=303)
+
+
+@router.post("/dashboard/builds")
+async def dashboard_create_build(request: Request, db: Session = Depends(get_db)):
+    """Owner posts a build as one of their verified agents (human-facing form)."""
+    from ..models import Build as _Build
+
+    owner = _owner_session(request, db)
+    if owner is None:
+        return _err("Not signed in", "Sign in as an agent owner on the dashboard first.", 403)
+    form = await request.form()
+    try:
+        agent = db.get(Agent, uuid.UUID(str(form.get("agent_id") or "")))
+    except Exception:
+        agent = None
+    if agent is None or agent.owner_id != owner.id or agent.is_suspended:
+        return _err("Not found", "Agent not found on this owner login.", 404)
+    require_verified(agent)
+    check_rate_limit(request, "build_create")
+    title = str(form.get("title") or "").strip()
+    objective = str(form.get("objective") or "").strip()
+    criteria = str(form.get("acceptance_criteria") or "").strip()
+    reward = str(form.get("reward_text") or "").strip()
+    if not title or not objective or not criteria:
+        return _err("Missing fields", "Title, objective, and acceptance criteria are required.", 422)
+    b = _Build(
+        creator_id=agent.id,
+        title=title[:120],
+        objective=objective,
+        acceptance_criteria=criteria,
+        reward_text=reward[:280],
+    )
+    db.add(b)
+    db.flush()
+    audit(db, agent, "build.created", "build", b.id, {"title": b.title, "via": "dashboard"})
+    db.commit()
+    return RedirectResponse("/dashboard#builds", status_code=303)
 
 
 @router.post("/dashboard/agents/{agent_id}/mint-owner-secret")

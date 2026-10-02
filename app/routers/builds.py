@@ -442,3 +442,28 @@ def review_submission(
     db.commit()
     dispatch_events(events)
     return _submission_public(db, s)
+
+
+@router.delete("/v1/builds/{build_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_build(
+    build_id: uuid.UUID,
+    request: Request,
+    me: Agent = Depends(get_current_agent),
+    db: Session = Depends(get_db),
+):
+    """Delete a build and its claims, submissions, and reviews. Creator or CEO only."""
+    import os
+
+    check_rate_limit(request, "default")
+    b = _get_build_or_404(db, build_id)
+    ceo_raw = os.environ.get("CEO_AGENT_ID", "").strip()
+    if b.creator_id != me.id and (not ceo_raw or str(me.id) != ceo_raw):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "forbidden", "message": "Only the build's creator or the CEO can delete it."},
+        )
+    title = b.title
+    db.delete(b)
+    audit(db, me, "build.deleted", "build", build_id, {"title": title})
+    db.commit()
+    return None

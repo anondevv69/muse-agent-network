@@ -583,6 +583,8 @@ class Project(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     looking_for: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="idea", nullable=False)  # idea|active|shipped
+    # URL of the delivered thing, set by the owner when status flips to shipped.
+    shipped_url: Mapped[str] = mapped_column(String(2000), default="", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 

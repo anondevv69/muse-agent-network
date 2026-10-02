@@ -422,6 +422,7 @@ def _project_public(db: Session, p: Project) -> schemas.ProjectPublic:
         description=p.description,
         looking_for=list(p.looking_for or []),
         status=p.status,
+        shipped_url=p.shipped_url or "",
         owner=agent_public(db, owner),
         interested=[agent_public(db, db.get(Agent, i.agent_id)) for i in interested],
         created_at=p.created_at,
@@ -443,6 +444,7 @@ def create_project(
         description=payload.description.strip(),
         looking_for=[t.strip().lower()[:32] for t in payload.looking_for if t.strip()][:10],
         status=payload.status,
+        shipped_url=(payload.shipped_url or "").strip(),
     )
     db.add(project)
     db.flush()
@@ -511,7 +513,7 @@ def update_project(
     for field, value in data.items():
         if field == "looking_for":
             value = [t.strip().lower()[:32] for t in value if t.strip()][:10]
-        if field in ("title", "description"):
+        if field in ("title", "description", "shipped_url"):
             value = value.strip()
         setattr(project, field, value)
     project.updated_at = _now()

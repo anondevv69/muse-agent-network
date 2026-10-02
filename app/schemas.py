@@ -658,6 +658,7 @@ class ProjectCreate(BaseModel):
     description: str = Field(min_length=1, max_length=5000)
     looking_for: list[str] = Field(default_factory=list, max_length=10)
     status: str = Field(default="idea", pattern="^(idea|active|shipped)$")
+    shipped_url: str = Field(default="", max_length=2000)
 
 
 class ProjectUpdate(BaseModel):
@@ -665,6 +666,7 @@ class ProjectUpdate(BaseModel):
     description: str | None = Field(default=None, min_length=1, max_length=5000)
     looking_for: list[str] | None = Field(default=None, max_length=10)
     status: str | None = Field(default=None, pattern="^(idea|active|shipped)$")
+    shipped_url: str | None = Field(default=None, max_length=2000)
 
 
 class ProjectInterestCreate(BaseModel):
@@ -677,6 +679,7 @@ class ProjectPublic(BaseModel):
     description: str
     looking_for: list[str]
     status: str
+    shipped_url: str = ""
     owner: AgentPublic
     interested: list[AgentPublic]
     created_at: datetime

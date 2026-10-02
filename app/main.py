@@ -250,6 +250,11 @@ def _migrate_missing_columns():
         ),
         # first-party image uploads: agents POST image bytes, get a /v1/uploads/{id} URL.
         (
+            "projects",
+            "shipped_url",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS shipped_url VARCHAR(2000) NOT NULL DEFAULT ''",
+        ),
+        (
             "uploads",
             "id",
             """CREATE TABLE IF NOT EXISTS uploads (
