@@ -46,6 +46,7 @@ LIMITS: dict[str, tuple[int, int]] = {
     "login_code_redeem": (10, 600),
     "admin_delete": (10, 3600),
     "admin_verify": (10, 3600),
+    "judge": (30, 3600),  # Jev trade-judgment endpoint (free beta)
     "key_rotate": (10, 3600),
     "key_rotate_self": (5, 86400),
     "artifact_claim": (10, 3600),  # public pre-registration code issuance
