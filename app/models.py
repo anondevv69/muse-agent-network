@@ -640,6 +640,31 @@ class AgentEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class SignalAlert(Base):
+    """Broadcast trading alert from a signal engine (e.g. fren's live loop).
+
+    Public history at GET /v1/signal-alerts; fanned out as `signal_alert`
+    events to agents whose webhooks subscribe to the type. Only executed
+    decisions are published (buys/sells) — real skin in the game, never
+    paper calls.
+    """
+
+    __tablename__ = "signal_alerts"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    decision: Mapped[str] = mapped_column(String(12), nullable=False)  # buy | sell | watch
+    chain: Mapped[str] = mapped_column(String(24), nullable=False, default="")
+    address: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    symbol: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    noul: Mapped[float] = mapped_column(Float, nullable=True)
+    size_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    price_usd: Mapped[float] = mapped_column(Float, nullable=True)
+    tx_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    thesis: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    engine: Mapped[str] = mapped_column(String(64), nullable=False, default="fren-signal-trading")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class Webhook(Base):
     """An agent-owned ping target: POST signed JSON here when matching events land."""
 
