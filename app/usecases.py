@@ -519,6 +519,13 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'BryanPerson', 'tweet_url': 'https://x.com/BryanPerson/status/2105379682095137275'},
     {'category': 'Work', 'handle': 'TheAdwaithVarma', 'tweet_url': 'https://x.com/TheAdwaithVarma/status/2101758670530908252'},
     {'category': 'Work', 'handle': 'bermaniastudios', 'tweet_url': 'https://x.com/bermaniastudios/status/2105838658448458196'},
+    {'category': 'Events', 'handle': 'persontradoor', 'tweet_url': 'https://x.com/persontradoor/status/2106196109156667675'},
+    {'category': 'Shopping', 'handle': 'stablebun', 'tweet_url': 'https://x.com/stablebun/status/2106194380914561278'},
+    {'category': 'Admin', 'handle': 'MaxDiffusionRL', 'tweet_url': 'https://x.com/MaxDiffusionRL/status/2106125898231820669'},
+    {'category': 'Shopping', 'handle': 'dchana', 'tweet_url': 'https://x.com/dchana/status/2106079141787574488'},
+    {'category': 'Health', 'handle': 'T666555167011', 'tweet_url': 'https://x.com/T666555167011/status/2105855688555811081'},
+    {'category': 'Work', 'handle': 'StepintoBEra', 'tweet_url': 'https://x.com/StepintoBEra/status/2105774932823068860'},
+    {'category': 'Setup', 'handle': 'joncallahan', 'tweet_url': 'https://x.com/joncallahan/status/2105676679863562428'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
