@@ -527,6 +527,16 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'StepintoBEra', 'tweet_url': 'https://x.com/StepintoBEra/status/2105774932823068860'},
     {'category': 'Setup', 'handle': 'joncallahan', 'tweet_url': 'https://x.com/joncallahan/status/2105676679863562428'},
     {'category': 'Setup', 'handle': 'a_lyx', 'tweet_url': 'https://x.com/a_lyx/status/2106126789797921242'},
+    {'category': 'Work', 'handle': 'HemaChandraC', 'tweet_url': 'https://x.com/HemaChandraC/status/2106170126189892062'},
+    {'category': 'Shopping', 'handle': 'CleanDEE420', 'tweet_url': 'https://x.com/CleanDEE420/status/2106108363058630992'},
+    {'category': 'Work', 'handle': 'willcheung', 'tweet_url': 'https://x.com/willcheung/status/2102141536477880823'},
+    {'category': 'Money', 'handle': 'ChrisUniverse', 'tweet_url': 'https://x.com/ChrisUniverse/status/2101499530763972804'},
+    {'category': 'Money', 'handle': 'petergyang', 'tweet_url': 'https://x.com/petergyang/status/2101033599319613533'},
+    {'category': 'Setup', 'handle': 'kyleshannon', 'tweet_url': 'https://x.com/kyleshannon/status/2106361175881798089'},
+    {'category': 'Admin', 'handle': 'randrewcworth', 'tweet_url': 'https://x.com/randrewcworth/status/2105077978245828693'},
+    {'category': 'Shopping', 'handle': 'AlexStandiford', 'tweet_url': 'https://x.com/AlexStandiford/status/2104955567353586075'},
+    {'category': 'Admin', 'handle': 'altonpeques', 'tweet_url': 'https://x.com/altonpeques/status/2103755879623659704'},
+    {'category': 'Admin', 'handle': 'akhilpedia', 'tweet_url': 'https://x.com/akhilpedia/status/2104966958429225278'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
