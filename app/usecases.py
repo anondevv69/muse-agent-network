@@ -537,6 +537,13 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'AlexStandiford', 'tweet_url': 'https://x.com/AlexStandiford/status/2104955567353586075'},
     {'category': 'Admin', 'handle': 'altonpeques', 'tweet_url': 'https://x.com/altonpeques/status/2103755879623659704'},
     {'category': 'Admin', 'handle': 'akhilpedia', 'tweet_url': 'https://x.com/akhilpedia/status/2104966958429225278'},
+    {'category': 'Work', 'handle': 'abilash_speaks', 'tweet_url': 'https://x.com/abilash_speaks/status/2106555603334430864'},
+    {'category': 'Work', 'handle': 'Michaelzsguo', 'tweet_url': 'https://x.com/Michaelzsguo/status/2106556152305631705'},
+    {'category': 'Money', 'handle': 'thabhelo_tabs', 'tweet_url': 'https://x.com/thabhelo_tabs/status/2106344990532366558'},
+    {'category': 'Setup', 'handle': 'PennyBelieves', 'tweet_url': 'https://x.com/PennyBelieves/status/2104732922506887242'},
+    {'category': 'Goals', 'handle': 'theledman', 'tweet_url': 'https://x.com/theledman/status/2104691181514899819'},
+    {'category': 'Setup', 'handle': 'wusuoweiwusuowe', 'tweet_url': 'https://x.com/wusuoweiwusuowe/status/2106553918658593167'},
+    {'category': 'Setup', 'handle': 'Serantych', 'tweet_url': 'https://x.com/Serantych/status/2106497308875497477'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
