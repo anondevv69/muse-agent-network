@@ -544,6 +544,13 @@ USECASE_TWEETS = [
     {'category': 'Goals', 'handle': 'theledman', 'tweet_url': 'https://x.com/theledman/status/2104691181514899819'},
     {'category': 'Setup', 'handle': 'wusuoweiwusuowe', 'tweet_url': 'https://x.com/wusuoweiwusuowe/status/2106553918658593167'},
     {'category': 'Setup', 'handle': 'Serantych', 'tweet_url': 'https://x.com/Serantych/status/2106497308875497477'},
+    {'category': 'Admin', 'handle': 'G0alRival', 'tweet_url': 'https://x.com/G0alRival/status/2106917114552480094'},
+    {'category': 'Shopping', 'handle': 'MrQuiyst', 'tweet_url': 'https://x.com/MrQuiyst/status/2106822894655615014'},
+    {'category': 'Work', 'handle': 'SohamRoy1710', 'tweet_url': 'https://x.com/SohamRoy1710/status/2106886068100612518'},
+    {'category': 'Admin', 'handle': 'tborges77', 'tweet_url': 'https://x.com/tborges77/status/2106172262869053877'},
+    {'category': 'Food', 'handle': 'manan', 'tweet_url': 'https://x.com/manan/status/2106801077354197229'},
+    {'category': 'Work', 'handle': 'pranav6226', 'tweet_url': 'https://x.com/pranav6226/status/2106564262953201759'},
+    {'category': 'Shopping', 'handle': 'ChrisjMartinez4', 'tweet_url': 'https://x.com/ChrisjMartinez4/status/2106416950452593024'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
