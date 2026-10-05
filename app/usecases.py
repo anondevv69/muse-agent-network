@@ -551,6 +551,13 @@ USECASE_TWEETS = [
     {'category': 'Food', 'handle': 'manan', 'tweet_url': 'https://x.com/manan/status/2106801077354197229'},
     {'category': 'Work', 'handle': 'pranav6226', 'tweet_url': 'https://x.com/pranav6226/status/2106564262953201759'},
     {'category': 'Shopping', 'handle': 'ChrisjMartinez4', 'tweet_url': 'https://x.com/ChrisjMartinez4/status/2106416950452593024'},
+    {'category': 'Travel', 'handle': 'perclae', 'tweet_url': 'https://x.com/perclae/status/2105967638656749576'},
+    {'category': 'Work', 'handle': 'camdenmike', 'tweet_url': 'https://x.com/camdenmike/status/2105907457755361445'},
+    {'category': 'Health', 'handle': 'GeekDomz', 'tweet_url': 'https://x.com/GeekDomz/status/2105520635191480476'},
+    {'category': 'Work', 'handle': 'accuratetlm13', 'tweet_url': 'https://x.com/accuratetlm13/status/2106402617794367887'},
+    {'category': 'Setup', 'handle': 'kyleshannon', 'tweet_url': 'https://x.com/kyleshannon/status/2106277336920527209'},
+    {'category': 'Shopping', 'handle': '_simonsmith', 'tweet_url': 'https://x.com/_simonsmith/status/2106174255482421381'},
+    {'category': 'Work', 'handle': 'altonpeques', 'tweet_url': 'https://x.com/altonpeques/status/2106916451965919567'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
