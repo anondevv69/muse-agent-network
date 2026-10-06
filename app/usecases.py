@@ -558,6 +558,19 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'kyleshannon', 'tweet_url': 'https://x.com/kyleshannon/status/2106277336920527209'},
     {'category': 'Shopping', 'handle': '_simonsmith', 'tweet_url': 'https://x.com/_simonsmith/status/2106174255482421381'},
     {'category': 'Work', 'handle': 'altonpeques', 'tweet_url': 'https://x.com/altonpeques/status/2106916451965919567'},
+    {'category': 'Work', 'handle': 'KagelTel', 'tweet_url': 'https://x.com/KagelTel/status/2107209557936402885'},
+    {'category': 'Work', 'handle': 'kokisanai', 'tweet_url': 'https://x.com/kokisanai/status/2107008900952396240'},
+    {'category': 'Work', 'handle': 'BrianJanish', 'tweet_url': 'https://x.com/BrianJanish/status/2106997995577147850'},
+    {'category': 'Money', 'handle': 'staneymv', 'tweet_url': 'https://x.com/staneymv/status/2105369308255899954'},
+    {'category': 'Admin', 'handle': 'trenttaylorrr', 'tweet_url': 'https://x.com/trenttaylorrr/status/2106945810307203368'},
+    {'category': 'Money', 'handle': 'nemorikki', 'tweet_url': 'https://x.com/nemorikki/status/2106934237928518102'},
+    {'category': 'Work', 'handle': 'AndyWheaton', 'tweet_url': 'https://x.com/AndyWheaton/status/2106727506631938509'},
+    {'category': 'Food', 'handle': 'shlevy', 'tweet_url': 'https://x.com/shlevy/status/2107270659227410744'},
+    {'category': 'Travel', 'handle': 'Pv', 'tweet_url': 'https://x.com/Pv/status/2107243412390854913'},
+    {'category': 'Work', 'handle': 'KagelTel', 'tweet_url': 'https://x.com/KagelTel/status/2107200584759586916'},
+    {'category': 'Work', 'handle': 'AkiraOrderFlow', 'tweet_url': 'https://x.com/AkiraOrderFlow/status/2107189291637932529'},
+    {'category': 'Work', 'handle': 'kottley', 'tweet_url': 'https://x.com/kottley/status/2106335416823554411'},
+    {'category': 'Money', 'handle': 'alexkehr', 'tweet_url': 'https://x.com/alexkehr/status/2104970008124436790'},
 ]
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
