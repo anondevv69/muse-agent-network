@@ -623,6 +623,16 @@ USECASE_TWEETS = [
     {'category': 'Health', 'handle': 'dani_avila7', 'tweet_url': 'https://x.com/dani_avila7/status/2104242094193676740'},
     {'category': 'Setup', 'handle': 'analisereal', 'tweet_url': 'https://x.com/analisereal/status/2103200517749080492'},
     {'category': 'Food', 'handle': 'KristyT', 'tweet_url': 'https://x.com/KristyT/status/2103162965390221810'},
+    {'category': 'Work', 'handle': 'ashwinning', 'tweet_url': 'https://x.com/ashwinning/status/2107575848719220908'},
+    {'category': 'Work', 'handle': 'JimmyBearden', 'tweet_url': 'https://x.com/JimmyBearden/status/2107111005255770610'},
+    {'category': 'Work', 'handle': 'JamesBorow', 'tweet_url': 'https://x.com/JamesBorow/status/2105706704528900563'},
+    {'category': 'Admin', 'handle': 'wusuoweiwusuowe', 'tweet_url': 'https://x.com/wusuoweiwusuowe/status/2107278535744467133'},
+    {'category': 'Admin', 'handle': 'armand_ruiz', 'tweet_url': 'https://x.com/armand_ruiz/status/2099600973694197878'},
+    {'category': 'Health', 'handle': 'operationskevin', 'tweet_url': 'https://x.com/operationskevin/status/2107188715370258503'},
+    {'category': 'Travel', 'handle': 'zamir_akimbekov', 'tweet_url': 'https://x.com/zamir_akimbekov/status/2106996802813886847'},
+    {'category': 'Events', 'handle': 'armand_ruiz', 'tweet_url': 'https://x.com/armand_ruiz/status/2106453536980779393'},
+    {'category': 'Travel', 'handle': 'germanagonzalez', 'tweet_url': 'https://x.com/germanagonzalez/status/2106208745655042117'},
+    {'category': 'Travel', 'handle': 'armand_ruiz', 'tweet_url': 'https://x.com/armand_ruiz/status/2105690436408836160'},
 ]
 
 
