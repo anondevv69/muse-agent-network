@@ -599,7 +599,32 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'dotkrueger', 'tweet_url': 'https://x.com/dotkrueger/status/2107303960206057691'},
     {'category': 'Admin', 'handle': 'AnandSheth2', 'tweet_url': 'https://x.com/AnandSheth2/status/2107331279981301925'},
     {'category': 'Work', 'handle': 'colemickens', 'tweet_url': 'https://x.com/colemickens/status/2107428079421599773'},
+
+    {'category': 'Setup', 'handle': 'DillynBarber', 'tweet_url': 'https://x.com/DillynBarber/status/2107643924613325180'},
+    {'category': 'Setup', 'handle': 'imnotMatt_eth', 'tweet_url': 'https://x.com/imnotMatt_eth/status/2107641674138808406'},
+    {'category': 'Work', 'handle': 'faiAI0', 'tweet_url': 'https://x.com/faiAI0/status/2107615743621865604'},
+    {'category': 'Money', 'handle': 'happyface1022', 'tweet_url': 'https://x.com/happyface1022/status/2107511630653485243'},
+    {'category': 'Travel', 'handle': 'happyface1022', 'tweet_url': 'https://x.com/happyface1022/status/2107511628334035037'},
+    {'category': 'Work', 'handle': 'SavvyTamz_57', 'tweet_url': 'https://x.com/SavvyTamz_57/status/2107448798121165121'},
+    {'category': 'Admin', 'handle': 'Echecrates', 'tweet_url': 'https://x.com/Echecrates/status/2107306472585515300'},
+    {'category': 'Work', 'handle': 'KagelTel', 'tweet_url': 'https://x.com/KagelTel/status/2107201785811148986'},
+    {'category': 'Events', 'handle': 'kimmaicutler', 'tweet_url': 'https://x.com/kimmaicutler/status/2107186710945927308'},
+    {'category': 'Shopping', 'handle': 'ChrisjMartinez4', 'tweet_url': 'https://x.com/ChrisjMartinez4/status/2107152060303188081'},
+    {'category': 'Setup', 'handle': '_simonsmith', 'tweet_url': 'https://x.com/_simonsmith/status/2107130296319832404'},
+    {'category': 'Work', 'handle': 'StStymie', 'tweet_url': 'https://x.com/StStymie/status/2106958531366908201'},
+    {'category': 'Setup', 'handle': 'TH33ORACL3', 'tweet_url': 'https://x.com/TH33ORACL3/status/2107610562871845356'},
+    {'category': 'Work', 'handle': 'kottley', 'tweet_url': 'https://x.com/kottley/status/2107497799927341361'},
+    {'category': 'Work', 'handle': 'gowooni2', 'tweet_url': 'https://x.com/gowooni2/status/2107282011849380069'},
+    {'category': 'Setup', 'handle': 'HarperSCarroll', 'tweet_url': 'https://x.com/HarperSCarroll/status/2106833198852305118'},
+    {'category': 'Work', 'handle': 'SavvyTamz_57', 'tweet_url': 'https://x.com/SavvyTamz_57/status/2107279116282057037'},
+    {'category': 'Setup', 'handle': 'victrmorl', 'tweet_url': 'https://x.com/victrmorl/status/2107166786856820803'},
+    {'category': 'Work', 'handle': 'smellypeaches4u', 'tweet_url': 'https://x.com/smellypeaches4u/status/2105720647909331371'},
+    {'category': 'Travel', 'handle': 'BlazeDrinkwine', 'tweet_url': 'https://x.com/BlazeDrinkwine/status/2104315551812362545'},
+    {'category': 'Health', 'handle': 'dani_avila7', 'tweet_url': 'https://x.com/dani_avila7/status/2104242094193676740'},
+    {'category': 'Setup', 'handle': 'analisereal', 'tweet_url': 'https://x.com/analisereal/status/2103200517749080492'},
+    {'category': 'Food', 'handle': 'KristyT', 'tweet_url': 'https://x.com/KristyT/status/2103162965390221810'},
 ]
+
 
 USECASE_CATEGORIES = sorted({t["category"] for t in USECASE_TWEETS})
 
