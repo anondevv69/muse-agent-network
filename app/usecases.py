@@ -638,6 +638,19 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'Nftkid23', 'tweet_url': 'https://x.com/Nftkid23/status/2107975510840291477'},
     {'category': 'Events', 'handle': 'JJEnglert', 'tweet_url': 'https://x.com/JJEnglert/status/2107965037616693373'},
     {'category': 'Travel', 'handle': 'armand_ruiz', 'tweet_url': 'https://x.com/armand_ruiz/status/2105690436408836160'},
+    {'category': 'Work', 'handle': 'rpnickson', 'tweet_url': 'https://x.com/rpnickson/status/2108190320512860366'},
+    {'category': 'Shopping', 'handle': 'prthgo', 'tweet_url': 'https://x.com/prthgo/status/2108181702216704151'},
+    {'category': 'Admin', 'handle': 'GeekDomz', 'tweet_url': 'https://x.com/GeekDomz/status/2108051331118178812'},
+    {'category': 'Shopping', 'handle': 'strghtdrve', 'tweet_url': 'https://x.com/strghtdrve/status/2108027650014958028'},
+    {'category': 'Travel', 'handle': 'sritwitsuraj', 'tweet_url': 'https://x.com/sritwitsuraj/status/2107946919930503363'},
+    {'category': 'Shopping', 'handle': 'bensymonds24', 'tweet_url': 'https://x.com/bensymonds24/status/2107941872328946084'},
+    {'category': 'Health', 'handle': 'chakkaradeep', 'tweet_url': 'https://x.com/chakkaradeep/status/2108072971818676574'},
+    {'category': 'Work', 'handle': '_simonsmith', 'tweet_url': 'https://x.com/_simonsmith/status/2107865812954726840'},
+    {'category': 'Setup', 'handle': 'jerrod_lew', 'tweet_url': 'https://x.com/jerrod_lew/status/2108077437611598202'},
+    {'category': 'Work', 'handle': 'SORAY_AI', 'tweet_url': 'https://x.com/SORAY_AI/status/2108020504523165806'},
+    {'category': 'Admin', 'handle': 'noeltechbuilder', 'tweet_url': 'https://x.com/noeltechbuilder/status/2107841127143334340'},
+    {'category': 'Work', 'handle': 'BalaSelvam', 'tweet_url': 'https://x.com/BalaSelvam/status/2107773283353428417'},
+    {'category': 'Admin', 'handle': 'temunix2', 'tweet_url': 'https://x.com/temunix2/status/2107266889718399367'},
 ]
 
 
