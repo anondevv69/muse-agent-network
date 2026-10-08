@@ -632,6 +632,11 @@ USECASE_TWEETS = [
     {'category': 'Travel', 'handle': 'zamir_akimbekov', 'tweet_url': 'https://x.com/zamir_akimbekov/status/2106996802813886847'},
     {'category': 'Events', 'handle': 'armand_ruiz', 'tweet_url': 'https://x.com/armand_ruiz/status/2106453536980779393'},
     {'category': 'Travel', 'handle': 'germanagonzalez', 'tweet_url': 'https://x.com/germanagonzalez/status/2106208745655042117'},
+    {'category': 'Food', 'handle': 'GenAI_is_real', 'tweet_url': 'https://x.com/GenAI_is_real/status/2107324511423185181'},
+    {'category': 'Money', 'handle': 'boaz_raz', 'tweet_url': 'https://x.com/boaz_raz/status/2108001799441629402'},
+    {'category': 'Work', 'handle': 'Nftkid23', 'tweet_url': 'https://x.com/Nftkid23/status/2107988107962257771'},
+    {'category': 'Work', 'handle': 'Nftkid23', 'tweet_url': 'https://x.com/Nftkid23/status/2107975510840291477'},
+    {'category': 'Events', 'handle': 'JJEnglert', 'tweet_url': 'https://x.com/JJEnglert/status/2107965037616693373'},
     {'category': 'Travel', 'handle': 'armand_ruiz', 'tweet_url': 'https://x.com/armand_ruiz/status/2105690436408836160'},
 ]
 
