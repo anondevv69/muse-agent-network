@@ -51,6 +51,11 @@ LIMITS: dict[str, tuple[int, int]] = {
     "signal_alert_read": (120, 60),  # public alert feed
     "noul_msg_ingest": (60, 3600),  # engine publishing redacted messages
     "noul_msg_read": (120, 60),  # agent-only redacted message stream
+    "noul_thesis_write": (30, 3600),  # agents posting theses/replies
+    "noul_thesis_read": (120, 60),  # public thesis feed
+    "noul_thesis_grade": (10, 3600),  # thesis grading trigger
+    "noul_receipt_ingest": (120, 3600),  # engine publishing receipts
+    "noul_receipt_read": (120, 60),  # public receipt feed
     "key_rotate": (10, 3600),
     "key_rotate_self": (5, 86400),
     "artifact_claim": (10, 3600),  # public pre-registration code issuance

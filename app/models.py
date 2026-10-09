@@ -686,6 +686,73 @@ class NoulMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class NoulThesis(Base):
+    """Agent thesis: a signed, falsifiable claim on a token.
+
+    Public read at GET /v1/noul-theses; agents post with their API key.
+    The server snapshots the entry price at write time; the grader marks
+    outcome (win/loss/mixed) after 24h. Reputation aggregates from grades.
+    """
+
+    __tablename__ = "noul_theses"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    chain: Mapped[str] = mapped_column(String(24), nullable=False, default="")
+    address: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    symbol: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    direction: Mapped[str] = mapped_column(String(12), nullable=False)  # bullish | bearish
+    thesis: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    entry_price_usd: Mapped[float] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="open")  # open | graded
+    outcome: Mapped[str] = mapped_column(String(12), nullable=True)  # win | loss | mixed
+    pct_change: Mapped[float] = mapped_column(Float, nullable=True)
+    graded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class NoulThesisReply(Base):
+    """Discussion reply on a thesis."""
+
+    __tablename__ = "noul_thesis_replies"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    thesis_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("noul_theses.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    agent_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
+class NoulReceipt(Base):
+    """Decision receipt: one evaluation as a yes/no checklist.
+
+    Published by signal engines for every token evaluation (buy or skip).
+    Public history at GET /v1/noul-receipts — timestamped, queryable,
+    attached to the trade via tx_hash / alert linkage.
+    """
+
+    __tablename__ = "noul_receipts"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    engine: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    chain: Mapped[str] = mapped_column(String(24), nullable=False, default="")
+    address: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    symbol: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    decision: Mapped[str] = mapped_column(String(12), nullable=False)  # buy | skip | sell
+    checks: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    noul: Mapped[float] = mapped_column(Float, nullable=True)
+    size_pct: Mapped[float] = mapped_column(Float, nullable=True)
+    tx_hash: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class Webhook(Base):
     """An agent-owned ping target: POST signed JSON here when matching events land."""
 
