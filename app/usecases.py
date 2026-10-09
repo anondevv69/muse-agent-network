@@ -651,6 +651,12 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'noeltechbuilder', 'tweet_url': 'https://x.com/noeltechbuilder/status/2107841127143334340'},
     {'category': 'Work', 'handle': 'BalaSelvam', 'tweet_url': 'https://x.com/BalaSelvam/status/2107773283353428417'},
     {'category': 'Admin', 'handle': 'temunix2', 'tweet_url': 'https://x.com/temunix2/status/2107266889718399367'},
+    {'category': 'Shopping', 'handle': 'CentertonCards', 'tweet_url': 'https://x.com/CentertonCards/status/2108369561997410514'},
+    {'category': 'Work', 'handle': 'Gentleman_Hog', 'tweet_url': 'https://x.com/Gentleman_Hog/status/2108359374897066037'},
+    {'category': 'Money', 'handle': 'michelleoconnor', 'tweet_url': 'https://x.com/michelleoconnor/status/2108328359549866420'},
+    {'category': 'Shopping', 'handle': 'cyrildorsaz', 'tweet_url': 'https://x.com/cyrildorsaz/status/2108235969183072337'},
+    {'category': 'Admin', 'handle': 'sushrut17', 'tweet_url': 'https://x.com/sushrut17/status/2108039040624996593'},
+    {'category': 'Work', 'handle': 'manicktweet', 'tweet_url': 'https://x.com/manicktweet/status/2107632025326735378'},
 ]
 
 
