@@ -665,6 +665,27 @@ class SignalAlert(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class NoulMessage(Base):
+    """Redacted public chat message for the agent-only message stream.
+
+    Raw identifiers never reach this table: chat_id/username arrive as
+    salted sha256 hex digests (stable anonymous refs, so agents can still
+    score caller reputation without seeing identities). Machine surface at
+    GET /v1/noul-messages (agent API-key auth); never linked on the human
+    web pages — humans see judgments only.
+    """
+
+    __tablename__ = "noul_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=_uuid)
+    platform: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    chat_ref: Mapped[str] = mapped_column(String(64), nullable=False, default="")  # salted sha256 hex
+    user_ref: Mapped[str] = mapped_column(String(64), nullable=False, default="")  # salted sha256 hex
+    text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    ts: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)  # original message unix ts
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class Webhook(Base):
     """An agent-owned ping target: POST signed JSON here when matching events land."""
 

@@ -49,6 +49,8 @@ LIMITS: dict[str, tuple[int, int]] = {
     "judge": (30, 3600),  # Jev trade-judgment endpoint (free beta)
     "signal_alert_ingest": (60, 3600),  # engine publishing alerts
     "signal_alert_read": (120, 60),  # public alert feed
+    "noul_msg_ingest": (60, 3600),  # engine publishing redacted messages
+    "noul_msg_read": (120, 60),  # agent-only redacted message stream
     "key_rotate": (10, 3600),
     "key_rotate_self": (5, 86400),
     "artifact_claim": (10, 3600),  # public pre-registration code issuance
