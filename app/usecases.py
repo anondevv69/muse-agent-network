@@ -668,6 +668,8 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'ads4apps', 'tweet_url': 'https://x.com/ads4apps/status/2108720343124791362', 'name': 'james', 'text': 'Muse has: - scheduled my PT appts - made sure a desert place had a specific food - helped me sell my model X - booked my car appt. Muse is goated'},
     {'category': 'Admin', 'handle': 'MattPRD', 'tweet_url': 'https://x.com/MattPRD/status/2108630848128118921', 'name': 'Matt Schlicht', 'text': "My muse called Volvo for me to see when the next available appointment is. You can listen to the phone call here. I have it do multiple calls like this every day (I'm still trying to get better and better at leveraging muse). My muse called, waited on the line for 15 minutes, [video]"},
     {'category': 'Health', 'handle': 'NightmaresBTW', 'tweet_url': 'https://x.com/NightmaresBTW/status/2108462369156603998', 'text': "@alexandr_wang Since launch Muse has helped me stay on track with my new diet, given me solid fitness advice, and helped me thru multiple step by step's to fix my PC last night. I would not have been able to fix my PC as fast as I did without Muse, gone are the days of googling thru forums."},
+    {'category': 'Admin', 'handle': 'NilGurelPhD', 'tweet_url': 'https://x.com/NilGurelPhD/status/2108778082245189642', 'text': 'I put off making a dentist appointment for 2 years because phone calls. @muse booked it for me. This might be the most meaningful AI breakthrough in my personal life.'},
+    {'category': 'Money', 'handle': 'gragtah', 'tweet_url': 'https://x.com/gragtah/status/2108419728448565493', 'text': 'Muse found and got me ~$500 in unclaimed assets I had in NY from years ago. Check arrived within days. Incredible.'},
 ]
 
 
