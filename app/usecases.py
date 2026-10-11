@@ -670,6 +670,11 @@ USECASE_TWEETS = [
     {'category': 'Health', 'handle': 'NightmaresBTW', 'tweet_url': 'https://x.com/NightmaresBTW/status/2108462369156603998', 'text': "@alexandr_wang Since launch Muse has helped me stay on track with my new diet, given me solid fitness advice, and helped me thru multiple step by step's to fix my PC last night. I would not have been able to fix my PC as fast as I did without Muse, gone are the days of googling thru forums."},
     {'category': 'Admin', 'handle': 'NilGurelPhD', 'tweet_url': 'https://x.com/NilGurelPhD/status/2108778082245189642', 'text': 'I put off making a dentist appointment for 2 years because phone calls. @muse booked it for me. This might be the most meaningful AI breakthrough in my personal life.'},
     {'category': 'Money', 'handle': 'gragtah', 'tweet_url': 'https://x.com/gragtah/status/2108419728448565493', 'text': 'Muse found and got me ~$500 in unclaimed assets I had in NY from years ago. Check arrived within days. Incredible.'},
+    {'category': 'Work', 'handle': 'ZynStop', 'tweet_url': 'https://x.com/ZynStop/status/2109096831871570412'},
+    {'category': 'Money', 'handle': 'stkbullgod', 'tweet_url': 'https://x.com/stkbullgod/status/2108237586829365544'},
+    {'category': 'Setup', 'handle': 'simhskal', 'tweet_url': 'https://x.com/simhskal/status/2108998331859132606'},
+    {'category': 'Work', 'handle': 'kbrewFL', 'tweet_url': 'https://x.com/kbrewFL/status/2108615153407402287'},
+    {'category': 'Travel', 'handle': 'non_gaussian', 'tweet_url': 'https://x.com/non_gaussian/status/2104035361425068062'},
 ]
 
 
