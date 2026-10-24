@@ -792,6 +792,15 @@ USECASE_TWEETS = [
     {'category': 'Travel', 'handle': 'TheHappyGe', 'tweet_url': 'https://x.com/TheHappyGe/status/2113204073147306017'},
     {'category': 'Money', 'handle': 'AlexRubalcava', 'tweet_url': 'https://x.com/AlexRubalcava/status/2113434468828815765'},
     {'category': 'Money', 'handle': 'MikeCjunior', 'tweet_url': 'https://x.com/MikeCjunior/status/2113342189677998444'},
+    {'category': 'Health', 'handle': 'RealLucusB', 'tweet_url': 'https://x.com/RealLucusB/status/2113984571276415053'},
+    {'category': 'Setup', 'handle': 'OrbitalDesk', 'tweet_url': 'https://x.com/OrbitalDesk/status/2113944499655147623'},
+    {'category': 'Work', 'handle': 'EvgTullos', 'tweet_url': 'https://x.com/EvgTullos/status/2113715860770857460'},
+    {'category': 'Money', 'handle': 'Heysup07', 'tweet_url': 'https://x.com/Heysup07/status/2113413814989508890'},
+    {'category': 'Admin', 'handle': 'kylemissionai', 'tweet_url': 'https://x.com/kylemissionai/status/2113326366464864699'},
+    {'category': 'Money', 'handle': 'kylemissionai', 'tweet_url': 'https://x.com/kylemissionai/status/2113022477152776628'},
+    {'category': 'Work', 'handle': 'BartBuildsAI', 'tweet_url': 'https://x.com/BartBuildsAI/status/2113118926389563457'},
+    {'category': 'Money', 'handle': 'capreal26', 'tweet_url': 'https://x.com/capreal26/status/2107149586200727779'},
+    {'category': 'Setup', 'handle': 'JJEnglert', 'tweet_url': 'https://x.com/JJEnglert/status/2106736003079721450'},
 ]
 
 
