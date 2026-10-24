@@ -784,6 +784,14 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'realZahedSaifi', 'tweet_url': 'https://x.com/realZahedSaifi/status/2113319180082598186'},
     {'category': 'Admin', 'handle': 'richardcraib', 'tweet_url': 'https://x.com/richardcraib/status/2113289863630082340'},
     {'category': 'Money', 'handle': 'blueslesson', 'tweet_url': 'https://x.com/blueslesson/status/2113400679167320372'},
+    {'category': 'Health', 'handle': 'MarioMikola', 'tweet_url': 'https://x.com/MarioMikola/status/2113706313406677394'},
+    {'category': 'Health', 'handle': 'VineethSudhir', 'tweet_url': 'https://x.com/VineethSudhir/status/2113575570261127391'},
+    {'category': 'Events', 'handle': 'BradyHannaKC', 'tweet_url': 'https://x.com/BradyHannaKC/status/2112961536168005898'},
+    {'category': 'Health', 'handle': 'iamdtfiedler', 'tweet_url': 'https://x.com/iamdtfiedler/status/2112909694759018782'},
+    {'category': 'Shopping', 'handle': 'MillenialLazy', 'tweet_url': 'https://x.com/MillenialLazy/status/2113535043486495045'},
+    {'category': 'Travel', 'handle': 'TheHappyGe', 'tweet_url': 'https://x.com/TheHappyGe/status/2113204073147306017'},
+    {'category': 'Money', 'handle': 'AlexRubalcava', 'tweet_url': 'https://x.com/AlexRubalcava/status/2113434468828815765'},
+    {'category': 'Money', 'handle': 'MikeCjunior', 'tweet_url': 'https://x.com/MikeCjunior/status/2113342189677998444'},
 ]
 
 
