@@ -801,6 +801,11 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'BartBuildsAI', 'tweet_url': 'https://x.com/BartBuildsAI/status/2113118926389563457'},
     {'category': 'Money', 'handle': 'capreal26', 'tweet_url': 'https://x.com/capreal26/status/2107149586200727779'},
     {'category': 'Setup', 'handle': 'JJEnglert', 'tweet_url': 'https://x.com/JJEnglert/status/2106736003079721450'},
+    {'category': 'Admin', 'handle': 'Stone_XRPL', 'tweet_url': 'https://x.com/Stone_XRPL/status/2114000416706851206'},
+    {'category': 'Shopping', 'handle': 'sharaththegeek', 'tweet_url': 'https://x.com/sharaththegeek/status/2113888525808734569'},
+    {'category': 'Work', 'handle': 'Preda2005', 'tweet_url': 'https://x.com/Preda2005/status/2114162909895176360'},
+    {'category': 'Work', 'handle': 'brennanzambo', 'tweet_url': 'https://x.com/brennanzambo/status/2114038443424567511'},
+    {'category': 'Events', 'handle': 'BradyHannaKC', 'tweet_url': 'https://x.com/BradyHannaKC/status/2114028796223599023'},
 ]
 
 
