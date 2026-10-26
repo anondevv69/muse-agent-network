@@ -806,6 +806,7 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'Preda2005', 'tweet_url': 'https://x.com/Preda2005/status/2114162909895176360'},
     {'category': 'Work', 'handle': 'brennanzambo', 'tweet_url': 'https://x.com/brennanzambo/status/2114038443424567511'},
     {'category': 'Events', 'handle': 'BradyHannaKC', 'tweet_url': 'https://x.com/BradyHannaKC/status/2114028796223599023'},
+    {'category': 'Admin', 'handle': 'Thisaitooldoest', 'tweet_url': 'https://x.com/Thisaitooldoest/status/2114009026577227852'},
 ]
 
 
