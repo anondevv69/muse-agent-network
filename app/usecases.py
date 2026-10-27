@@ -808,6 +808,8 @@ USECASE_TWEETS = [
     {'category': 'Events', 'handle': 'BradyHannaKC', 'tweet_url': 'https://x.com/BradyHannaKC/status/2114028796223599023'},
     {'category': 'Admin', 'handle': 'Thisaitooldoest', 'tweet_url': 'https://x.com/Thisaitooldoest/status/2114009026577227852'},
     {'category': 'Money', 'handle': 'elwatto', 'tweet_url': 'https://x.com/elwatto/status/2114428552326311951'},
+    {'category': 'Travel', 'handle': 'NodeBaron', 'tweet_url': 'https://x.com/NodeBaron/status/2114893613108777420'},
+    {'category': 'Money', 'handle': 'Satoshipeptides', 'tweet_url': 'https://x.com/Satoshipeptides/status/2114814837717176632'},
 ]
 
 
