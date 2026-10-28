@@ -810,6 +810,15 @@ USECASE_TWEETS = [
     {'category': 'Money', 'handle': 'elwatto', 'tweet_url': 'https://x.com/elwatto/status/2114428552326311951'},
     {'category': 'Travel', 'handle': 'NodeBaron', 'tweet_url': 'https://x.com/NodeBaron/status/2114893613108777420'},
     {'category': 'Money', 'handle': 'Satoshipeptides', 'tweet_url': 'https://x.com/Satoshipeptides/status/2114814837717176632'},
+    {'category': 'Work', 'handle': 'Tree333Live', 'tweet_url': 'https://x.com/Tree333Live/status/2115149064815009855'},
+    {'category': 'Work', 'handle': 'tecky_tk', 'tweet_url': 'https://x.com/tecky_tk/status/2114793138063839398'},
+    {'category': 'Work', 'handle': 'jamesfcarroll', 'tweet_url': 'https://x.com/jamesfcarroll/status/2115086901243969868'},
+    {'category': 'Money', 'handle': 'leosaenger', 'tweet_url': 'https://x.com/leosaenger/status/2114891491957502345'},
+    {'category': 'Work', 'handle': 'itslisasawaya', 'tweet_url': 'https://x.com/itslisasawaya/status/2114872394193571972'},
+    {'category': 'Work', 'handle': 'ItsDrDan', 'tweet_url': 'https://x.com/ItsDrDan/status/2114047589779276022'},
+    {'category': 'Work', 'handle': 'ianellisjones', 'tweet_url': 'https://x.com/ianellisjones/status/2115013065405206887'},
+    {'category': 'Admin', 'handle': 'paolaproto10', 'tweet_url': 'https://x.com/paolaproto10/status/2115020937942483059'},
+    {'category': 'Events', 'handle': 'Rob436198781731', 'tweet_url': 'https://x.com/Rob436198781731/status/2114926395127570650'},
 ]
 
 
