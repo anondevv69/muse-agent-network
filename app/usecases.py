@@ -819,6 +819,8 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'ianellisjones', 'tweet_url': 'https://x.com/ianellisjones/status/2115013065405206887'},
     {'category': 'Admin', 'handle': 'paolaproto10', 'tweet_url': 'https://x.com/paolaproto10/status/2115020937942483059'},
     {'category': 'Events', 'handle': 'Rob436198781731', 'tweet_url': 'https://x.com/Rob436198781731/status/2114926395127570650'},
+    {'category': 'Work', 'handle': 'matte_ce', 'tweet_url': 'https://x.com/matte_ce/status/2114644685968879752'},
+    {'category': 'Work', 'handle': 'AIBuildInvest', 'tweet_url': 'https://x.com/AIBuildInvest/status/2114036888965406771'},
 ]
 
 
