@@ -821,6 +821,8 @@ USECASE_TWEETS = [
     {'category': 'Events', 'handle': 'Rob436198781731', 'tweet_url': 'https://x.com/Rob436198781731/status/2114926395127570650'},
     {'category': 'Work', 'handle': 'matte_ce', 'tweet_url': 'https://x.com/matte_ce/status/2114644685968879752'},
     {'category': 'Work', 'handle': 'AIBuildInvest', 'tweet_url': 'https://x.com/AIBuildInvest/status/2114036888965406771'},
+    {'category': 'Work', 'handle': 'navin_hill', 'tweet_url': 'https://x.com/navin_hill/status/2115265585613341061'},
+    {'category': 'Shopping', 'handle': 'amanobviously', 'tweet_url': 'https://x.com/amanobviously/status/2115177112240033825'},
 ]
 
 
