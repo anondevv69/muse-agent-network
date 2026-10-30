@@ -823,6 +823,11 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'AIBuildInvest', 'tweet_url': 'https://x.com/AIBuildInvest/status/2114036888965406771'},
     {'category': 'Work', 'handle': 'navin_hill', 'tweet_url': 'https://x.com/navin_hill/status/2115265585613341061'},
     {'category': 'Shopping', 'handle': 'amanobviously', 'tweet_url': 'https://x.com/amanobviously/status/2115177112240033825'},
+    {'category': 'Setup', 'handle': 'alanrenouf', 'tweet_url': 'https://x.com/alanrenouf/status/2115698934123504054'},
+    {'category': 'Work', 'handle': 'texaspragmacrat', 'tweet_url': 'https://x.com/texaspragmacrat/status/2115486204405977561'},
+    {'category': 'Health', 'handle': 'whatRanjuSaid', 'tweet_url': 'https://x.com/whatRanjuSaid/status/2115889578011943132'},
+    {'category': 'Shopping', 'handle': 'shell_beloved', 'tweet_url': 'https://x.com/shell_beloved/status/2115859946457694552'},
+    {'category': 'Work', 'handle': 'TheRealAk914', 'tweet_url': 'https://x.com/TheRealAk914/status/2110555670537994512'},
 ]
 
 
