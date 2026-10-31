@@ -828,6 +828,14 @@ USECASE_TWEETS = [
     {'category': 'Health', 'handle': 'whatRanjuSaid', 'tweet_url': 'https://x.com/whatRanjuSaid/status/2115889578011943132'},
     {'category': 'Shopping', 'handle': 'shell_beloved', 'tweet_url': 'https://x.com/shell_beloved/status/2115859946457694552'},
     {'category': 'Work', 'handle': 'TheRealAk914', 'tweet_url': 'https://x.com/TheRealAk914/status/2110555670537994512'},
+    {'category': 'Admin', 'handle': 'RosalesRecs', 'tweet_url': 'https://x.com/RosalesRecs/status/2116145084232049129'},
+    {'category': 'Work', 'handle': 'SethWT86', 'tweet_url': 'https://x.com/SethWT86/status/2111127445323575413'},
+    {'category': 'Setup', 'handle': 'buildwithmaya', 'tweet_url': 'https://x.com/buildwithmaya/status/2108617351826374677'},
+    {'category': 'Money', 'handle': 'amphib0ly', 'tweet_url': 'https://x.com/amphib0ly/status/2103604421246791791'},
+    {'category': 'Work', 'handle': 'Joey_vm_Ware', 'tweet_url': 'https://x.com/Joey_vm_Ware/status/2116203437285130309'},
+    {'category': 'Setup', 'handle': 'Joey_vm_Ware', 'tweet_url': 'https://x.com/Joey_vm_Ware/status/2114930277483168230'},
+    {'category': 'Work', 'handle': 'DREADP00L', 'tweet_url': 'https://x.com/DREADP00L/status/2115847170196746739'},
+    {'category': 'Work', 'handle': 'vibgyj', 'tweet_url': 'https://x.com/vibgyj/status/2115413690920862085'},
 ]
 
 
