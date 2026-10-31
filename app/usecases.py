@@ -836,6 +836,7 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'Joey_vm_Ware', 'tweet_url': 'https://x.com/Joey_vm_Ware/status/2114930277483168230'},
     {'category': 'Work', 'handle': 'DREADP00L', 'tweet_url': 'https://x.com/DREADP00L/status/2115847170196746739'},
     {'category': 'Work', 'handle': 'vibgyj', 'tweet_url': 'https://x.com/vibgyj/status/2115413690920862085'},
+    {'category': 'Work', 'handle': 'TD2timeMVP', 'tweet_url': 'https://x.com/TD2timeMVP/status/2116496317341917529'},
 ]
 
 
