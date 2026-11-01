@@ -837,6 +837,8 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'DREADP00L', 'tweet_url': 'https://x.com/DREADP00L/status/2115847170196746739'},
     {'category': 'Work', 'handle': 'vibgyj', 'tweet_url': 'https://x.com/vibgyj/status/2115413690920862085'},
     {'category': 'Work', 'handle': 'TD2timeMVP', 'tweet_url': 'https://x.com/TD2timeMVP/status/2116496317341917529'},
+    {'category': 'Work', 'handle': 'frmtradedrm', 'tweet_url': 'https://x.com/frmtradedrm/status/2116889654184071364'},
+    {'category': 'Work', 'handle': 'matiasmolinas', 'tweet_url': 'https://x.com/matiasmolinas/status/2116845844741964061'},
 ]
 
 
