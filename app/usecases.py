@@ -843,6 +843,10 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'localghost', 'tweet_url': 'https://x.com/localghost/status/2116932093351727197'},
     {'category': 'Setup', 'handle': 'MrQuiyst', 'tweet_url': 'https://x.com/MrQuiyst/status/2116646051147124989'},
     {'category': 'Food', 'handle': 'ekampf', 'tweet_url': 'https://x.com/ekampf/status/2116645373720887402'},
+    {'category': 'Health', 'handle': 'leftwithgrace', 'tweet_url': 'https://x.com/leftwithgrace/status/2117155902476996766'},
+    {'category': 'Travel', 'handle': 'ansonchaoi', 'tweet_url': 'https://x.com/ansonchaoi/status/2116838083136671775'},
+    {'category': 'Work', 'handle': 'danielbura', 'tweet_url': 'https://x.com/danielbura/status/2116421384838595014'},
+    {'category': 'Work', 'handle': 'DoucheBagMcSwag', 'tweet_url': 'https://x.com/DoucheBagMcSwag/status/2108822921645879633'},
 ]
 
 
