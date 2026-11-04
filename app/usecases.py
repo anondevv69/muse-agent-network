@@ -852,6 +852,9 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'Rocwng', 'tweet_url': 'https://x.com/Rocwng/status/2116584454345150541'},
     {'category': 'Work', 'handle': 'Trace_Cohen', 'tweet_url': 'https://x.com/Trace_Cohen/status/2117792425515405645'},
     {'category': 'Travel', 'handle': 'alexolim_', 'tweet_url': 'https://x.com/alexolim_/status/2115505665980920094'},
+    {'category': 'Money', 'handle': 'v01dp1r4t3', 'tweet_url': 'https://x.com/v01dp1r4t3/status/2117973569388892220'},
+    {'category': 'Admin', 'handle': '0xa8l', 'tweet_url': 'https://x.com/0xa8l/status/2117070870978560502'},
+    {'category': 'Work', 'handle': 'gambrill', 'tweet_url': 'https://x.com/gambrill/status/2117968124972765404'},
 ]
 
 
