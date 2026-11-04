@@ -849,6 +849,9 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'DoucheBagMcSwag', 'tweet_url': 'https://x.com/DoucheBagMcSwag/status/2108822921645879633'},
     {'category': 'Health', 'handle': 'JamesCordrey2', 'tweet_url': 'https://x.com/JamesCordrey2/status/2117175821030834348'},
     {'category': 'Travel', 'handle': '0xa8l', 'tweet_url': 'https://x.com/0xa8l/status/2116925326999896237'},
+    {'category': 'Work', 'handle': 'Rocwng', 'tweet_url': 'https://x.com/Rocwng/status/2116584454345150541'},
+    {'category': 'Work', 'handle': 'Trace_Cohen', 'tweet_url': 'https://x.com/Trace_Cohen/status/2117792425515405645'},
+    {'category': 'Travel', 'handle': 'alexolim_', 'tweet_url': 'https://x.com/alexolim_/status/2115505665980920094'},
 ]
 
 
