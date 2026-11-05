@@ -864,6 +864,9 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'AnsonJ2026', 'tweet_url': 'https://x.com/AnsonJ2026/status/2116989501351076196'},
     {'category': 'Admin', 'handle': 'Joma_tech', 'tweet_url': 'https://x.com/Joma_tech/status/2117530617663635729'},
     {'category': 'Travel', 'handle': 'renecrypt78', 'tweet_url': 'https://x.com/renecrypt78/status/2117477260307452325'},
+    {'category': 'Shopping', 'handle': 'plasticboss', 'tweet_url': 'https://x.com/plasticboss/status/2118321997006094421'},
+    {'category': 'Work', 'handle': 'EBerryman8', 'tweet_url': 'https://x.com/EBerryman8/status/2116167640637210658'},
+    {'category': 'Work', 'handle': 'OutsideTheBbox', 'tweet_url': 'https://x.com/OutsideTheBbox/status/2111173752037744964'},
 ]
 
 
