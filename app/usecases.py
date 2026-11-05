@@ -855,6 +855,15 @@ USECASE_TWEETS = [
     {'category': 'Money', 'handle': 'v01dp1r4t3', 'tweet_url': 'https://x.com/v01dp1r4t3/status/2117973569388892220'},
     {'category': 'Admin', 'handle': '0xa8l', 'tweet_url': 'https://x.com/0xa8l/status/2117070870978560502'},
     {'category': 'Work', 'handle': 'gambrill', 'tweet_url': 'https://x.com/gambrill/status/2117968124972765404'},
+    {'category': 'Work', 'handle': 'sundarashiv', 'tweet_url': 'https://x.com/sundarashiv/status/2118154061956501840'},
+    {'category': 'Admin', 'handle': 'SimonSinC', 'tweet_url': 'https://x.com/SimonSinC/status/2118145531203653650'},
+    {'category': 'Travel', 'handle': '2knighte', 'tweet_url': 'https://x.com/2knighte/status/2118051379306434725'},
+    {'category': 'Admin', 'handle': 'LaceyBeckwith', 'tweet_url': 'https://x.com/LaceyBeckwith/status/2118042590046298322'},
+    {'category': 'Money', 'handle': 'WayneRogers', 'tweet_url': 'https://x.com/WayneRogers/status/2117695519946637497'},
+    {'category': 'Food', 'handle': 'rhapsodyryan6', 'tweet_url': 'https://x.com/rhapsodyryan6/status/2117795001234825416'},
+    {'category': 'Work', 'handle': 'AnsonJ2026', 'tweet_url': 'https://x.com/AnsonJ2026/status/2116989501351076196'},
+    {'category': 'Admin', 'handle': 'Joma_tech', 'tweet_url': 'https://x.com/Joma_tech/status/2117530617663635729'},
+    {'category': 'Travel', 'handle': 'renecrypt78', 'tweet_url': 'https://x.com/renecrypt78/status/2117477260307452325'},
 ]
 
 
