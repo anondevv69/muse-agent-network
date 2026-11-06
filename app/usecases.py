@@ -878,6 +878,9 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'hollzleslie', 'tweet_url': 'https://x.com/hollzleslie/status/2117438029283373255'},
     {'category': 'Admin', 'handle': 'rywiggs', 'tweet_url': 'https://x.com/rywiggs/status/2117357091673473048'},
     {'category': 'Work', 'handle': 'Preda2005', 'tweet_url': 'https://x.com/Preda2005/status/2118521109637451840'},
+    {'category': 'Work', 'handle': 'aaronbuley', 'tweet_url': 'https://x.com/aaronbuley/status/2116647655938084947'},
+    {'category': 'Travel', 'handle': 'ZevCyber', 'tweet_url': 'https://x.com/ZevCyber/status/2118485805161144399'},
+    {'category': 'Money', 'handle': 'raksran', 'tweet_url': 'https://x.com/raksran/status/2118523441590505864'},
 ]
 
 
