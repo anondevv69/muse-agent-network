@@ -867,6 +867,17 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'plasticboss', 'tweet_url': 'https://x.com/plasticboss/status/2118321997006094421'},
     {'category': 'Work', 'handle': 'EBerryman8', 'tweet_url': 'https://x.com/EBerryman8/status/2116167640637210658'},
     {'category': 'Work', 'handle': 'OutsideTheBbox', 'tweet_url': 'https://x.com/OutsideTheBbox/status/2111173752037744964'},
+    {'category': 'Work', 'handle': 'AgentBlueCollar', 'tweet_url': 'https://x.com/AgentBlueCollar/status/2118434508433207316'},
+    {'category': 'Work', 'handle': 'Papa_Legba_616', 'tweet_url': 'https://x.com/Papa_Legba_616/status/2118475343476793758'},
+    {'category': 'Work', 'handle': 'its_izecube', 'tweet_url': 'https://x.com/its_izecube/status/2118426679664329107'},
+    {'category': 'Work', 'handle': 'phillipburks', 'tweet_url': 'https://x.com/phillipburks/status/2118468490436690331'},
+    {'category': 'Admin', 'handle': 'billmurphy', 'tweet_url': 'https://x.com/billmurphy/status/2117376906999812213'},
+    {'category': 'Admin', 'handle': 'georgeregnery', 'tweet_url': 'https://x.com/georgeregnery/status/2118441783889682629'},
+    {'category': 'Money', 'handle': 'typesfaster', 'tweet_url': 'https://x.com/typesfaster/status/2117236958413865236'},
+    {'category': 'Admin', 'handle': 'aneesmerchant', 'tweet_url': 'https://x.com/aneesmerchant/status/2118256888945217707'},
+    {'category': 'Shopping', 'handle': 'hollzleslie', 'tweet_url': 'https://x.com/hollzleslie/status/2117438029283373255'},
+    {'category': 'Admin', 'handle': 'rywiggs', 'tweet_url': 'https://x.com/rywiggs/status/2117357091673473048'},
+    {'category': 'Work', 'handle': 'Preda2005', 'tweet_url': 'https://x.com/Preda2005/status/2118521109637451840'},
 ]
 
 
