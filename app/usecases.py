@@ -886,6 +886,10 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'jenteach13', 'tweet_url': 'https://x.com/jenteach13/status/2118718747993391108'},
     {'category': 'Work', 'handle': 'Pionchikk', 'tweet_url': 'https://x.com/Pionchikk/status/2118688278601687127'},
     {'category': 'Events', 'handle': 'dps', 'tweet_url': 'https://x.com/dps/status/2118769921933062601'},
+    {'category': 'Work', 'handle': 'JoshPalerLin', 'tweet_url': 'https://x.com/JoshPalerLin/status/2119060363618795714'},
+    {'category': 'Work', 'handle': 'nicopez', 'tweet_url': 'https://x.com/nicopez/status/2119056225153302701'},
+    {'category': 'Work', 'handle': 'kottley', 'tweet_url': 'https://x.com/kottley/status/2118851080058462620'},
+    {'category': 'Events', 'handle': 'rhapsodyryan6', 'tweet_url': 'https://x.com/rhapsodyryan6/status/2117709810137469183'},
 ]
 
 
