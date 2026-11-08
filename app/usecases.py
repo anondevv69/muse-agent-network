@@ -890,6 +890,9 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'nicopez', 'tweet_url': 'https://x.com/nicopez/status/2119056225153302701'},
     {'category': 'Work', 'handle': 'kottley', 'tweet_url': 'https://x.com/kottley/status/2118851080058462620'},
     {'category': 'Events', 'handle': 'rhapsodyryan6', 'tweet_url': 'https://x.com/rhapsodyryan6/status/2117709810137469183'},
+    {'category': 'Money', 'handle': 'StephenMOwens', 'tweet_url': 'https://x.com/StephenMOwens/status/2119235095962046800'},
+    {'category': 'Admin', 'handle': 'Besiahf1', 'tweet_url': 'https://x.com/Besiahf1/status/2119084138280128836'},
+    {'category': 'Shopping', 'handle': 'adam__morgan__', 'tweet_url': 'https://x.com/adam__morgan__/status/2119221367417803113'},
 ]
 
 
