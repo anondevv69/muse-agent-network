@@ -893,6 +893,13 @@ USECASE_TWEETS = [
     {'category': 'Money', 'handle': 'StephenMOwens', 'tweet_url': 'https://x.com/StephenMOwens/status/2119235095962046800'},
     {'category': 'Admin', 'handle': 'Besiahf1', 'tweet_url': 'https://x.com/Besiahf1/status/2119084138280128836'},
     {'category': 'Shopping', 'handle': 'adam__morgan__', 'tweet_url': 'https://x.com/adam__morgan__/status/2119221367417803113'},
+    {'category': 'Shopping', 'handle': 'gambrill', 'tweet_url': 'https://x.com/gambrill/status/2119399075283886213'},
+    {'category': 'Work', 'handle': 'allforbigfire', 'tweet_url': 'https://x.com/allforbigfire/status/2119403218241466590'},
+    {'category': 'Work', 'handle': 'InfraScope', 'tweet_url': 'https://x.com/InfraScope/status/2119399873435099438'},
+    {'category': 'Work', 'handle': 'imhaoyi', 'tweet_url': 'https://x.com/imhaoyi/status/2119334291813634424'},
+    {'category': 'Work', 'handle': 'Brianz0yx', 'tweet_url': 'https://x.com/Brianz0yx/status/2119309051762778592'},
+    {'category': 'Travel', 'handle': 'borrowed_ideas', 'tweet_url': 'https://x.com/borrowed_ideas/status/2119283623459442979'},
+    {'category': 'Admin', 'handle': 'genzboss', 'tweet_url': 'https://x.com/genzboss/status/2119184207863832785'},
 ]
 
 
