@@ -905,6 +905,7 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'palmerj3', 'tweet_url': 'https://x.com/palmerj3/status/2119451474568843556'},
     {'category': 'Shopping', 'handle': 'JavyDiaz', 'tweet_url': 'https://x.com/JavyDiaz/status/2119555998281060641'},
     {'category': 'Money', 'handle': 'theBhulawat', 'tweet_url': 'https://x.com/theBhulawat/status/2107984551813525654'},
+    {'category': 'Work', 'handle': 'altonpeques', 'tweet_url': 'https://x.com/altonpeques/status/2119629844908785826'},
 ]
 
 
