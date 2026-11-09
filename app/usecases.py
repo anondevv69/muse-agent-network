@@ -900,6 +900,11 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'Brianz0yx', 'tweet_url': 'https://x.com/Brianz0yx/status/2119309051762778592'},
     {'category': 'Travel', 'handle': 'borrowed_ideas', 'tweet_url': 'https://x.com/borrowed_ideas/status/2119283623459442979'},
     {'category': 'Admin', 'handle': 'genzboss', 'tweet_url': 'https://x.com/genzboss/status/2119184207863832785'},
+    {'category': 'Work', 'handle': 'improvmookie', 'tweet_url': 'https://x.com/improvmookie/status/2119536097860673581'},
+    {'category': 'Work', 'handle': 'TTB_org', 'tweet_url': 'https://x.com/TTB_org/status/2119199360827474200'},
+    {'category': 'Setup', 'handle': 'palmerj3', 'tweet_url': 'https://x.com/palmerj3/status/2119451474568843556'},
+    {'category': 'Shopping', 'handle': 'JavyDiaz', 'tweet_url': 'https://x.com/JavyDiaz/status/2119555998281060641'},
+    {'category': 'Money', 'handle': 'theBhulawat', 'tweet_url': 'https://x.com/theBhulawat/status/2107984551813525654'},
 ]
 
 
