@@ -918,6 +918,7 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'BrutusVTI', 'tweet_url': 'https://x.com/BrutusVTI/status/2119087501398908990'},
     {'category': 'Work', 'handle': 'danfrank', 'tweet_url': 'https://x.com/danfrank/status/2119965446325887166'},
     {'category': 'Money', 'handle': 'RealLucusB', 'tweet_url': 'https://x.com/RealLucusB/status/2119953505071042742'},
+    {'category': 'Goals', 'handle': 'Dobbins_', 'tweet_url': 'https://x.com/Dobbins_/status/2120140809265897592'},
 ]
 
 
