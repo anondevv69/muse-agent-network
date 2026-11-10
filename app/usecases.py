@@ -905,7 +905,19 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'palmerj3', 'tweet_url': 'https://x.com/palmerj3/status/2119451474568843556'},
     {'category': 'Shopping', 'handle': 'JavyDiaz', 'tweet_url': 'https://x.com/JavyDiaz/status/2119555998281060641'},
     {'category': 'Money', 'handle': 'theBhulawat', 'tweet_url': 'https://x.com/theBhulawat/status/2107984551813525654'},
-    {'category': 'Work', 'handle': 'altonpeques', 'tweet_url': 'https://x.com/altonpeques/status/2119629844908785826'},
+    {'category': 'Work', 'handle': 'altonpeques', 'tweet_url': 'https://x.com/altonpeques/status/2119629844908785826'},    {'category': 'Work', 'handle': 'poehnelt', 'tweet_url': 'https://x.com/poehnelt/status/2119948211994050830'},
+    {'category': 'Work', 'handle': 'JamesRivers22', 'tweet_url': 'https://x.com/JamesRivers22/status/2118618009003094047'},
+    {'category': 'Work', 'handle': 'dani_avila7', 'tweet_url': 'https://x.com/dani_avila7/status/2119969430704627730'},
+    {'category': 'Events', 'handle': 'gambrill', 'tweet_url': 'https://x.com/gambrill/status/2119919286580109629'},
+    {'category': 'Work', 'handle': 'libertylukes', 'tweet_url': 'https://x.com/libertylukes/status/2119874638587347408'},
+    {'category': 'Admin', 'handle': 'JagadishGandhi', 'tweet_url': 'https://x.com/JagadishGandhi/status/2119845581656928752'},
+    {'category': 'Travel', 'handle': 'Mealsandeals', 'tweet_url': 'https://x.com/Mealsandeals/status/2119821427641663663'},
+    {'category': 'Work', 'handle': 'mjolley22', 'tweet_url': 'https://x.com/mjolley22/status/2119779806988419314'},
+    {'category': 'Work', 'handle': 'SharronDenice', 'tweet_url': 'https://x.com/SharronDenice/status/2119292852509503696'},
+    {'category': 'Work', 'handle': 'othernedwin', 'tweet_url': 'https://x.com/othernedwin/status/2119210877358366974'},
+    {'category': 'Shopping', 'handle': 'BrutusVTI', 'tweet_url': 'https://x.com/BrutusVTI/status/2119087501398908990'},
+    {'category': 'Work', 'handle': 'danfrank', 'tweet_url': 'https://x.com/danfrank/status/2119965446325887166'},
+    {'category': 'Money', 'handle': 'RealLucusB', 'tweet_url': 'https://x.com/RealLucusB/status/2119953505071042742'},
 ]
 
 
