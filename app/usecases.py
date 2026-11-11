@@ -922,6 +922,11 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'moe_cherif', 'tweet_url': 'https://x.com/moe_cherif/status/2120316013115998309'},
     {'category': 'Money', 'handle': 'autthakorn', 'tweet_url': 'https://x.com/autthakorn/status/2120315736790868471'},
     {'category': 'Admin', 'handle': 'FazriZubair', 'tweet_url': 'https://x.com/FazriZubair/status/2120257896441327829'},
+    {'category': 'Admin', 'handle': 'JakAHearts', 'tweet_url': 'https://x.com/JakAHearts/status/2120253017186263349'},
+    {'category': 'Travel', 'handle': 'edanbenatar', 'tweet_url': 'https://x.com/edanbenatar/status/2120373511738798590'},
+    {'category': 'Travel', 'handle': 'unixterminal', 'tweet_url': 'https://x.com/unixterminal/status/2120488730066579954'},
+    {'category': 'Work', 'handle': 'nttrung324', 'tweet_url': 'https://x.com/nttrung324/status/2120274406157254715'},
+    {'category': 'Travel', 'handle': 'MasonScottt_', 'tweet_url': 'https://x.com/MasonScottt_/status/2120095985548575043'},
 ]
 
 
