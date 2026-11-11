@@ -919,6 +919,9 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'danfrank', 'tweet_url': 'https://x.com/danfrank/status/2119965446325887166'},
     {'category': 'Money', 'handle': 'RealLucusB', 'tweet_url': 'https://x.com/RealLucusB/status/2119953505071042742'},
     {'category': 'Goals', 'handle': 'Dobbins_', 'tweet_url': 'https://x.com/Dobbins_/status/2120140809265897592'},
+    {'category': 'Admin', 'handle': 'moe_cherif', 'tweet_url': 'https://x.com/moe_cherif/status/2120316013115998309'},
+    {'category': 'Money', 'handle': 'autthakorn', 'tweet_url': 'https://x.com/autthakorn/status/2120315736790868471'},
+    {'category': 'Admin', 'handle': 'FazriZubair', 'tweet_url': 'https://x.com/FazriZubair/status/2120257896441327829'},
 ]
 
 
