@@ -934,6 +934,11 @@ USECASE_TWEETS = [
     {'category': 'Travel', 'handle': 'jonathankochis', 'tweet_url': 'https://x.com/jonathankochis/status/2120667818605896191'},
     {'category': 'Travel', 'handle': 'jvincemedia', 'tweet_url': 'https://x.com/jvincemedia/status/2119489272755421678'},
     {'category': 'Work', 'handle': 'rerosillo', 'tweet_url': 'https://x.com/rerosillo/status/2120694453727887404'},
+    {'category': 'Admin', 'handle': 'JRuizOnX', 'tweet_url': 'https://x.com/JRuizOnX/status/2120873670759395706'},
+    {'category': 'Work', 'handle': 'andr3barroso', 'tweet_url': 'https://x.com/andr3barroso/status/2120826436777070719'},
+    {'category': 'Admin', 'handle': 'clarityx', 'tweet_url': 'https://x.com/clarityx/status/2120747443813790179'},
+    {'category': 'Setup', 'handle': 'thecharttruth', 'tweet_url': 'https://x.com/thecharttruth/status/2120629231373742144'},
+    {'category': 'Work', 'handle': 'riddi0908', 'tweet_url': 'https://x.com/riddi0908/status/2120666690958852577'},
 ]
 
 
