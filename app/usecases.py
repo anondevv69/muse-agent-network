@@ -927,6 +927,13 @@ USECASE_TWEETS = [
     {'category': 'Travel', 'handle': 'unixterminal', 'tweet_url': 'https://x.com/unixterminal/status/2120488730066579954'},
     {'category': 'Work', 'handle': 'nttrung324', 'tweet_url': 'https://x.com/nttrung324/status/2120274406157254715'},
     {'category': 'Travel', 'handle': 'MasonScottt_', 'tweet_url': 'https://x.com/MasonScottt_/status/2120095985548575043'},
+    {'category': 'Work', 'handle': '4everwalkalone', 'tweet_url': 'https://x.com/4everwalkalone/status/2120693470553583862'},
+    {'category': 'Admin', 'handle': 'Babybat_fangs', 'tweet_url': 'https://x.com/Babybat_fangs/status/2120693160804556834'},
+    {'category': 'Travel', 'handle': 'ekampf', 'tweet_url': 'https://x.com/ekampf/status/2120690965984035069'},
+    {'category': 'Travel', 'handle': 'WenShi2', 'tweet_url': 'https://x.com/WenShi2/status/2120685027944210718'},
+    {'category': 'Travel', 'handle': 'jonathankochis', 'tweet_url': 'https://x.com/jonathankochis/status/2120667818605896191'},
+    {'category': 'Travel', 'handle': 'jvincemedia', 'tweet_url': 'https://x.com/jvincemedia/status/2119489272755421678'},
+    {'category': 'Work', 'handle': 'rerosillo', 'tweet_url': 'https://x.com/rerosillo/status/2120694453727887404'},
 ]
 
 
