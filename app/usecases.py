@@ -946,6 +946,7 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'MohlerJeff70809', 'tweet_url': 'https://x.com/MohlerJeff70809/status/2120296496947990686'},
     {'category': 'Work', 'handle': 'clarityx', 'tweet_url': 'https://x.com/clarityx/status/2119790365830250888'},
     {'category': 'Setup', 'handle': 'CilantrolsSoap', 'tweet_url': 'https://x.com/CilantrolsSoap/status/2120360629072712113'},
+    {'category': 'Money', 'handle': 'goldeagleprice', 'tweet_url': 'https://x.com/goldeagleprice/status/2121066655706927304'},
 ]
 
 
