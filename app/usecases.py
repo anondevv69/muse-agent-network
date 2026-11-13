@@ -939,6 +939,13 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'clarityx', 'tweet_url': 'https://x.com/clarityx/status/2120747443813790179'},
     {'category': 'Setup', 'handle': 'thecharttruth', 'tweet_url': 'https://x.com/thecharttruth/status/2120629231373742144'},
     {'category': 'Work', 'handle': 'riddi0908', 'tweet_url': 'https://x.com/riddi0908/status/2120666690958852577'},
+    {'category': 'Work', 'handle': 'tango_dinero', 'tweet_url': 'https://x.com/tango_dinero/status/2120631278429171794'},
+    {'category': 'Work', 'handle': 'laohiog', 'tweet_url': 'https://x.com/laohiog/status/2120191503989346504'},
+    {'category': 'Admin', 'handle': 'ksk_tinylab', 'tweet_url': 'https://x.com/ksk_tinylab/status/2121024114169409638'},
+    {'category': 'Work', 'handle': '_HaleYea', 'tweet_url': 'https://x.com/_HaleYea/status/2120894802086813951'},
+    {'category': 'Work', 'handle': 'MohlerJeff70809', 'tweet_url': 'https://x.com/MohlerJeff70809/status/2120296496947990686'},
+    {'category': 'Work', 'handle': 'clarityx', 'tweet_url': 'https://x.com/clarityx/status/2119790365830250888'},
+    {'category': 'Setup', 'handle': 'CilantrolsSoap', 'tweet_url': 'https://x.com/CilantrolsSoap/status/2120360629072712113'},
 ]
 
 
