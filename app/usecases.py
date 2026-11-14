@@ -950,6 +950,11 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'JoePooleMotors', 'tweet_url': 'https://x.com/JoePooleMotors/status/2121323686393164068'},
     {'category': 'Shopping', 'handle': 'TheBidstrups', 'tweet_url': 'https://x.com/TheBidstrups/status/2121010380495569030'},
     {'category': 'Food', 'handle': 'Stepmark_Jay', 'tweet_url': 'https://x.com/Stepmark_Jay/status/2121035051811180829'},
+    {'category': 'Work', 'handle': 'JPoehnelt', 'tweet_url': 'https://x.com/JPoehnelt/status/2119834539409416285'},
+    {'category': 'Travel', 'handle': 'nathoyina', 'tweet_url': 'https://x.com/nathoyina/status/2121549971841532025'},
+    {'category': 'Work', 'handle': 'kuantyea', 'tweet_url': 'https://x.com/kuantyea/status/2121381119660523561'},
+    {'category': 'Shopping', 'handle': 'LeahOnSystems', 'tweet_url': 'https://x.com/LeahOnSystems/status/2121323748183736339'},
+    {'category': 'Work', 'handle': 'jontypesthings', 'tweet_url': 'https://x.com/jontypesthings/status/2120957599109791967'},
 ]
 
 
