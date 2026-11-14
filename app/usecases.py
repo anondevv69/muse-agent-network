@@ -947,6 +947,9 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'clarityx', 'tweet_url': 'https://x.com/clarityx/status/2119790365830250888'},
     {'category': 'Setup', 'handle': 'CilantrolsSoap', 'tweet_url': 'https://x.com/CilantrolsSoap/status/2120360629072712113'},
     {'category': 'Money', 'handle': 'goldeagleprice', 'tweet_url': 'https://x.com/goldeagleprice/status/2121066655706927304'},
+    {'category': 'Shopping', 'handle': 'JoePooleMotors', 'tweet_url': 'https://x.com/JoePooleMotors/status/2121323686393164068'},
+    {'category': 'Shopping', 'handle': 'TheBidstrups', 'tweet_url': 'https://x.com/TheBidstrups/status/2121010380495569030'},
+    {'category': 'Food', 'handle': 'Stepmark_Jay', 'tweet_url': 'https://x.com/Stepmark_Jay/status/2121035051811180829'},
 ]
 
 
