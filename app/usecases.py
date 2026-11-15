@@ -959,6 +959,9 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'andysingleton', 'tweet_url': 'https://x.com/andysingleton/status/2121614997969068106'},
     {'category': 'Setup', 'handle': 'EthanLinAI', 'tweet_url': 'https://x.com/EthanLinAI/status/2121651947006795977'},
     {'category': 'Shopping', 'handle': 'themanufestooo', 'tweet_url': 'https://x.com/themanufestooo/status/2121243762156257328'},
+    {'category': 'Work', 'handle': 'soayeb_0x', 'tweet_url': 'https://x.com/soayeb_0x/status/2121956876585681007'},
+    {'category': 'Setup', 'handle': 'ward1design', 'tweet_url': 'https://x.com/ward1design/status/2121014861912211553'},
+    {'category': 'Work', 'handle': 'wellagore', 'tweet_url': 'https://x.com/wellagore/status/2121889935443505513'},
 ]
 
 
