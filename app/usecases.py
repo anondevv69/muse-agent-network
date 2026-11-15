@@ -955,6 +955,10 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'kuantyea', 'tweet_url': 'https://x.com/kuantyea/status/2121381119660523561'},
     {'category': 'Shopping', 'handle': 'LeahOnSystems', 'tweet_url': 'https://x.com/LeahOnSystems/status/2121323748183736339'},
     {'category': 'Work', 'handle': 'jontypesthings', 'tweet_url': 'https://x.com/jontypesthings/status/2120957599109791967'},
+    {'category': 'Shopping', 'handle': 'MrQuiyst', 'tweet_url': 'https://x.com/MrQuiyst/status/2121735500239143414'},
+    {'category': 'Setup', 'handle': 'andysingleton', 'tweet_url': 'https://x.com/andysingleton/status/2121614997969068106'},
+    {'category': 'Setup', 'handle': 'EthanLinAI', 'tweet_url': 'https://x.com/EthanLinAI/status/2121651947006795977'},
+    {'category': 'Shopping', 'handle': 'themanufestooo', 'tweet_url': 'https://x.com/themanufestooo/status/2121243762156257328'},
 ]
 
 
