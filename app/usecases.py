@@ -967,6 +967,13 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'raphaelschaad', 'tweet_url': 'https://x.com/raphaelschaad/status/2120959436567281904'},
     {'category': 'Travel', 'handle': 'surim0n', 'tweet_url': 'https://x.com/surim0n/status/2121444192706830463'},
     {'category': 'Setup', 'handle': 'adamsyncs', 'tweet_url': 'https://x.com/adamsyncs/status/2121021221600931954'},
+    {'category': 'Admin', 'handle': 'DavidDTawil', 'tweet_url': 'https://x.com/DavidDTawil/status/2122322068184404436'},
+    {'category': 'Admin', 'handle': 'OfficialBBrooks', 'tweet_url': 'https://x.com/OfficialBBrooks/status/2122322257557217757'},
+    {'category': 'Work', 'handle': 'FanficGOQ', 'tweet_url': 'https://x.com/FanficGOQ/status/2122316555287416864'},
+    {'category': 'Work', 'handle': 'passclickapp', 'tweet_url': 'https://x.com/passclickapp/status/2122315207171363229'},
+    {'category': 'Work', 'handle': 'megan_404', 'tweet_url': 'https://x.com/megan_404/status/2122302088738935106'},
+    {'category': 'Travel', 'handle': 'xMJ_GAMINGx', 'tweet_url': 'https://x.com/xMJ_GAMINGx/status/2122302942057255030'},
+    {'category': 'Setup', 'handle': 'kurojack_jp', 'tweet_url': 'https://x.com/kurojack_jp/status/2122279730137489752'},
 ]
 
 
