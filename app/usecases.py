@@ -962,6 +962,11 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'soayeb_0x', 'tweet_url': 'https://x.com/soayeb_0x/status/2121956876585681007'},
     {'category': 'Setup', 'handle': 'ward1design', 'tweet_url': 'https://x.com/ward1design/status/2121014861912211553'},
     {'category': 'Work', 'handle': 'wellagore', 'tweet_url': 'https://x.com/wellagore/status/2121889935443505513'},
+    {'category': 'Work', 'handle': 'Stylez_Morales', 'tweet_url': 'https://x.com/Stylez_Morales/status/2122142231981105576'},
+    {'category': 'Health', 'handle': 'sethrose', 'tweet_url': 'https://x.com/sethrose/status/2122141531502969263'},
+    {'category': 'Setup', 'handle': 'raphaelschaad', 'tweet_url': 'https://x.com/raphaelschaad/status/2120959436567281904'},
+    {'category': 'Travel', 'handle': 'surim0n', 'tweet_url': 'https://x.com/surim0n/status/2121444192706830463'},
+    {'category': 'Setup', 'handle': 'adamsyncs', 'tweet_url': 'https://x.com/adamsyncs/status/2121021221600931954'},
 ]
 
 
