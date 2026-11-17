@@ -975,6 +975,7 @@ USECASE_TWEETS = [
     {'category': 'Travel', 'handle': 'xMJ_GAMINGx', 'tweet_url': 'https://x.com/xMJ_GAMINGx/status/2122302942057255030'},
     {'category': 'Setup', 'handle': 'kurojack_jp', 'tweet_url': 'https://x.com/kurojack_jp/status/2122279730137489752'},
     {'category': 'Work', 'handle': 'awce_com', 'tweet_url': 'https://x.com/awce_com/status/2122487361787351355'},
+    {'category': 'Shopping', 'handle': 'plasticboss', 'tweet_url': 'https://x.com/plasticboss/status/2122680842346475585'},
 ]
 
 
