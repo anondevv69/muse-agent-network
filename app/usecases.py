@@ -984,6 +984,10 @@ USECASE_TWEETS = [
     {'category': 'Admin', 'handle': 'LegalDadHacks', 'tweet_url': 'https://x.com/LegalDadHacks/status/2121986920440107012'},
     {'category': 'Admin', 'handle': 'BankerBeaver', 'tweet_url': 'https://x.com/BankerBeaver/status/2122163657278943390'},
     {'category': 'Work', 'handle': 'THEMDAMNDOGS', 'tweet_url': 'https://x.com/THEMDAMNDOGS/status/2120725830045184101'},
+    {'category': 'Health', 'handle': 'sethrose', 'tweet_url': 'https://x.com/sethrose/status/2123040165002117573'},
+    {'category': 'Travel', 'handle': 'jack_saba', 'tweet_url': 'https://x.com/jack_saba/status/2122886581011062859'},
+    {'category': 'Travel', 'handle': 'jwang815', 'tweet_url': 'https://x.com/jwang815/status/2123030353019584517'},
+    {'category': 'Admin', 'handle': 'sandersjacob', 'tweet_url': 'https://x.com/sandersjacob/status/2122900261840761001'},
 ]
 
 
