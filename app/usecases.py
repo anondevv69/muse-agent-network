@@ -976,6 +976,14 @@ USECASE_TWEETS = [
     {'category': 'Setup', 'handle': 'kurojack_jp', 'tweet_url': 'https://x.com/kurojack_jp/status/2122279730137489752'},
     {'category': 'Work', 'handle': 'awce_com', 'tweet_url': 'https://x.com/awce_com/status/2122487361787351355'},
     {'category': 'Shopping', 'handle': 'plasticboss', 'tweet_url': 'https://x.com/plasticboss/status/2122680842346475585'},
+    {'category': 'Travel', 'handle': 'NodeBaron', 'tweet_url': 'https://x.com/NodeBaron/status/2122865533355962648'},
+    {'category': 'Money', 'handle': 'GeorgeRegnery', 'tweet_url': 'https://x.com/GeorgeRegnery/status/2122815693301350906'},
+    {'category': 'Work', 'handle': 'Stylez_Morales', 'tweet_url': 'https://x.com/Stylez_Morales/status/2122559565052912005'},
+    {'category': 'Goals', 'handle': 'SamuelNutter', 'tweet_url': 'https://x.com/SamuelNutter/status/2122746343256936891'},
+    {'category': 'Health', 'handle': 'evren_xyz', 'tweet_url': 'https://x.com/evren_xyz/status/2122524239202754728'},
+    {'category': 'Admin', 'handle': 'LegalDadHacks', 'tweet_url': 'https://x.com/LegalDadHacks/status/2121986920440107012'},
+    {'category': 'Admin', 'handle': 'BankerBeaver', 'tweet_url': 'https://x.com/BankerBeaver/status/2122163657278943390'},
+    {'category': 'Work', 'handle': 'THEMDAMNDOGS', 'tweet_url': 'https://x.com/THEMDAMNDOGS/status/2120725830045184101'},
 ]
 
 
