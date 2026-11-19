@@ -988,6 +988,7 @@ USECASE_TWEETS = [
     {'category': 'Travel', 'handle': 'jack_saba', 'tweet_url': 'https://x.com/jack_saba/status/2122886581011062859'},
     {'category': 'Travel', 'handle': 'jwang815', 'tweet_url': 'https://x.com/jwang815/status/2123030353019584517'},
     {'category': 'Admin', 'handle': 'sandersjacob', 'tweet_url': 'https://x.com/sandersjacob/status/2122900261840761001'},
+    {'category': 'Work', 'handle': 'Muricaenjoyer', 'tweet_url': 'https://x.com/Muricaenjoyer/status/2123223637323022614'},
 ]
 
 
