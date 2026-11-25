@@ -1029,7 +1029,9 @@ USECASE_TWEETS = [
     {'category': 'Money', 'handle': 'mpauldaniels', 'tweet_url': 'https://x.com/mpauldaniels/status/2124980718694723647'},
     {'category': 'Work', 'handle': 'manudotdev', 'tweet_url': 'https://x.com/manudotdev/status/2124942467770523904'},
     {'category': 'Food', 'handle': 'PM_AdarshM', 'tweet_url': 'https://x.com/PM_AdarshM/status/2124908516414722364'},
-    {'category': 'Work', 'handle': 'Sakura_saita007', 'tweet_url': 'https://x.com/Sakura_saita007/status/2124674951219404829'},
+    {'category': 'Work', 'handle': 'Sakura_saita007', 'tweet_url': 'https://x.com/Sakura_saita007/status/2124674951219404829'},    {'category': 'Admin', 'handle': 'Dalmain13', 'tweet_url': 'https://x.com/Dalmain13/status/2125402296825553001'},
+    {'category': 'Money', 'handle': 'evrgn11112231', 'tweet_url': 'https://x.com/evrgn11112231/status/2125399321353400320'},
+    {'category': 'Admin', 'handle': 'vibeman_0', 'tweet_url': 'https://x.com/vibeman_0/status/2125243098062012822'},
 ]
 
 
