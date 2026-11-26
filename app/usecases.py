@@ -1041,6 +1041,17 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'uglyrobot', 'tweet_url': 'https://x.com/uglyrobot/status/2122318756693032964'},
     {'category': 'Work', 'handle': 'lutefiskguy', 'tweet_url': 'https://x.com/lutefiskguy/status/2125763105133396239'},
     {'category': 'Setup', 'handle': 'dan_mallatt', 'tweet_url': 'https://x.com/dan_mallatt/status/2125410129214677488'},
+    {'category': 'Work', 'handle': 'the_tnt_shark', 'tweet_url': 'https://x.com/the_tnt_shark/status/2125933894360805427'},
+    {'category': 'Travel', 'handle': 'HJ01496233', 'tweet_url': 'https://x.com/HJ01496233/status/2125499067849716077'},
+    {'category': 'Shopping', 'handle': 'JJEnglert', 'tweet_url': 'https://x.com/JJEnglert/status/2125702896700596593'},
+    {'category': 'Setup', 'handle': 'cyburke', 'tweet_url': 'https://x.com/cyburke/status/2125393494063919604'},
+    {'category': 'Work', 'handle': 'siwoodyy', 'tweet_url': 'https://x.com/siwoodyy/status/2125165430096728203'},
+    {'category': 'Work', 'handle': 'JThiel', 'tweet_url': 'https://x.com/JThiel/status/2124604669829992925'},
+    {'category': 'Food', 'handle': 'JoelShackleton', 'tweet_url': 'https://x.com/JoelShackleton/status/2124572558129561657'},
+    {'category': 'Health', 'handle': 'anthonyferro99', 'tweet_url': 'https://x.com/anthonyferro99/status/2124613969650528545'},
+    {'category': 'Shopping', 'handle': 'BecauseCulture', 'tweet_url': 'https://x.com/BecauseCulture/status/2125259481021845530'},
+    {'category': 'Shopping', 'handle': 'Chris_Benassi', 'tweet_url': 'https://x.com/Chris_Benassi/status/2125656216718242122'},
+    {'category': 'Health', 'handle': 'JamesCordrey2', 'tweet_url': 'https://x.com/JamesCordrey2/status/2124029765669532058'},
 ]
 
 
