@@ -1032,6 +1032,15 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'Sakura_saita007', 'tweet_url': 'https://x.com/Sakura_saita007/status/2124674951219404829'},    {'category': 'Admin', 'handle': 'Dalmain13', 'tweet_url': 'https://x.com/Dalmain13/status/2125402296825553001'},
     {'category': 'Money', 'handle': 'evrgn11112231', 'tweet_url': 'https://x.com/evrgn11112231/status/2125399321353400320'},
     {'category': 'Admin', 'handle': 'vibeman_0', 'tweet_url': 'https://x.com/vibeman_0/status/2125243098062012822'},
+    {'category': 'Work', 'handle': 'Gamenadian', 'tweet_url': 'https://x.com/Gamenadian/status/2125765409261392144'},
+    {'category': 'Health', 'handle': 'CoachStacyLynn', 'tweet_url': 'https://x.com/CoachStacyLynn/status/2125586140237599039'},
+    {'category': 'Work', 'handle': 'Konst_19', 'tweet_url': 'https://x.com/Konst_19/status/2125542120492847306'},
+    {'category': 'Food', 'handle': 'phode222', 'tweet_url': 'https://x.com/phode222/status/2124047844130865624'},
+    {'category': 'Setup', 'handle': 'KAVItheCreator', 'tweet_url': 'https://x.com/KAVItheCreator/status/2125763846107250935'},
+    {'category': 'Setup', 'handle': 'ItsRaeWilliams', 'tweet_url': 'https://x.com/ItsRaeWilliams/status/2124916147132707126'},
+    {'category': 'Work', 'handle': 'uglyrobot', 'tweet_url': 'https://x.com/uglyrobot/status/2122318756693032964'},
+    {'category': 'Work', 'handle': 'lutefiskguy', 'tweet_url': 'https://x.com/lutefiskguy/status/2125763105133396239'},
+    {'category': 'Setup', 'handle': 'dan_mallatt', 'tweet_url': 'https://x.com/dan_mallatt/status/2125410129214677488'},
 ]
 
 
