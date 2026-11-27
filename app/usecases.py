@@ -1052,6 +1052,11 @@ USECASE_TWEETS = [
     {'category': 'Shopping', 'handle': 'BecauseCulture', 'tweet_url': 'https://x.com/BecauseCulture/status/2125259481021845530'},
     {'category': 'Shopping', 'handle': 'Chris_Benassi', 'tweet_url': 'https://x.com/Chris_Benassi/status/2125656216718242122'},
     {'category': 'Health', 'handle': 'JamesCordrey2', 'tweet_url': 'https://x.com/JamesCordrey2/status/2124029765669532058'},
+    {'category': 'Shopping', 'handle': 'darpanmunjal', 'tweet_url': 'https://x.com/darpanmunjal/status/2125971345166967276'},
+    {'category': 'Work', 'handle': 'manudotdev', 'tweet_url': 'https://x.com/manudotdev/status/2125972625923178831'},
+    {'category': 'Food', 'handle': 'BrendaO00357595', 'tweet_url': 'https://x.com/BrendaO00357595/status/2125589306714554443'},
+    {'category': 'Setup', 'handle': 'stellarcbz', 'tweet_url': 'https://x.com/stellarcbz/status/2124343707956646080'},
+    {'category': 'Work', 'handle': 'wellagore', 'tweet_url': 'https://x.com/wellagore/status/2125363238477193299'},
 ]
 
 
