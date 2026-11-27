@@ -1057,6 +1057,11 @@ USECASE_TWEETS = [
     {'category': 'Food', 'handle': 'BrendaO00357595', 'tweet_url': 'https://x.com/BrendaO00357595/status/2125589306714554443'},
     {'category': 'Setup', 'handle': 'stellarcbz', 'tweet_url': 'https://x.com/stellarcbz/status/2124343707956646080'},
     {'category': 'Work', 'handle': 'wellagore', 'tweet_url': 'https://x.com/wellagore/status/2125363238477193299'},
+    {'category': 'Travel', 'handle': 'jacklinlinn', 'tweet_url': 'https://x.com/jacklinlinn/status/2126238609049358765'},
+    {'category': 'Work', 'handle': 'nathoyina', 'tweet_url': 'https://x.com/nathoyina/status/2126203842186588362'},
+    {'category': 'Work', 'handle': 'hey_SpencerAI', 'tweet_url': 'https://x.com/hey_SpencerAI/status/2126245356631699776'},
+    {'category': 'Setup', 'handle': 'jkjkjk3821889', 'tweet_url': 'https://x.com/jkjkjk3821889/status/2126288435044569478'},
+    {'category': 'Work', 'handle': 'MeiXDragon', 'tweet_url': 'https://x.com/MeiXDragon/status/2126160981827129720'},
 ]
 
 
