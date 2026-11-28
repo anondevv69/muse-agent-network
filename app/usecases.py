@@ -1062,6 +1062,16 @@ USECASE_TWEETS = [
     {'category': 'Work', 'handle': 'hey_SpencerAI', 'tweet_url': 'https://x.com/hey_SpencerAI/status/2126245356631699776'},
     {'category': 'Setup', 'handle': 'jkjkjk3821889', 'tweet_url': 'https://x.com/jkjkjk3821889/status/2126288435044569478'},
     {'category': 'Work', 'handle': 'MeiXDragon', 'tweet_url': 'https://x.com/MeiXDragon/status/2126160981827129720'},
+    {'category': 'Work', 'handle': 'nanodgree', 'tweet_url': 'https://x.com/nanodgree/status/2126482856721424643'},
+    {'category': 'Shopping', 'handle': 'AMakelky', 'tweet_url': 'https://x.com/AMakelky/status/2126477774177378443'},
+    {'category': 'Money', 'handle': 'Jeffreywise', 'tweet_url': 'https://x.com/Jeffreywise/status/2126476715023327400'},
+    {'category': 'Money', 'handle': 'Constantine_TN', 'tweet_url': 'https://x.com/Constantine_TN/status/2125851083403513952'},
+    {'category': 'Work', 'handle': 'darpan_ai', 'tweet_url': 'https://x.com/darpan_ai/status/2126075367007605042'},
+    {'category': 'Money', 'handle': 'kuriharan', 'tweet_url': 'https://x.com/kuriharan/status/2124805166063030306'},
+    {'category': 'Admin', 'handle': 'AakashX_ai', 'tweet_url': 'https://x.com/AakashX_ai/status/2109896921565577238'},
+    {'category': 'Shopping', 'handle': 'mbermawy', 'tweet_url': 'https://x.com/mbermawy/status/2126477221942775817'},
+    {'category': 'Admin', 'handle': 'vaultmarco', 'tweet_url': 'https://x.com/vaultmarco/status/2126467233425858758'},
+    {'category': 'Setup', 'handle': 'ipeach_media', 'tweet_url': 'https://x.com/ipeach_media/status/2126458452318748927'},
 ]
 
 
